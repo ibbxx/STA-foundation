@@ -32,7 +32,7 @@ export default function Footer() {
             <ul className="space-y-4 text-sm">
               <li><Link to="/campaigns" className="hover:text-emerald-500 transition-colors">Semua Campaign</Link></li>
               <li><Link to="/tentang-kami" className="hover:text-emerald-500 transition-colors">Tentang Kami</Link></li>
-              <li><Link to="/laporan" className="hover:text-emerald-500 transition-colors">Laporan Transparansi</Link></li>
+              <li><Link to="/faq" className="hover:text-emerald-500 transition-colors">FAQ</Link></li>
               <li><Link to="/kontak" className="hover:text-emerald-500 transition-colors">Kontak</Link></li>
             </ul>
           </div>

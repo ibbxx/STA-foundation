@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import Home from './pages/Home';
@@ -8,7 +8,7 @@ import CampaignDetail from './pages/CampaignDetail';
 import Donate from './pages/Donate';
 import PaymentSuccess from './pages/PaymentSuccess';
 import About from './pages/About';
-import Reports from './pages/Reports';
+import LaporkanSekolah from './pages/LaporkanSekolah';
 import Contact from './pages/Contact';
 import AdminLayout from './components/AdminLayout';
 import AdminDashboard from './pages/AdminDashboard';
@@ -20,12 +20,18 @@ import AdminSettings from './pages/admin/AdminSettings';
 
 /**
  * Komponen pembungkus (wrapper) untuk halaman-halaman publik.
- * Menyediakan struktur standar dengan bilah navigasi (Navbar) di atas dan catatan kaki (Footer) di bawah.
+ * Pada halaman beranda, navbar menimpa hero (tidak ada spacer).
+ * Pada halaman lain, ditambahkan spacer agar konten tidak tertutup navbar fixed.
  */
 function PublicLayout({ children }: { children: React.ReactNode }) {
+  const location = useLocation();
+  const isTransparentNavPage = location.pathname === '/' || location.pathname === '/tentang-kami';
+
   return (
     <div className="flex flex-col min-h-screen">
       <Navbar />
+      {/* Spacer untuk halaman selain beranda (navbar fixed butuh ruang) */}
+      {!isTransparentNavPage && <div className="h-16 sm:h-20" />}
       <main className="flex-grow">
         {children}
       </main>
@@ -48,7 +54,7 @@ export default function App() {
         <Route path="/donate/:slug" element={<PublicLayout><Donate /></PublicLayout>} />
         <Route path="/payment/success" element={<PublicLayout><PaymentSuccess /></PublicLayout>} />
         <Route path="/tentang-kami" element={<PublicLayout><About /></PublicLayout>} />
-        <Route path="/laporan" element={<PublicLayout><Reports /></PublicLayout>} />
+        <Route path="/laporkan" element={<PublicLayout><LaporkanSekolah /></PublicLayout>} />
         <Route path="/kontak" element={<PublicLayout><Contact /></PublicLayout>} />
 
         {/* Rute-rute Panel Admin */}

@@ -9,11 +9,21 @@ export default function About() {
   return (
     <div className="bg-white">
       {/* Bagian Pahlawan (Hero Section) */}
-      <section className="py-24 bg-emerald-50/50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-6">
-          <h1 className="text-4xl md:text-6xl font-black text-gray-900">Tentang Sekolah Tanah Air</h1>
-          <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
-            Kami adalah jembatan kebaikan yang menghubungkan niat tulus donatur dengan mereka yang membutuhkan di seluruh pelosok Indonesia.
+      <section className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden bg-gray-900">
+        <div className="absolute inset-0 w-full h-full">
+          <img 
+            src="https://images.unsplash.com/photo-1488521787991-ed7bbaae773c?q=80&w=2000&auto=format&fit=crop" 
+            alt="Kebahagiaan Anak-Anak Indonesia"
+            className="w-full h-full object-cover opacity-80"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-gray-900 via-gray-900/60 to-transparent" />
+        </div>
+
+        <div className="relative z-10 max-w-7xl mx-auto px-5 sm:px-6 lg:px-8 text-center space-y-6">
+          <p className="text-xs sm:text-sm font-bold text-[#F5F1E8] tracking-[0.2em] uppercase">Kisah Kami</p>
+          <h1 className="text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-light text-white tracking-tight">Tentang Sekolah Tanah Air</h1>
+          <p className="text-lg md:text-xl text-[#F5F1E8]/90 font-light max-w-2xl mx-auto leading-relaxed">
+            Kami adalah jembatan kebaikan yang menghubungkan niat tulus donatur dengan mereka yang membutuhkan di seluruh pelosok Nusantara.
           </p>
         </div>
       </section>
@@ -55,10 +65,6 @@ export default function About() {
                 alt="Team"
                 className="rounded-[3rem] shadow-2xl"
               />
-              <div className="absolute -bottom-10 -left-10 bg-white p-8 rounded-3xl shadow-xl border border-gray-100 max-w-xs">
-                <p className="text-emerald-600 font-black text-4xl mb-2">100%</p>
-                <p className="text-sm text-gray-500 font-bold uppercase tracking-wider">Komitmen Transparansi</p>
-              </div>
             </div>
           </div>
         </div>
