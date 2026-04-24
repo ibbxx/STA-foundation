@@ -122,12 +122,21 @@
 }
 
 @layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
   body {
     @apply font-sans bg-brand-cream text-gray-900 antialiased;
+    min-width: 320px;
   }
   
   h1, h2, h3, h4, h5, h6 {
     @apply font-display text-gray-900;
+  }
+
+  img {
+    display: block;
   }
 }
 
@@ -138,6 +147,23 @@
   .no-scrollbar {
     -ms-overflow-style: none;
     scrollbar-width: none;
+  }
+
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .safe-pb {
+    padding-bottom: calc(env(safe-area-inset-bottom) + 1rem);
+  }
+
+  .safe-pt {
+    padding-top: env(safe-area-inset-top);
   }
 }
 
@@ -164,3 +190,196 @@
 .animate-marquee:hover {
   animation-play-state: paused;
 }
+
+/* ──────────────── Tiptap Rich Text Editor ──────────────── */
+.tiptap-editor {
+  color: #1f2937;
+  font-size: 0.9375rem;
+  line-height: 1.75;
+}
+
+.tiptap-editor:focus {
+  outline: none;
+}
+
+.tiptap-editor > * + * {
+  margin-top: 0.75em;
+}
+
+/* Placeholder when editor is empty */
+.tiptap-editor p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  color: #9ca3af;
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+
+/* Headings */
+.tiptap-editor h1 {
+  font-size: 1.75rem;
+  font-weight: 800;
+  line-height: 1.2;
+  color: #111827;
+  margin-top: 1.5em;
+  margin-bottom: 0.5em;
+}
+
+.tiptap-editor h2 {
+  font-size: 1.375rem;
+  font-weight: 700;
+  line-height: 1.3;
+  color: #111827;
+  margin-top: 1.25em;
+  margin-bottom: 0.5em;
+}
+
+.tiptap-editor h3 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  line-height: 1.4;
+  color: #111827;
+  margin-top: 1em;
+  margin-bottom: 0.4em;
+}
+
+/* Inline formatting */
+.tiptap-editor strong {
+  font-weight: 700;
+  color: #111827;
+}
+
+.tiptap-editor em {
+  font-style: italic;
+}
+
+.tiptap-editor u {
+  text-decoration: underline;
+}
+
+.tiptap-editor s {
+  text-decoration: line-through;
+}
+
+/* Links */
+.tiptap-editor a {
+  color: #059669;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* Lists */
+.tiptap-editor ul {
+  list-style-type: disc;
+  padding-left: 1.5em;
+}
+
+.tiptap-editor ol {
+  list-style-type: decimal;
+  padding-left: 1.5em;
+}
+
+.tiptap-editor li {
+  margin-top: 0.25em;
+  margin-bottom: 0.25em;
+}
+
+.tiptap-editor li > p {
+  margin: 0;
+}
+
+/* Blockquote — !important needed to override Tailwind v4 preflight reset */
+.tiptap-editor blockquote {
+  border-left: 4px solid #10b981 !important;
+  padding-left: 1.25em !important;
+  padding-top: 0.5em !important;
+  padding-bottom: 0.5em !important;
+  color: #6b7280 !important;
+  font-style: italic !important;
+  margin: 1em 0 !important;
+  background-color: #f9fafb;
+  border-radius: 0 0.375rem 0.375rem 0;
+}
+
+/* Horizontal Rule */
+.tiptap-editor hr {
+  border: none !important;
+  border-top: 1px solid #e5e7eb !important;
+  margin: 1.5em 0 !important;
+}
+
+/* Code */
+.tiptap-editor code {
+  background-color: #f3f4f6;
+  border-radius: 0.25rem;
+  padding: 0.15em 0.35em;
+  font-size: 0.875em;
+  font-family: ui-monospace, monospace;
+}
+
+.tiptap-editor pre {
+  background-color: #1f2937;
+  color: #e5e7eb;
+  border-radius: 0.5rem;
+  padding: 1em;
+  overflow-x: auto;
+}
+
+.tiptap-editor pre code {
+  background: none;
+  color: inherit;
+  padding: 0;
+  font-size: 0.875rem;
+}
+
+/* Images */
+.tiptap-editor img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.5rem;
+  margin: 1em 0;
+  cursor: pointer;
+  transition: box-shadow 0.2s;
+}
+
+.tiptap-editor img:hover {
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.3);
+}
+
+.tiptap-editor img.ProseMirror-selectednode {
+  box-shadow: 0 0 0 3px #10b981;
+  outline: none;
+}
+
+/* Image resize handles (Tiptap v3 native) */
+.tiptap-editor .image-resizer {
+  display: inline-flex;
+  position: relative;
+}
+
+.tiptap-editor .resize-handle {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background: #10b981;
+  border: 2px solid white;
+  border-radius: 2px;
+  cursor: nwse-resize;
+}
+
+/* ──────────────── Prose utility (public pages) ──────────────── */
+.prose h1 { font-size: 1.75rem; font-weight: 800; line-height: 1.2; color: #111827; margin-top: 1.5em; margin-bottom: 0.5em; }
+.prose h2 { font-size: 1.375rem; font-weight: 700; line-height: 1.3; color: #111827; margin-top: 1.25em; margin-bottom: 0.5em; }
+.prose h3 { font-size: 1.125rem; font-weight: 600; line-height: 1.4; color: #111827; margin-top: 1em; margin-bottom: 0.4em; }
+.prose strong { font-weight: 700; color: #111827; }
+.prose em { font-style: italic; }
+.prose a { color: #059669; text-decoration: underline; }
+.prose ul { list-style-type: disc; padding-left: 1.5em; }
+.prose ol { list-style-type: decimal; padding-left: 1.5em; }
+.prose li { margin-top: 0.25em; margin-bottom: 0.25em; }
+.prose li > p { margin: 0; }
+.prose blockquote { border-left: 4px solid #10b981 !important; padding-left: 1.25em !important; padding-top: 0.5em !important; padding-bottom: 0.5em !important; color: #6b7280 !important; font-style: italic !important; margin: 1em 0 !important; background-color: #f9fafb; border-radius: 0 0.375rem 0.375rem 0; }
+.prose hr { border: none; border-top: 1px solid #e5e7eb; margin: 1.5em 0; }
+.prose img { max-width: 100%; height: auto; border-radius: 0.5rem; margin: 1em 0; }
+.prose code { background-color: #f3f4f6; border-radius: 0.25rem; padding: 0.15em 0.35em; font-size: 0.875em; }
+.prose > * + * { margin-top: 0.75em; }

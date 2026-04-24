@@ -1,22 +1,45 @@
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
-import Navbar from './components/Navbar';
-import Footer from './components/Footer';
-import Home from './pages/Home';
-import Campaigns from './pages/Campaigns';
-import CampaignDetail from './pages/CampaignDetail';
-import Donate from './pages/Donate';
-import PaymentSuccess from './pages/PaymentSuccess';
-import About from './pages/About';
-import LaporkanSekolah from './pages/LaporkanSekolah';
-import Contact from './pages/Contact';
-import AdminLayout from './components/AdminLayout';
-import AdminDashboard from './pages/AdminDashboard';
-import AdminCampaigns from './pages/admin/AdminCampaigns';
-import AdminDonors from './pages/admin/AdminDonors';
-import AdminTransactions from './pages/admin/AdminTransactions';
-import AdminContent from './pages/admin/AdminContent';
-import AdminSettings from './pages/admin/AdminSettings';
+import Navbar from './components/layout/Navbar';
+import GuestRoute from './components/shared/GuestRoute';
+import Footer from './components/layout/Footer';
+import ProtectedRoute from './components/shared/ProtectedRoute';
+
+/* ── Public Pages ── */
+const Home = lazy(() => import('./pages/public/Home'));
+const Campaigns = lazy(() => import('./pages/public/Campaigns'));
+const CampaignDetail = lazy(() => import('./pages/public/CampaignDetail'));
+const ProgramDetail = lazy(() => import('./pages/public/ProgramDetail'));
+const Donate = lazy(() => import('./pages/public/Donate'));
+const PaymentSuccess = lazy(() => import('./pages/public/PaymentSuccess'));
+const About = lazy(() => import('./pages/public/About'));
+const Faq = lazy(() => import('./pages/public/Faq'));
+const Reports = lazy(() => import('./pages/public/Reports'));
+const LaporkanSekolah = lazy(() => import('./pages/public/LaporkanSekolah'));
+const Contact = lazy(() => import('./pages/public/Contact'));
+
+/* ── Admin Pages ── */
+const AdminLogin = lazy(() => import('./pages/admin/AdminLogin'));
+const AdminLayout = lazy(() => import('./components/layout/AdminLayout'));
+const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'));
+const AdminCampaigns = lazy(() => import('./pages/admin/AdminCampaigns'));
+const AdminDonors = lazy(() => import('./pages/admin/AdminDonors'));
+const AdminTransactions = lazy(() => import('./pages/admin/AdminTransactions'));
+const AdminSchoolReports = lazy(() => import('./pages/admin/AdminSchoolReports'));
+const AdminContent = lazy(() => import('./pages/admin/AdminContent'));
+const AdminSettings = lazy(() => import('./pages/admin/AdminSettings'));
+
+function RouteLoader() {
+  return (
+    <div className="flex min-h-[50vh] items-center justify-center px-4 py-16 text-center text-sm text-gray-500">
+      Memuat halaman...
+    </div>
+  );
+}
+
+function renderWithSuspense(children: React.ReactNode) {
+  return <Suspense fallback={<RouteLoader />}>{children}</Suspense>;
+}
 
 /**
  * Komponen pembungkus (wrapper) untuk halaman-halaman publik.
@@ -48,27 +71,39 @@ export default function App() {
     <Router>
       <Routes>
         {/* Rute-rute Publik */}
-        <Route path="/" element={<PublicLayout><Home /></PublicLayout>} />
-        <Route path="/campaigns" element={<PublicLayout><Campaigns /></PublicLayout>} />
-        <Route path="/campaigns/:slug" element={<PublicLayout><CampaignDetail /></PublicLayout>} />
-        <Route path="/donate/:slug" element={<PublicLayout><Donate /></PublicLayout>} />
-        <Route path="/payment/success" element={<PublicLayout><PaymentSuccess /></PublicLayout>} />
-        <Route path="/tentang-kami" element={<PublicLayout><About /></PublicLayout>} />
-        <Route path="/laporkan" element={<PublicLayout><LaporkanSekolah /></PublicLayout>} />
-        <Route path="/kontak" element={<PublicLayout><Contact /></PublicLayout>} />
+        <Route path="/" element={renderWithSuspense(<PublicLayout><Home /></PublicLayout>)} />
+        <Route path="/campaigns" element={renderWithSuspense(<PublicLayout><Campaigns /></PublicLayout>)} />
+        <Route path="/campaigns/:slug" element={renderWithSuspense(<PublicLayout><CampaignDetail /></PublicLayout>)} />
+        <Route path="/programs/:slug" element={renderWithSuspense(<PublicLayout><ProgramDetail /></PublicLayout>)} />
+        <Route path="/donate/:slug" element={renderWithSuspense(<PublicLayout><Donate /></PublicLayout>)} />
+        <Route path="/payment/success" element={renderWithSuspense(<PublicLayout><PaymentSuccess /></PublicLayout>)} />
+        <Route path="/tentang-kami" element={renderWithSuspense(<PublicLayout><About /></PublicLayout>)} />
+        <Route path="/faq" element={renderWithSuspense(<PublicLayout><Faq /></PublicLayout>)} />
+        <Route path="/laporan" element={renderWithSuspense(<PublicLayout><Reports /></PublicLayout>)} />
+        <Route path="/laporkan" element={renderWithSuspense(<PublicLayout><LaporkanSekolah /></PublicLayout>)} />
+        <Route path="/kontak" element={renderWithSuspense(<PublicLayout><Contact /></PublicLayout>)} />
+        <Route path="/admin/login" element={renderWithSuspense(<GuestRoute><AdminLogin /></GuestRoute>)} />
 
         {/* Rute-rute Panel Admin */}
-        <Route path="/admin" element={<AdminLayout />}>
-          <Route index element={<AdminDashboard />} />
-          <Route path="campaigns" element={<AdminCampaigns />} />
-          <Route path="donors" element={<AdminDonors />} />
-          <Route path="transactions" element={<AdminTransactions />} />
-          <Route path="content" element={<AdminContent />} />
-          <Route path="settings" element={<AdminSettings />} />
+        <Route path="/admin" element={renderWithSuspense(<ProtectedRoute><AdminLayout /></ProtectedRoute>)}>
+          <Route index element={renderWithSuspense(<AdminDashboard />)} />
+          <Route path="campaigns" element={renderWithSuspense(<AdminCampaigns />)} />
+          <Route path="donors" element={renderWithSuspense(<AdminDonors />)} />
+          <Route path="transactions" element={renderWithSuspense(<AdminTransactions />)} />
+          <Route path="school-reports" element={renderWithSuspense(<AdminSchoolReports />)} />
+          <Route path="content" element={renderWithSuspense(<AdminContent />)} />
+          <Route path="settings" element={renderWithSuspense(<AdminSettings />)} />
         </Route>
 
         {/* Rute Penanganan 404/Fallback */}
-        <Route path="*" element={<PublicLayout><div className="py-32 text-center">Halaman tidak ditemukan.</div></PublicLayout>} />
+        <Route
+          path="*"
+          element={renderWithSuspense(
+            <PublicLayout>
+              <div className="py-24 text-center sm:py-32">Halaman tidak ditemukan.</div>
+            </PublicLayout>,
+          )}
+        />
       </Routes>
     </Router>
   );

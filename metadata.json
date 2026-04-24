@@ -1,9 +1,0 @@
-{
-  "name": "Sekolah Tanah Air",
-  "description": "Platform penggalangan dana modern dan transparan untuk organisasi sosial di Indonesia.",
-  "requestFramePermissions": [
-    "camera",
-    "microphone",
-    "geolocation"
-  ]
-}

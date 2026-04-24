@@ -25,5 +25,9 @@ export function formatCurrency(amount: number) {
  * Nilai kembalian dibatasi maksimum 100 persen.
  */
 export function calculateProgress(current: number, target: number) {
+  if (!Number.isFinite(target) || target <= 0) {
+    return 0;
+  }
+
   return Math.min(Math.round((current / target) * 100), 100);
 }

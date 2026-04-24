@@ -1,309 +1,421 @@
-import { LayoutTemplate, MessageSquare, Briefcase, Plus, Search, Edit2, Trash2, X, Image as ImageIcon } from 'lucide-react';
-import { useState } from 'react';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { AlertCircle, CheckCircle2, Edit2, Layers3, Plus, RefreshCw, Save, Search, Sparkles, Trash2 } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { useForm } from 'react-hook-form';
+import AdminModal from '../../components/admin/AdminModal';
+import { AdminProgramValues, adminProgramSchema, programIconOptions } from '../../lib/admin-schemas';
+import { formatAdminDate } from '../../lib/admin-helpers';
+import { ProgramInsert, ProgramRow, supabase } from '../../lib/supabase';
+import { cn } from '../../lib/utils';
 
-const TABS = [
-    { id: 'categories', label: 'Kategori Kampanye', icon: LayoutTemplate },
-    { id: 'updates', label: 'Pembaruan Berita', icon: MessageSquare },
-    { id: 'partners', label: 'Mitra & Sponsor', icon: Briefcase },
-];
+const defaultValues: AdminProgramValues = {
+  slug: '',
+  title: '',
+  description: '',
+  icon_name: '',
+  content: '',
+};
 
-const INITIAL_CATEGORIES = [
-    { id: 1, name: 'Pendidikan', slug: 'pendidikan', count: 12 },
-    { id: 2, name: 'Kesehatan & Medis', slug: 'kesehatan', count: 8 },
-    { id: 3, name: 'Bencana Alam', slug: 'bencana-alam', count: 3 },
-    { id: 4, name: 'Rumah Ibadah', slug: 'rumah-ibadah', count: 5 },
-    { id: 5, name: 'Pemberdayaan Ekonomi', slug: 'ekonomi', count: 4 },
-];
+function toProgramPayload(values: AdminProgramValues): ProgramInsert {
+  return {
+    slug: values.slug.trim(),
+    title: values.title.trim(),
+    description: values.description.trim(),
+    icon_name: values.icon_name.trim(),
+    content: values.content?.trim() ? values.content.trim() : null,
+  };
+}
 
-const INITIAL_UPDATES = [
-    { id: 1, title: 'Distribusi Sembako Koloter Pertama Selesai', campaign: 'Sembako untuk Lansia Dhuafa', date: '20 Mar 2026', views: 450 },
-    { id: 2, title: 'Peletakan Batu Pertama Dimulai', campaign: 'Pembangunan Sumur Air Bersih', date: '18 Mar 2026', views: 620 },
-    { id: 3, title: 'Kisah Inspiratif: Beasiswa Anak Lombok', campaign: 'Beasiswa Anak Pesisir Lombok', date: '15 Mar 2026', views: 1200 },
-];
-
-const INITIAL_PARTNERS = [
-    { id: 1, name: 'Bank Syariah Indonesia (BSI)', type: 'Sponsor Utama', joined: '12 Jan 2025' },
-    { id: 2, name: 'Gojek GoPay', type: 'Mitra Pembayaran', joined: '05 Feb 2025' },
-    { id: 3, name: 'Unicef Indonesia', type: 'Mitra Strategis', joined: '20 Mar 2025' },
-];
-
-/**
- * Komponen Prototipe UI Admin - Manajemen Konten Web (Diperjelas)
- * Fitur tab berita/update dan interaksi tombol lokal menggunakan state React.
- */
 export default function AdminContent() {
-    const [activeTab, setActiveTab] = useState('categories');
-    const [isModalOpen, setIsModalOpen] = useState(false);
-    const [modalType, setModalType] = useState<'create' | 'edit'>('create');
+  const [programs, setPrograms] = useState<ProgramRow[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [mode, setMode] = useState<'create' | 'edit' | null>(null);
+  const [editingProgram, setEditingProgram] = useState<ProgramRow | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
-    // Data State agar tombol hapus dsb berfungsi sementara (prototype)
-    const [categories, setCategories] = useState(INITIAL_CATEGORIES);
-    const [updates, setUpdates] = useState(INITIAL_UPDATES);
-    const [partners, setPartners] = useState(INITIAL_PARTNERS);
+  const {
+    register,
+    handleSubmit,
+    reset,
+    setValue,
+    watch,
+    formState: { errors, isSubmitting },
+  } = useForm<AdminProgramValues>({
+    resolver: zodResolver(adminProgramSchema),
+    defaultValues,
+  });
 
-    const [searchQuery, setSearchQuery] = useState('');
+  async function loadPrograms() {
+    setLoading(true);
+    setError(null);
 
-    // Fungsi Simulasi Hapus
-    const handleDelete = (id: number) => {
-        if (!window.confirm("Apakah Anda yakin ingin menghapus data ini?")) return;
+    const { data, error: fetchError } = await supabase
+      .from('programs')
+      .select('*')
+      .order('updated_at', { ascending: false });
 
-        if (activeTab === 'categories') {
-            setCategories(categories.filter(c => c.id !== id));
-        } else if (activeTab === 'updates') {
-            setUpdates(updates.filter(u => u.id !== id));
-        } else if (activeTab === 'partners') {
-            setPartners(partners.filter(p => p.id !== id));
-        }
-    };
+    if (fetchError) {
+      setError(fetchError.message);
+      setPrograms([]);
+      setLoading(false);
+      return;
+    }
 
-    // Fungsi Simulasi Buka Modal
-    const openModal = (type: 'create' | 'edit') => {
-        setModalType(type);
-        setIsModalOpen(true);
-    };
+    setPrograms(data ?? []);
+    setLoading(false);
+  }
 
-    return (
-        <div className="space-y-8">
-            {/* Header Aksi */}
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <div>
-                    <h1 className="text-2xl font-black text-gray-900">Manajemen Konten</h1>
-                    <p className="text-gray-500 text-sm font-medium">Kelola kategori kampanye, jurnal/berita pembaruan, dan informasi mitra.</p>
-                </div>
-                <button
-                    onClick={() => openModal('create')}
-                    className="bg-emerald-600 text-white px-5 py-3 rounded-xl text-sm font-bold hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-200 flex items-center"
-                >
-                    <Plus size={18} className="mr-2" />
-                    Tambah Baru
-                </button>
-            </div>
+  useEffect(() => {
+    loadPrograms();
+  }, []);
 
-            {/* Tab Navigasi Konten */}
-            <div className="bg-white p-2 rounded-2xl border border-gray-100 shadow-sm inline-flex flex-wrap gap-2">
-                {TABS.map(tab => (
-                    <button
-                        key={tab.id}
-                        onClick={() => setActiveTab(tab.id)}
-                        className={`flex items-center space-x-2 px-6 py-3 rounded-xl text-sm font-bold transition-all ${activeTab === tab.id
-                                ? 'bg-emerald-50 text-emerald-600 shadow-sm'
-                                : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
-                            }`}
-                    >
-                        <tab.icon size={18} />
-                        <span>{tab.label}</span>
-                    </button>
-                ))}
-            </div>
+  useEffect(() => {
+    if (mode === 'edit' && editingProgram) {
+      reset({
+        slug: editingProgram.slug,
+        title: editingProgram.title,
+        description: editingProgram.description,
+        icon_name: editingProgram.icon_name,
+        content: editingProgram.content ?? '',
+      });
+      return;
+    }
 
-            {/* Area Tampilan Konten Dinamis Berdasarkan Tab */}
-            <div className="bg-white rounded-[2rem] border border-gray-100 shadow-sm overflow-hidden min-h-[400px]">
-                <div className="p-6 border-b border-gray-50 flex items-center justify-between">
-                    <h2 className="text-lg font-black text-gray-900">
-                        {activeTab === 'categories' ? 'Daftar Kategori' :
-                            activeTab === 'updates' ? 'Berita & Pembaruan Kampanye' :
-                                'Daftar Mitra & Sponsor'}
-                    </h2>
-                    <div className="relative w-64">
-                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-                        <input
-                            type="text"
-                            placeholder="Cari data..."
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-100 rounded-xl text-xs font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all text-gray-700"
-                        />
-                    </div>
-                </div>
+    reset(defaultValues);
+  }, [editingProgram, mode, reset]);
 
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left">
-                        <thead>
-                            <tr className="bg-gray-50/50 text-gray-400 text-[10px] font-black uppercase tracking-widest">
-                                {activeTab === 'categories' && (
-                                    <>
-                                        <th className="px-8 py-4">Nama Kategori</th>
-                                        <th className="px-8 py-4">Slug URL</th>
-                                        <th className="px-8 py-4 text-center">Total Campaign</th>
-                                    </>
-                                )}
-                                {activeTab === 'updates' && (
-                                    <>
-                                        <th className="px-8 py-4">Judul Berita</th>
-                                        <th className="px-8 py-4">Terkait Campaign</th>
-                                        <th className="px-8 py-4 text-center">Tanggal & View</th>
-                                    </>
-                                )}
-                                {activeTab === 'partners' && (
-                                    <>
-                                        <th className="px-8 py-4">Nama Mitra</th>
-                                        <th className="px-8 py-4">Kategori Mitra</th>
-                                        <th className="px-8 py-4 text-center">Bergabung Sejak</th>
-                                    </>
-                                )}
-                                <th className="px-8 py-4 text-right">Aksi</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-50">
+  const filteredPrograms = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) return programs;
 
-                            {/* Tampilan Tab Kategori */}
-                            {activeTab === 'categories' && categories.map((cat) => (
-                                <tr key={cat.id} className="hover:bg-emerald-50/30 transition-colors group">
-                                    <td className="px-8 py-4 text-sm font-bold text-gray-900">{cat.name}</td>
-                                    <td className="px-8 py-4 text-sm font-mono text-gray-500">/{cat.slug}</td>
-                                    <td className="px-8 py-4 text-center">
-                                        <span className="inline-block px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-xs font-bold">
-                                            {cat.count}
-                                        </span>
-                                    </td>
-                                    <td className="px-8 py-4 text-right">
-                                        <div className="flex items-center justify-end space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <button onClick={() => openModal('edit')} className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all" title="Edit">
-                                                <Edit2 size={16} />
-                                            </button>
-                                            <button onClick={() => handleDelete(cat.id)} className="p-2 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all" title="Hapus">
-                                                <Trash2 size={16} />
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))}
-
-                            {/* Tampilan Tab Berita/Pembaruan */}
-                            {activeTab === 'updates' && updates.map((update) => (
-                                <tr key={update.id} className="hover:bg-emerald-50/30 transition-colors group">
-                                    <td className="px-8 py-5">
-                                        <p className="text-sm font-bold text-gray-900 leading-tight pr-4">{update.title}</p>
-                                    </td>
-                                    <td className="px-8 py-5">
-                                        <span className="inline-block px-3 py-1 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 truncate max-w-[200px]">
-                                            {update.campaign}
-                                        </span>
-                                    </td>
-                                    <td className="px-8 py-5 text-center">
-                                        <p className="text-xs font-bold text-gray-900">{update.date}</p>
-                                        <p className="text-[10px] font-medium text-gray-400 mt-1">{update.views} Dilihat</p>
-                                    </td>
-                                    <td className="px-8 py-5 text-right">
-                                        <div className="flex items-center justify-end space-x-2 border-l border-gray-100 pl-4 opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <button onClick={() => openModal('edit')} className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all" title="Edit Berita">
-                                                <Edit2 size={16} />
-                                            </button>
-                                            <button onClick={() => handleDelete(update.id)} className="p-2 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all" title="Hapus Berita">
-                                                <Trash2 size={16} />
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))}
-
-                            {/* Tampilan Tab Mitra */}
-                            {activeTab === 'partners' && partners.map((partner) => (
-                                <tr key={partner.id} className="hover:bg-emerald-50/30 transition-colors group">
-                                    <td className="px-8 py-4">
-                                        <div className="flex items-center space-x-3">
-                                            <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center shrink-0">
-                                                <ImageIcon size={14} className="text-gray-400" />
-                                            </div>
-                                            <span className="text-sm font-bold text-gray-900">{partner.name}</span>
-                                        </div>
-                                    </td>
-                                    <td className="px-8 py-4 text-sm font-medium text-gray-600">
-                                        {partner.type}
-                                    </td>
-                                    <td className="px-8 py-4 text-center text-xs font-medium text-gray-500">
-                                        {partner.joined}
-                                    </td>
-                                    <td className="px-8 py-4 text-right">
-                                        <div className="flex items-center justify-end space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <button onClick={() => openModal('edit')} className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all" title="Edit">
-                                                <Edit2 size={16} />
-                                            </button>
-                                            <button onClick={() => handleDelete(partner.id)} className="p-2 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all" title="Hapus">
-                                                <Trash2 size={16} />
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))}
-
-                        </tbody>
-                    </table>
-
-                    {/* Tampilan Kosong Jika Pencarian Mengosongkan Daftar */}
-                    {((activeTab === 'categories' && categories.length === 0) ||
-                        (activeTab === 'updates' && updates.length === 0) ||
-                        (activeTab === 'partners' && partners.length === 0)) && (
-                            <div className="py-16 text-center text-gray-500 text-sm font-medium">
-                                Data tidak ditemukan. Silakan tambah data baru.
-                            </div>
-                        )}
-                </div>
-            </div>
-
-            {/* Simulasi Modal Tambah/Edit */}
-            {isModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-                    <div className="bg-white rounded-[2rem] w-full max-w-lg shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-                        <div className="p-6 border-b border-gray-50 flex items-center justify-between">
-                            <h3 className="text-xl font-black text-gray-900">
-                                {modalType === 'create' ? 'Tambah' : 'Sunting'} {' '}
-                                {activeTab === 'categories' ? 'Kategori' : activeTab === 'updates' ? 'Berita/Update' : 'Mitra'}
-                            </h3>
-                            <button
-                                onClick={() => setIsModalOpen(false)}
-                                className="p-2 text-gray-400 hover:text-gray-900 hover:bg-gray-50 rounded-xl transition-all"
-                            >
-                                <X size={20} />
-                            </button>
-                        </div>
-
-                        <div className="p-6 space-y-4">
-                            <div className="space-y-2">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">
-                                    Judul/Nama {activeTab === 'updates' ? 'Berita' : 'Data'}
-                                </label>
-                                <input
-                                    type="text"
-                                    placeholder="Masukkan judul di sini..."
-                                    className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl font-medium text-gray-900 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 text-sm"
-                                />
-                            </div>
-
-                            {activeTab === 'updates' && (
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">
-                                        Konten Berita
-                                    </label>
-                                    <textarea
-                                        rows={4}
-                                        placeholder="Tulis ringkasan laporan operasional kampanye di sini..."
-                                        className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl font-medium text-gray-900 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 text-sm"
-                                    />
-                                </div>
-                            )}
-                        </div>
-
-                        <div className="p-6 bg-gray-50 border-t border-gray-100 flex items-center justify-end space-x-3">
-                            <button
-                                onClick={() => setIsModalOpen(false)}
-                                className="px-5 py-2.5 rounded-xl text-sm font-bold text-gray-500 hover:bg-gray-200 transition-all"
-                            >
-                                Batal
-                            </button>
-                            <button
-                                onClick={() => {
-                                    alert('Data berhasil disimpan! (Ini adalah purwarupa)');
-                                    setIsModalOpen(false);
-                                }}
-                                className="px-5 py-2.5 rounded-xl text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 shadow-lg shadow-emerald-200 transition-all"
-                            >
-                                Simpan Perubahan
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-        </div>
+    return programs.filter((program) =>
+      [program.title, program.slug, program.icon_name]
+        .join(' ')
+        .toLowerCase()
+        .includes(query),
     );
+  }, [programs, searchQuery]);
+
+  const summary = useMemo(() => {
+    const lastUpdated = programs[0]?.updated_at ?? null;
+
+    return {
+      total: programs.length,
+      withContent: programs.filter((program) => Boolean(program.content?.trim())).length,
+      lastUpdated: lastUpdated ? formatAdminDate(lastUpdated, true) : '-',
+    };
+  }, [programs]);
+
+  function closeModal(force = false) {
+    if (isSubmitting && !force) return;
+    setMode(null);
+    setEditingProgram(null);
+    reset(defaultValues);
+  }
+
+  function openCreateModal() {
+    setNotice(null);
+    setEditingProgram(null);
+    setMode('create');
+  }
+
+  function openEditModal(program: ProgramRow) {
+    setNotice(null);
+    setEditingProgram(program);
+    setMode('edit');
+  }
+
+  async function onSubmit(values: AdminProgramValues) {
+    setNotice(null);
+    setError(null);
+
+    const payload = toProgramPayload(values);
+    const query = mode === 'edit' && editingProgram
+      ? supabase.from('programs').update(payload as never).eq('id', editingProgram.id)
+      : supabase.from('programs').insert(payload as never);
+
+    const { error: submitError } = await query;
+
+    if (submitError) {
+      setError(submitError.message);
+      return;
+    }
+
+    closeModal(true);
+    setNotice(mode === 'edit' ? 'Program berhasil diperbarui.' : 'Program baru berhasil ditambahkan.');
+    await loadPrograms();
+  }
+
+  async function handleDelete(program: ProgramRow) {
+    setNotice(null);
+    setError(null);
+    const confirmed = window.confirm(`Hapus program "${program.title}"?`);
+    if (!confirmed) return;
+
+    setDeletingId(program.id);
+    const { error: deleteError } = await supabase.from('programs').delete().eq('id', program.id);
+
+    if (deleteError) {
+      setError(deleteError.message);
+      setDeletingId(null);
+      return;
+    }
+
+    setDeletingId(null);
+    setNotice(`Program "${program.title}" berhasil dihapus.`);
+    await loadPrograms();
+  }
+
+  const selectedIcon = watch('icon_name');
+  const modalTitle = mode === 'edit' ? 'Edit Program' : 'Tambah Program';
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">Program STA</h1>
+          <p className="text-sm text-slate-500 mt-1">Kelola konten dan deskripsi dari program Sekolah Tanah Air.</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => loadPrograms()}
+            className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-xl text-sm font-medium hover:bg-slate-50 transition-colors"
+          >
+            <RefreshCw size={16} />
+            Refresh
+          </button>
+          <button
+            onClick={openCreateModal}
+            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-xl text-sm font-medium shadow-sm hover:bg-emerald-700 transition-colors"
+          >
+            <Plus size={16} />
+            Tambah Program
+          </button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="p-5 rounded-2xl border border-slate-200 bg-white shadow-sm flex items-start gap-4">
+          <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl">
+            <Layers3 size={24} />
+          </div>
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Total Program</p>
+            <p className="mt-1 text-2xl font-bold text-slate-900">{summary.total}</p>
+          </div>
+        </div>
+
+        <div className="p-5 rounded-2xl border border-slate-200 bg-white shadow-sm flex items-start gap-4">
+          <div className="p-3 bg-sky-50 text-sky-600 rounded-xl">
+            <Sparkles size={24} />
+          </div>
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Program dengan Detail Konten</p>
+            <p className="mt-1 text-2xl font-bold text-slate-900">{summary.withContent}</p>
+          </div>
+        </div>
+
+        <div className="p-5 rounded-2xl border border-slate-200 bg-white shadow-sm flex flex-col justify-center">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Update Terakhir</p>
+          <p className="mt-1 text-xl font-bold text-slate-900">{summary.lastUpdated}</p>
+        </div>
+      </div>
+
+      {notice && (
+        <div className="flex items-start gap-3 p-4 rounded-xl border border-emerald-200 bg-emerald-50 text-sm text-emerald-700">
+          <CheckCircle2 size={18} className="shrink-0 mt-0.5" />
+          <div>
+            <p className="font-semibold">Berhasil</p>
+            <p className="mt-1">{notice}</p>
+          </div>
+        </div>
+      )}
+
+      {error && (
+        <div className="flex items-start gap-3 p-4 rounded-xl border border-rose-200 bg-rose-50 text-sm text-rose-700">
+          <AlertCircle size={18} className="shrink-0 mt-0.5" />
+          <div>
+            <p className="font-semibold">Terjadi Kesalahan</p>
+            <p className="mt-1">{error}</p>
+          </div>
+        </div>
+      )}
+
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center gap-4">
+          <div className="relative w-full max-w-sm">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+            <input
+              type="text"
+              placeholder="Cari program..."
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-xl text-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition-all placeholder:text-slate-400"
+            />
+          </div>
+          <div className="flex flex-wrap gap-2 hidden lg:flex">
+            {programIconOptions.slice(0, 5).map((iconName) => (
+              <span key={iconName} className="px-2.5 py-1 text-[10px] font-mono font-medium text-slate-500 bg-slate-100 rounded-md">
+                {iconName}
+              </span>
+            ))}
+          </div>
+        </div>
+
+        {loading ? (
+          <div className="px-6 py-12 text-center text-sm text-slate-500">Memuat data program...</div>
+        ) : filteredPrograms.length === 0 ? (
+          <div className="px-6 py-12 text-center text-sm text-slate-500">Belum ada program yang ditemukan.</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-slate-50/50 border-b border-slate-100 text-xs font-semibold tracking-wider text-slate-500 uppercase">
+                  <th className="px-6 py-4">Program</th>
+                  <th className="px-6 py-4">Slug</th>
+                  <th className="px-6 py-4">Icon</th>
+                  <th className="px-6 py-4">Diperbarui</th>
+                  <th className="px-6 py-4 text-right">Aksi</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {filteredPrograms.map((program) => (
+                  <tr key={program.id} className="group hover:bg-slate-50/50 transition-colors">
+                    <td className="px-6 py-4">
+                      <p className="text-sm font-semibold text-slate-900">{program.title}</p>
+                      <p className="mt-1 text-xs text-slate-500 max-w-sm truncate">{program.description}</p>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="px-2.5 py-1 text-xs font-mono text-slate-600 bg-slate-100 rounded-md">{program.slug}</span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="px-2.5 py-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 rounded-md uppercase tracking-wider">{program.icon_name}</span>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-slate-500">{formatAdminDate(program.updated_at, true)}</td>
+                    <td className="px-6 py-4 text-right">
+                      <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                          type="button"
+                          onClick={() => openEditModal(program)}
+                          className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+                          title="Edit"
+                        >
+                          <Edit2 size={16} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDelete(program)}
+                          disabled={deletingId === program.id}
+                          className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors disabled:opacity-50"
+                          title="Hapus"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      <AdminModal
+        open={mode !== null}
+        onClose={closeModal}
+        title={modalTitle}
+        description="Kelola narasi dan detail program di sini."
+        widthClassName="max-w-2xl"
+        footer={(
+          <>
+            <button
+              type="button"
+              onClick={() => closeModal()}
+              className="px-4 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors"
+            >
+              Batal
+            </button>
+            <button
+              type="submit"
+              form="program-form"
+              disabled={isSubmitting}
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-emerald-600 rounded-xl hover:bg-emerald-700 transition-colors disabled:opacity-50"
+            >
+              {isSubmitting ? 'Menyimpan...' : 'Simpan'}
+            </button>
+          </>
+        )}
+      >
+        <form id="program-form" onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-2">
+            <label className="block space-y-1.5">
+              <span className="text-sm font-medium text-slate-700">Judul Program</span>
+              <input
+                type="text"
+                {...register('title')}
+                className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition-all placeholder:text-slate-400"
+              />
+              {errors.title && <p className="text-xs text-rose-500">{errors.title.message}</p>}
+            </label>
+
+            <label className="block space-y-1.5">
+              <span className="text-sm font-medium text-slate-700">Slug</span>
+              <input
+                type="text"
+                {...register('slug')}
+                className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition-all placeholder:text-slate-400"
+              />
+              {errors.slug && <p className="text-xs text-rose-500">{errors.slug.message}</p>}
+            </label>
+          </div>
+
+          <label className="block space-y-1.5">
+            <span className="text-sm font-medium text-slate-700">Deskripsi Singkat</span>
+            <textarea
+              rows={3}
+              {...register('description')}
+              className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition-all placeholder:text-slate-400"
+            />
+            {errors.description && <p className="text-xs text-rose-500">{errors.description.message}</p>}
+          </label>
+
+          <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
+            <p className="text-sm font-medium text-slate-700">Pilih Ikon</p>
+            <div className="flex flex-wrap gap-2">
+              {programIconOptions.map((iconName) => (
+                <button
+                  key={iconName}
+                  type="button"
+                  onClick={() => setValue('icon_name', iconName, { shouldDirty: true, shouldValidate: true })}
+                  className={cn(
+                    'px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider rounded-lg transition-colors border',
+                    selectedIcon === iconName
+                      ? 'bg-emerald-600 text-white border-emerald-600'
+                      : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50 hover:text-slate-700',
+                  )}
+                >
+                  {iconName}
+                </button>
+              ))}
+            </div>
+            {errors.icon_name && <p className="text-xs text-rose-500">{errors.icon_name.message}</p>}
+          </div>
+
+          <label className="block space-y-1.5">
+            <span className="text-sm font-medium text-slate-700">Konten Detail</span>
+            <textarea
+              rows={8}
+              {...register('content')}
+              className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition-all placeholder:text-slate-400"
+            />
+            {errors.content && <p className="text-xs text-rose-500">{errors.content.message}</p>}
+          </label>
+        </form>
+      </AdminModal>
+    </div>
+  );
 }
