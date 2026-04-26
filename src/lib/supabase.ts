@@ -289,6 +289,14 @@ export interface Database {
 const supabaseUrl = (import.meta as any).env?.VITE_SUPABASE_URL || '';
 const supabaseAnonKey = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY || '';
 
+if (!supabaseUrl || !supabaseAnonKey) {
+  console.warn(
+    '[STA] ⚠️ VITE_SUPABASE_URL atau VITE_SUPABASE_ANON_KEY belum dikonfigurasi. '
+    + 'Data dari Supabase tidak akan bisa dimuat. '
+    + 'Pastikan environment variables sudah diset dengan prefix VITE_ di Vercel dan redeploy.'
+  );
+}
+
 // Menginisialisasi klien Supabase untuk interaksi dengan database
 export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey);
 

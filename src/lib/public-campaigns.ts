@@ -83,6 +83,7 @@ export function mapCampaignRowToPublicCampaign(
     start_date: row.start_date ?? undefined,
     end_date: row.end_date ?? undefined,
     images,
+    collaborators: Array.isArray(row.collaborators) ? row.collaborators as Campaign['collaborators'] : [],
   };
 }
 

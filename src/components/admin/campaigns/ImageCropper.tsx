@@ -169,7 +169,7 @@ export default function ImageCropper({
               step={0.05}
               value={zoom}
               onChange={(e) => setZoom(Number(e.target.value))}
-              className="h-1.5 w-full flex-1 cursor-pointer appearance-none rounded-full bg-gray-700 accent-emerald-500 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-zinc-1000"
+              className="h-1.5 w-full flex-1 cursor-pointer appearance-none rounded-full bg-gray-700 accent-emerald-500 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-zinc-950"
             />
             <ZoomIn size={14} className="text-gray-500" />
             <button
@@ -197,7 +197,7 @@ export default function ImageCropper({
             type="button"
             onClick={handleApply}
             disabled={isCropping || !croppedAreaPixels}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-900 px-4 py-2 text-xs font-semibold text-white shadow-md shadow-emerald-900/30 transition-colors hover:bg-zinc-1000 disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-900 px-4 py-2 text-xs font-semibold text-white shadow-md shadow-emerald-900/30 transition-colors hover:bg-zinc-950 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <Check size={13} />
             {isCropping ? 'Memproses...' : 'Terapkan'}

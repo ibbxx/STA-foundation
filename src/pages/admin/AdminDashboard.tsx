@@ -187,7 +187,7 @@ export default function AdminDashboard() {
                     <span className="text-slate-500">{category.percentage}%</span>
                   </div>
                   <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
-                    <div className="h-full rounded-full bg-zinc-1000" style={{ width: `${category.percentage}%` }} />
+                    <div className="h-full rounded-full bg-zinc-950" style={{ width: `${category.percentage}%` }} />
                   </div>
                 </div>
               ))}
