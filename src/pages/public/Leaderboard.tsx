@@ -113,7 +113,7 @@ export default function Leaderboard() {
                 {/* Amount */}
                 <div className="text-right shrink-0">
                   <div className="text-base md:text-xl font-black text-emerald-800">
-                    {formatCurrency(entry.total_amount)}
+                    {formatCurrency(Number(entry.total_amount || 0))}
                   </div>
                   {entry.rank === 1 && (
                     <span className="inline-block mt-1 text-[10px] uppercase tracking-widest font-bold text-yellow-600 bg-yellow-100 px-2 py-0.5 rounded-full">

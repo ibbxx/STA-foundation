@@ -21,9 +21,10 @@ export async function fetchLeaderboard(): Promise<LeaderboardEntry[]> {
     return [];
   }
 
-  // Menambahkan atribut rank secara dinamis
+  // Menambahkan atribut rank secara dinamis dan memastikan tipe data
   return ((data as any[]) || []).map((row, index) => ({
     ...row,
+    total_amount: Number(row.total_amount || 0), // Paksa jadi number untuk mencegah crash di formatCurrency
     rank: index + 1,
   })) as LeaderboardEntry[];
 }
