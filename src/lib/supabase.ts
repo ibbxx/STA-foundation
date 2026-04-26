@@ -297,8 +297,18 @@ if (!supabaseUrl || !supabaseAnonKey) {
   );
 }
 
-// Menginisialisasi klien Supabase untuk interaksi dengan database
-export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey);
+// Menginisialisasi klien Supabase untuk interaksi dengan database.
+// Jika env vars kosong, gunakan placeholder agar createClient tidak crash
+// (SDK melempar error sinkron "supabaseUrl is required" jika URL kosong,
+// yang menyebabkan seluruh app gagal render — halaman putih total).
+// Dengan placeholder, SDK tidak crash tapi query tetap gagal secara graceful.
+const PLACEHOLDER_URL = 'https://placeholder.supabase.co';
+const PLACEHOLDER_KEY = 'placeholder';
+
+export const supabase = createClient<Database>(
+  supabaseUrl || PLACEHOLDER_URL,
+  supabaseAnonKey || PLACEHOLDER_KEY,
+);
 
 /**
  * Alias tipe berbasis schema Supabase.
