@@ -22,8 +22,8 @@ export async function fetchLeaderboard(): Promise<LeaderboardEntry[]> {
   }
 
   // Menambahkan atribut rank secara dinamis
-  return (data || []).map((row, index) => ({
+  return ((data as any[]) || []).map((row, index) => ({
     ...row,
     rank: index + 1,
-  }));
+  })) as LeaderboardEntry[];
 }
