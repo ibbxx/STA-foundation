@@ -67,12 +67,13 @@ export default function AdminCampaigns() {
   const [campaignSearch, setCampaignSearch] = useState('');
   const [campaignImages, setCampaignImages] = useState<ImagePreviewItem[]>([]);
   const [timelineImages, setTimelineImages] = useState<ImagePreviewItem[]>([]);
+  const [collabLogos, setCollabLogos] = useState<Record<string, { file?: File; previewUrl: string }>>({});
   const [loading, setLoading] = useState(true);
   const [loadingUpdates, setLoadingUpdates] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [activeModalTab, setActiveModalTab] = useState<'detail' | 'updates' | 'donatur'>('detail');
+  const [activeModalTab, setActiveModalTab] = useState<'detail' | 'mitra' | 'updates' | 'donatur'>('detail');
   const [modalDonations, setModalDonations] = useState<DonationRow[]>([]);
   const [loadingDonations, setLoadingDonations] = useState(false);
 
@@ -198,6 +199,8 @@ export default function AdminCampaigns() {
       revokeQueuedItems(current);
       return toExistingImageItems(getCampaignImages(campaign));
     });
+
+    setCollabLogos({});
   }
 
   function resetTimelineComposer() {
@@ -215,6 +218,7 @@ export default function AdminCampaigns() {
     setError(null);
     setSelectedCampaignId(null);
     setUpdates([]);
+    setCollabLogos({});
     resetCampaignEditor(null);
     resetTimelineComposer();
     setIsModalOpen(true);
@@ -256,6 +260,21 @@ export default function AdminCampaigns() {
         };
       }),
     );
+  }
+
+  function handleCollabLogoChange(index: number, file: File) {
+    const id = collabFields[index].id;
+    const previewUrl = URL.createObjectURL(file);
+    
+    setCollabLogos(prev => {
+      if (prev[id]?.previewUrl && !prev[id].previewUrl.startsWith('http')) {
+        URL.revokeObjectURL(prev[id].previewUrl);
+      }
+      return { ...prev, [id]: { file, previewUrl } };
+    });
+    
+    // Tandai bahwa ada perubahan (kita biarkan validator meloloskan string non-url sementara)
+    campaignForm.setValue(`collaborators.${index}.avatar`, 'PENDING_UPLOAD', { shouldDirty: true });
   }
 
   function handleTimelineImageAdd(files: File[]) {
@@ -352,6 +371,25 @@ export default function AdminCampaigns() {
         }
       }
 
+      // ─── UPLOAD LOGO MITRA (NEW) ───
+      const updatedCollaborators = [...values.collaborators];
+      for (let i = 0; i < updatedCollaborators.length; i++) {
+        const collabId = collabFields[i].id;
+        const logoData = collabLogos[collabId];
+        
+        if (logoData?.file) {
+          try {
+            const logoUrl = await uploadFileToStorage(logoData.file, {
+              bucket: getCampaignAssetsBucketName(),
+              folder: 'partners',
+            });
+            updatedCollaborators[i].avatar = logoUrl;
+          } catch (err) {
+            console.error('Failed to upload partner logo:', err);
+          }
+        }
+      }
+
       const imageUrls = [...existingUrls, ...freshUploads];
       const categoryName = categoryMap.get(values.category_id)?.name ?? null;
 
@@ -370,7 +408,7 @@ export default function AdminCampaigns() {
         image_url: imageUrls[0] ?? null,
         category: categoryName,
         status: values.status,
-        collaborators: values.collaborators,
+        collaborators: updatedCollaborators,
         current_amount: selectedCampaign?.current_amount ?? 0,
       };
 
@@ -752,7 +790,7 @@ export default function AdminCampaigns() {
           }
         >
           <div className="flex gap-6 border-b border-gray-200 mb-6">
-            {(['detail', 'updates', 'donatur'] as const).map((tab) => (
+            {(['detail', 'mitra', 'updates', 'donatur'] as const).map((tab) => (
               <button
                 key={tab}
                 type="button"
@@ -761,7 +799,7 @@ export default function AdminCampaigns() {
                   activeModalTab === tab ? 'text-zinc-900' : 'text-gray-500 hover:text-gray-700'
                 }`}
               >
-                {tab === 'detail' ? 'Detail & Target' : tab === 'updates' ? 'Timeline Updates' : 'Daftar Donatur'}
+                {tab === 'detail' ? 'Detail & Target' : tab === 'mitra' ? 'Mitra Kolaborator' : tab === 'updates' ? 'Timeline Updates' : 'Daftar Donatur'}
                 {activeModalTab === tab && (
                   <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-zinc-900" />
                 )}
@@ -770,227 +808,223 @@ export default function AdminCampaigns() {
           </div>
 
           <div className="space-y-8 pb-4">
-            <div className={activeModalTab === 'detail' ? 'block' : 'hidden'}>
-            <form id="campaign-edit-form" onSubmit={campaignForm.handleSubmit(handleCampaignSubmit)} className="space-y-6">
-              <Card className="border-gray-200 bg-white shadow-sm">
-              {selectedCampaign ? (
-                <div className="px-6 pt-6 pb-2">
-                  <CampaignStatusBadge startDate={selectedCampaign.start_date} endDate={selectedCampaign.end_date} />
-                </div>
-              ) : null}
-              <CardContent className="space-y-6">
-                <div className="grid gap-6 lg:grid-cols-3">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">Title</label>
-                    <input
-                      type="text"
-                      {...campaignForm.register('title')}
-                      placeholder="Campaign title"
-                      className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 outline-none transition-colors placeholder:text-gray-400 focus:border-gray-300"
-                    />
-                    {campaignForm.formState.errors.title ? <p className="text-xs text-red-600">{campaignForm.formState.errors.title.message}</p> : null}
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">Kategori</label>
-                    <select
-                      {...campaignForm.register('category_id')}
-                      className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 outline-none transition-colors focus:border-gray-300"
-                    >
-                      <option value="">Pilih kategori</option>
-                      {categories.map((category) => (
-                        <option key={category.id} value={category.id}>
-                          {category.name}
-                        </option>
-                      ))}
-                    </select>
-                    {campaignForm.formState.errors.category_id ? <p className="text-xs text-red-600">{campaignForm.formState.errors.category_id.message}</p> : null}
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">Target dana</label>
-                    <input
-                      type="number"
-                      min="0"
-                      step="1000"
-                      {...campaignForm.register('target_amount', { valueAsNumber: true })}
-                      placeholder="Contoh: 150000000"
-                      className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 outline-none transition-colors placeholder:text-gray-400 focus:border-gray-300"
-                    />
-                    {campaignForm.formState.errors.target_amount ? <p className="text-xs text-red-600">{campaignForm.formState.errors.target_amount.message}</p> : null}
-                  </div>
-                </div>
-
-                <div className="grid gap-6 lg:grid-cols-2">
-                  <div className="space-y-2">
-                    <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                      <CalendarDays className="h-4 w-4 text-gray-400" />
-                      Start date
-                    </label>
-                    <input
-                      type="date"
-                      {...campaignForm.register('start_date')}
-                      className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 outline-none transition-colors focus:border-gray-300"
-                    />
-                    {campaignForm.formState.errors.start_date ? <p className="text-xs text-red-600">{campaignForm.formState.errors.start_date.message}</p> : null}
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                      <FileClock className="h-4 w-4 text-gray-400" />
-                      End date
-                    </label>
-                    <input
-                      type="date"
-                      {...campaignForm.register('end_date')}
-                      className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 outline-none transition-colors focus:border-gray-300"
-                    />
-                    {campaignForm.formState.errors.end_date ? <p className="text-xs text-red-600">{campaignForm.formState.errors.end_date.message}</p> : null}
-                  </div>
-                </div>
-
-
-                {/* ─── FITUR MITRA CAMPAIGN ─── */}
-                <div className="mt-6 border-t border-gray-100 pt-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <div>
-                      <h3 className="text-sm font-semibold text-gray-900">Mitra Kolaborator (Opsional)</h3>
-                      <p className="text-xs text-gray-500 mt-1">Tambahkan mitra yang berpartisipasi dalam campaign ini.</p>
+            <form id="campaign-edit-form" onSubmit={campaignForm.handleSubmit(handleCampaignSubmit)}>
+              {/* ─── TAB DETAIL ─── */}
+              <div className={activeModalTab === 'detail' ? 'block' : 'hidden'}>
+                <Card className="border-gray-200 bg-white shadow-sm">
+                  {selectedCampaign ? (
+                    <div className="px-6 pt-6 pb-2">
+                      <CampaignStatusBadge startDate={selectedCampaign.start_date} endDate={selectedCampaign.end_date} />
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => appendCollab({ id: crypto.randomUUID(), name: '', role: '', quote: '', avatar: '' })}
-                      className="inline-flex items-center gap-1.5 rounded-lg bg-gray-50 px-3 py-1.5 text-xs font-medium text-emerald-600 transition-colors hover:bg-emerald-50"
-                    >
-                      <Plus size={14} /> Tambah Mitra
-                    </button>
-                  </div>
+                  ) : null}
+                  <CardContent className="space-y-6">
+                    <div className="grid gap-6 lg:grid-cols-3">
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-gray-700">Title</label>
+                        <input
+                          type="text"
+                          {...campaignForm.register('title')}
+                          placeholder="Campaign title"
+                          className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 outline-none transition-colors placeholder:text-gray-400 focus:border-gray-300"
+                        />
+                        {campaignForm.formState.errors.title && <p className="text-xs text-red-600">{campaignForm.formState.errors.title.message}</p>}
+                      </div>
 
-                  <div className="space-y-4">
-                    {collabFields.map((field, index) => (
-                      <div key={field.id} className="relative rounded-xl border border-gray-200 bg-gray-50 p-4">
-                        <button
-                          type="button"
-                          onClick={() => removeCollab(index)}
-                          className="absolute right-3 top-3 rounded-full p-1 text-gray-400 hover:bg-red-50 hover:text-red-600 transition-colors"
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-gray-700">Kategori</label>
+                        <select
+                          {...campaignForm.register('category_id')}
+                          className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 outline-none transition-colors focus:border-gray-300"
                         >
-                          <Trash2 size={14} />
-                        </button>
-                        
-                        <div className="grid gap-4 md:grid-cols-2 pr-6">
-                          <div className="space-y-1.5">
-                            <label className="text-xs font-medium text-gray-700">Nama Mitra *</label>
-                            <input
-                              {...campaignForm.register(`collaborators.${index}.name`)}
-                              placeholder="Contoh: Kawan Cendekia"
-                              className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm outline-none focus:border-emerald-500"
-                            />
-                            {campaignForm.formState.errors.collaborators?.[index]?.name && (
-                              <p className="text-[10px] text-red-600">{campaignForm.formState.errors.collaborators[index]?.name?.message}</p>
-                            )}
-                          </div>
-                          
-                          <div className="space-y-1.5">
-                            <label className="text-xs font-medium text-gray-700">Peran *</label>
-                            <input
-                              {...campaignForm.register(`collaborators.${index}.role`)}
-                              placeholder="Contoh: Mitra Lapangan"
-                              className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm outline-none focus:border-emerald-500"
-                            />
-                            {campaignForm.formState.errors.collaborators?.[index]?.role && (
-                              <p className="text-[10px] text-red-600">{campaignForm.formState.errors.collaborators[index]?.role?.message}</p>
-                            )}
-                          </div>
+                          <option value="">Pilih kategori</option>
+                          {categories.map((category) => (
+                            <option key={category.id} value={category.id}>{category.name}</option>
+                          ))}
+                        </select>
+                        {campaignForm.formState.errors.category_id && <p className="text-xs text-red-600">{campaignForm.formState.errors.category_id.message}</p>}
+                      </div>
 
-                          <div className="space-y-1.5 md:col-span-2">
-                            <label className="text-xs font-medium text-gray-700">Pesan / Quote *</label>
-                            <input
-                              {...campaignForm.register(`collaborators.${index}.quote`)}
-                              placeholder="Contoh: Kami berkomitmen..."
-                              className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm outline-none focus:border-emerald-500"
-                            />
-                            {campaignForm.formState.errors.collaborators?.[index]?.quote && (
-                              <p className="text-[10px] text-red-600">{campaignForm.formState.errors.collaborators[index]?.quote?.message}</p>
-                            )}
-                          </div>
-                          
-                          <div className="space-y-1.5 md:col-span-2">
-                            <label className="text-xs font-medium text-gray-700">URL Logo (Opsional)</label>
-                            <input
-                              {...campaignForm.register(`collaborators.${index}.avatar`)}
-                              placeholder="https://.../logo.png"
-                              className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm outline-none focus:border-emerald-500"
-                            />
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-gray-700">Target dana</label>
+                        <input
+                          type="number"
+                          {...campaignForm.register('target_amount', { valueAsNumber: true })}
+                          className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 outline-none transition-colors focus:border-gray-300"
+                        />
+                        {campaignForm.formState.errors.target_amount && <p className="text-xs text-red-600">{campaignForm.formState.errors.target_amount.message}</p>}
+                      </div>
+                    </div>
+
+                    <div className="grid gap-6 lg:grid-cols-2">
+                      <div className="space-y-2">
+                        <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                          <CalendarDays className="h-4 w-4 text-gray-400" /> Start date
+                        </label>
+                        <input
+                          type="date"
+                          {...campaignForm.register('start_date')}
+                          className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 outline-none transition-colors focus:border-gray-300"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                          <FileClock className="h-4 w-4 text-gray-400" /> End date
+                        </label>
+                        <input
+                          type="date"
+                          {...campaignForm.register('end_date')}
+                          className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 outline-none transition-colors focus:border-gray-300"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid gap-6 lg:grid-cols-2 pt-4 border-t border-gray-50">
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-gray-700">Status Publikasi</label>
+                        <select
+                          {...campaignForm.register('status')}
+                          className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 outline-none transition-colors focus:border-gray-300"
+                        >
+                          <option value="draft">Draft (Sembunyikan)</option>
+                          <option value="active">Active (Tayang)</option>
+                          <option value="completed">Completed (Selesai)</option>
+                        </select>
+                      </div>
+                      <div className="flex items-center h-full pt-8">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            {...campaignForm.register('is_featured')}
+                            className="h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                          />
+                          <span className="text-sm font-medium text-gray-700">Tampilkan di beranda (Featured)</span>
+                        </label>
+                      </div>
+                    </div>
+
+                    <Controller
+                      name="description"
+                      control={campaignForm.control}
+                      render={({ field }) => (
+                        <RichTextEditor
+                          label="Description"
+                          value={field.value}
+                          onChange={field.onChange}
+                          error={campaignForm.formState.errors.description?.message}
+                        />
+                      )}
+                    />
+
+                    <ImageDropzone
+                      label="Campaign images"
+                      items={campaignImages}
+                      onFilesAdd={handleCampaignImageAdd}
+                      onRemove={handleCampaignImageRemove}
+                      onReorder={handleCampaignImageReorder}
+                      onCropReplace={handleCampaignImageCropReplace}
+                    />
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* ─── TAB MITRA ─── */}
+              <div className={activeModalTab === 'mitra' ? 'block' : 'hidden'}>
+                <Card className="border-gray-200 bg-white shadow-sm">
+                  <CardContent className="space-y-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="text-sm font-semibold text-gray-900">Mitra Kolaborator</h3>
+                        <p className="text-xs text-gray-500 mt-1">Logo mitra akan tampil berjalan (marquee) di halaman publik.</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => appendCollab({ id: crypto.randomUUID(), name: '', role: '', quote: '', avatar: '', url: '' })}
+                        className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-600 hover:bg-emerald-100"
+                      >
+                        <Plus size={14} /> Tambah Mitra
+                      </button>
+                    </div>
+
+                    <div className="space-y-4">
+                      {collabFields.map((field, index) => (
+                        <div key={field.id} className="relative rounded-xl border border-gray-200 bg-gray-50 p-5">
+                          <button
+                            type="button"
+                            onClick={() => removeCollab(index)}
+                            className="absolute right-3 top-3 text-gray-400 hover:text-red-600"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                          <div className="flex flex-col md:flex-row gap-6">
+                            <div className="flex flex-col items-center justify-center border-r border-gray-100 pr-6 min-w-[120px]">
+                              <label className="text-xs font-medium text-gray-700 mb-3">Logo Mitra</label>
+                              <div className="relative group">
+                                <div className="h-20 w-20 rounded-full border-2 border-dashed border-gray-300 bg-white overflow-hidden flex items-center justify-center transition-colors group-hover:border-emerald-400">
+                                  {collabLogos[field.id]?.previewUrl || field.avatar ? (
+                                    <img 
+                                      src={collabLogos[field.id]?.previewUrl || field.avatar || ''} 
+                                      className="h-full w-full object-contain p-2" 
+                                      alt="Preview"
+                                    />
+                                  ) : (
+                                    <ImageIcon className="text-gray-300" size={24} />
+                                  )}
+                                </div>
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  className="absolute inset-0 opacity-0 cursor-pointer"
+                                  onChange={(e) => {
+                                    const file = e.target.files?.[0];
+                                    if (file) handleCollabLogoChange(index, file);
+                                  }}
+                                />
+                                <div className="absolute inset-0 bg-black/40 rounded-full opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity pointer-events-none">
+                                  <RefreshCw className="text-white animate-spin-slow" size={16} />
+                                </div>
+                              </div>
+                              <p className="text-[10px] text-gray-400 mt-2 font-medium">Klik untuk upload</p>
+                            </div>
+                            
+                            <div className="grid gap-4 md:grid-cols-2 flex-1">
+                              <div className="space-y-1.5">
+                                <label className="text-xs font-medium text-gray-700">Nama Mitra *</label>
+                                <input
+                                  {...campaignForm.register(`collaborators.${index}.name`)}
+                                  className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm"
+                                />
+                              </div>
+                              <div className="space-y-1.5">
+                                <label className="text-xs font-medium text-gray-700">Peran *</label>
+                                <input
+                                  {...campaignForm.register(`collaborators.${index}.role`)}
+                                  className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm"
+                                />
+                              </div>
+                              <div className="space-y-1.5 md:col-span-2">
+                                <label className="text-xs font-medium text-gray-700">Pesan / Quote *</label>
+                                <textarea
+                                  {...campaignForm.register(`collaborators.${index}.quote`)}
+                                  className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm min-h-[80px]"
+                                />
+                              </div>
+                              <div className="space-y-1.5 md:col-span-2">
+                                <label className="text-xs font-medium text-gray-700">Link Mitra (Instagram/Web)</label>
+                                <input
+                                  {...campaignForm.register(`collaborators.${index}.url`)}
+                                  placeholder="https://..."
+                                  className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm"
+                                />
+                              </div>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
-                    {collabFields.length === 0 && (
-                      <div className="text-center py-6 text-sm text-gray-500 border border-dashed border-gray-200 rounded-xl bg-white">
-                        Belum ada mitra. Klik "Tambah Mitra" jika ada.
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="grid gap-6 lg:grid-cols-2 mt-6 items-end">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">Status Publikasi</label>
-                    <select
-                      {...campaignForm.register('status')}
-                      className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 outline-none transition-colors focus:border-gray-300"
-                    >
-                      <option value="draft">Draft (Sembunyikan)</option>
-                      <option value="active">Active (Tayang)</option>
-                      <option value="completed">Completed (Selesai)</option>
-                    </select>
-                  </div>
-
-                  <div className="pb-2.5">
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        {...campaignForm.register('is_featured')}
-                        className="h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
-                      />
-                      <span className="text-sm font-medium text-gray-700">Tampilkan di beranda (Featured)</span>
-                    </label>
-                  </div>
-                </div>
-
-                <Controller
-                  name="description"
-                  control={campaignForm.control}
-                  render={({ field }) => (
-                    <RichTextEditor
-                      label="Description"
-                      hint="Deskripsi mendukung formatting tulisan (bold, italic, list) untuk membuat halaman campaign lebih menarik."
-                      error={campaignForm.formState.errors.description?.message}
-                      placeholder="Tulis deskripsi lengkap campaign di sini..."
-                      value={field.value}
-                      onChange={field.onChange}
-                    />
-                  )}
-                />
-
-                <ImageDropzone
-                  label="Campaign images"
-                  description={`File akan diupload ke bucket ${getCampaignAssetsBucketName()} dan URL-nya disimpan ke kolom images.`}
-                  items={campaignImages}
-                  onFilesAdd={handleCampaignImageAdd}
-                  onRemove={handleCampaignImageRemove}
-                  onReorder={handleCampaignImageReorder}
-                  onCropReplace={handleCampaignImageCropReplace}
-                />
-              </CardContent>
-            </Card>
-
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="text-sm text-gray-500">
-                {selectedCampaign ? `Campaign ID: ${selectedCampaign.id}` : 'Campaign baru akan dibuat setelah disimpan.'}
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
               </div>
-            </div>
-          </form>
+            </form>
           </div>
 
           <div className={activeModalTab === 'updates' ? 'block' : 'hidden'}>
@@ -1176,10 +1210,8 @@ export default function AdminCampaigns() {
               </CardContent>
             </Card>
           )}
-          </div>
         </AdminModal>
       </div>
-
     </div>
   );
 }

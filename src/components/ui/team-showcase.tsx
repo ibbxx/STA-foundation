@@ -105,9 +105,9 @@ function PhotoCard({
   return (
     <div
       className={cn(
-        'overflow-hidden rounded-xl cursor-pointer flex-shrink-0 transition-opacity duration-400',
+        'overflow-hidden rounded-sm cursor-pointer flex-shrink-0 transition-all duration-400 border border-gray-100',
         className,
-        isDimmed ? 'opacity-60' : 'opacity-100',
+        isDimmed ? 'opacity-40 grayscale' : 'opacity-100 grayscale-0',
       )}
       onMouseEnter={() => onHover(member.id)}
       onMouseLeave={() => onHover(null)}
@@ -115,10 +115,7 @@ function PhotoCard({
       <img
         src={member.image}
         alt={member.name}
-        className="w-full h-full object-cover transition-[filter] duration-500"
-        style={{
-          filter: isActive ? 'grayscale(0) brightness(1)' : 'grayscale(1) brightness(0.77)',
-        }}
+        className="w-full h-full object-cover transition-transform duration-700 hover:scale-105"
       />
     </div>
   );
@@ -126,7 +123,7 @@ function PhotoCard({
 
 /* ─────────────────────────────────────────
    Member name section
-───────────────────────────────────────── */
+ ───────────────────────────────────────── */
 
 function MemberRow({
   member,
@@ -144,8 +141,8 @@ function MemberRow({
   return (
     <div
       className={cn(
-        'cursor-pointer transition-opacity duration-300',
-        isDimmed ? 'opacity-50' : 'opacity-100',
+        'cursor-pointer transition-all duration-300 border-b border-gray-100 py-2',
+        isDimmed ? 'opacity-30' : 'opacity-100',
       )}
       onMouseEnter={() => onHover(member.id)}
       onMouseLeave={() => onHover(null)}
@@ -154,14 +151,14 @@ function MemberRow({
       <div className="flex items-center gap-2.5">
         <span
           className={cn(
-            'w-4 h-3 rounded-[5px] flex-shrink-0 transition-all duration-300',
-            isActive ? 'bg-emerald-600 w-5' : 'bg-gray-300',
+            'w-2 h-2 flex-shrink-0 transition-all duration-300',
+            isActive ? 'bg-emerald-600 rotate-45' : 'bg-gray-200',
           )}
         />
         <span
           className={cn(
-            'text-base md:text-[18px] font-semibold leading-none tracking-tight transition-colors duration-300',
-            isActive ? 'text-gray-900' : 'text-gray-600',
+            'text-sm md:text-base font-bold uppercase tracking-tight transition-colors duration-300',
+            isActive ? 'text-emerald-700' : 'text-gray-900',
           )}
         >
           {member.name}

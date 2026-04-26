@@ -1,4 +1,5 @@
 import { Search } from 'lucide-react';
+import { motion } from 'framer-motion';
 import { useEffect, useMemo, useState } from 'react';
 import CampaignCard from '../../components/shared/CampaignCard';
 import { logError } from '../../lib/error-logger';
@@ -84,33 +85,43 @@ export default function Campaigns() {
         </div>
       </div>
 
-      <div className="sticky top-16 z-40 mb-8 border-b border-gray-100 bg-white/90 py-4 backdrop-blur-md sm:top-20 sm:mb-10">
+      <div className="sticky top-16 z-40 mb-12 border-b border-gray-100 bg-white/90 py-6 backdrop-blur-md sm:top-20">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div className="relative w-full lg:max-w-md">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+          <div className="flex flex-col gap-8 md:flex-row md:items-center md:justify-between">
+            {/* ── Search Bar (Clean & Animated) ── */}
+            <div className="relative w-full md:max-w-xs group">
+              <Search 
+                className="absolute left-0 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-emerald-600 transition-colors" 
+                size={18} 
+              />
               <input
                 type="text"
                 placeholder="Cari campaign..."
                 value={searchQuery}
                 onChange={(event) => setSearchQuery(event.target.value)}
-                className="w-full rounded-2xl border border-gray-200 bg-gray-50 py-3 pl-11 pr-4 text-sm text-gray-700 outline-none transition-colors placeholder:text-gray-400 focus:border-gray-300"
+                className="w-full bg-transparent py-2 pl-7 pr-4 text-sm text-gray-900 outline-none border-b border-gray-200 focus:border-emerald-600 transition-all duration-300 placeholder:text-gray-400 font-light"
               />
             </div>
 
-            <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
+            {/* ── Categories (Editorial Style) ── */}
+            <div className="flex items-center gap-6 overflow-x-auto pb-1 no-scrollbar scroll-smooth">
               {categoryOptions.map((category) => (
                 <button
                   key={category}
                   type="button"
                   onClick={() => setActiveCategory(category)}
-                  className={
-                    activeCategory === category
-                      ? 'whitespace-nowrap rounded-full border border-gray-200 bg-gray-900 px-4 py-2 text-xs font-semibold text-white transition-colors'
-                      : 'whitespace-nowrap rounded-full border border-gray-200 bg-white px-4 py-2 text-xs font-semibold text-gray-600 transition-colors hover:bg-gray-50'
-                  }
+                  className="relative py-2 text-sm font-bold tracking-tight whitespace-nowrap transition-colors"
                 >
-                  {category}
+                  <span className={activeCategory === category ? 'text-gray-900' : 'text-gray-400 hover:text-gray-600'}>
+                    {category}
+                  </span>
+                  {activeCategory === category && (
+                    <motion.div 
+                      layoutId="categoryUnderline"
+                      className="absolute bottom-0 left-0 right-0 h-0.5 bg-emerald-600"
+                      transition={{ type: 'spring', bounce: 0.2, duration: 0.6 }}
+                    />
+                  )}
                 </button>
               ))}
             </div>
@@ -120,20 +131,25 @@ export default function Campaigns() {
 
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         {error ? (
-          <div className="rounded-3xl border border-gray-200 bg-white px-6 py-5 text-sm text-red-600 shadow-sm">
+          <div className="rounded-none border border-gray-200 bg-white px-6 py-5 text-sm text-red-600 shadow-sm">
             {error}
           </div>
         ) : loading ? (
-          <div className="rounded-3xl border border-gray-200 bg-white px-6 py-16 text-center text-sm text-gray-500 shadow-sm">
-            Memuat campaign...
+          <div className="rounded-none border border-gray-100 bg-white px-6 py-16 text-center text-sm text-gray-500 shadow-sm">
+            <motion.div 
+              animate={{ opacity: [0.4, 1, 0.4] }} 
+              transition={{ repeat: Infinity, duration: 1.5 }}
+            >
+              Memuat campaign...
+            </motion.div>
           </div>
         ) : filteredCampaigns.length === 0 ? (
-          <div className="rounded-3xl border border-dashed border-gray-200 bg-white px-6 py-16 text-center shadow-sm">
-            <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-gray-50">
-              <Search size={24} className="text-gray-300" />
+          <div className="rounded-sm border border-dashed border-gray-200 bg-white px-6 py-16 text-center">
+            <div className="mx-auto mb-5 flex h-12 w-12 items-center justify-center rounded-sm bg-gray-50">
+              <Search size={20} className="text-gray-300" />
             </div>
-            <h3 className="text-lg font-semibold text-gray-900">Campaign tidak ditemukan</h3>
-            <p className="mt-2 text-sm text-gray-500">
+            <h3 className="text-lg font-bold text-gray-900 tracking-tight">Campaign tidak ditemukan</h3>
+            <p className="mt-2 text-sm text-gray-400 font-light">
               Coba gunakan kata kunci lain atau pilih kategori yang berbeda.
             </p>
           </div>

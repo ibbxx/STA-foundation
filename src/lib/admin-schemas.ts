@@ -50,6 +50,7 @@ export const campaignManagerSchema = z
         role: z.string().trim().min(1, 'Peran wajib diisi.'),
         quote: z.string().trim().min(1, 'Quote wajib diisi.'),
         avatar: z.string().nullable().optional(),
+        url: z.string().trim().optional().or(z.literal('')),
       })
     ),
   })

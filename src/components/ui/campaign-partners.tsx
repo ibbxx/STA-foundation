@@ -9,6 +9,7 @@ export interface CampaignPartner {
   role: string;
   quote: string;
   avatar?: string | null;
+  url?: string | null;
 }
 
 interface CampaignPartnersProps {
@@ -39,103 +40,101 @@ export function CampaignPartners({ partners, title = "Mitra Kolaborator", size =
   };
 
   return (
-    <div className="flex flex-col items-center gap-6 py-6 md:py-8 bg-gray-50 rounded-2xl border border-gray-100">
-      <div className="text-center mb-2">
-        <h3 className="text-xs font-bold text-emerald-600 uppercase tracking-widest">{title}</h3>
+    <div className="flex flex-col items-center gap-6 py-8 md:py-12 bg-gray-50 rounded-[2rem] border border-gray-100 overflow-hidden">
+      <div className="text-center mb-2 px-4">
+        <h3 className="text-xs font-bold text-emerald-600 uppercase tracking-[0.2em] mb-2">{title}</h3>
+        <p className="text-[10px] text-gray-400 font-medium">Klik logo untuk mengunjungi profil mitra</p>
+      </div>
+
+      {/* ─── LOGO MARQUEE SECTION ─── */}
+      <div className="relative w-full overflow-hidden group/marquee py-4">
+        {/* Gradient Masking */}
+        <div className="absolute left-0 top-0 w-24 h-full bg-gradient-to-r from-gray-50 to-transparent z-10 pointer-events-none" />
+        <div className="absolute right-0 top-0 w-24 h-full bg-gradient-to-l from-gray-50 to-transparent z-10 pointer-events-none" />
+
+        <div className="flex w-max animate-marquee group-hover/marquee:pause py-2">
+          {/* Duplicate partners for infinite loop effect */}
+          {[...partners, ...partners, ...partners].map((partner, index) => (
+            <a
+              key={`${partner.id}-${index}`}
+              href={partner.url || "#"}
+              target={partner.url ? "_blank" : undefined}
+              rel={partner.url ? "noopener noreferrer" : undefined}
+              onClick={(e) => {
+                if (!partner.url) e.preventDefault();
+                handleSelect(index % partners.length);
+              }}
+              className="mx-6 sm:mx-10 flex flex-col items-center gap-3 transition-all duration-300 hover:scale-110 active:scale-95 group"
+            >
+              <div className="h-12 w-12 sm:h-16 sm:w-16 flex items-center justify-center grayscale group-hover:grayscale-0 opacity-60 group-hover:opacity-100 transition-all duration-500">
+                {partner.avatar ? (
+                  <img
+                    src={partner.avatar}
+                    alt={partner.name}
+                    className="max-h-full max-w-full object-contain"
+                  />
+                ) : (
+                  <div className="w-full h-full rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 font-bold text-xl">
+                    {partner.name.charAt(0)}
+                  </div>
+                )}
+              </div>
+              <span className="text-[9px] font-bold text-gray-400 opacity-0 group-hover:opacity-100 uppercase tracking-tighter transition-opacity">
+                {partner.name}
+              </span>
+            </a>
+          ))}
+        </div>
       </div>
 
       {/* Quote Container */}
-      <div className="relative px-6 w-full flex justify-center">
-        <span className="absolute left-2 sm:left-6 -top-4 text-5xl md:text-6xl font-serif text-emerald-900/[0.05] select-none pointer-events-none">
+      <div className="relative px-6 w-full flex justify-center mt-4">
+        <span className="absolute left-4 sm:left-12 -top-6 text-6xl md:text-7xl font-serif text-emerald-900/[0.03] select-none pointer-events-none">
           "
         </span>
 
         <p
           className={cn(
-            "italic font-light text-gray-800 text-center leading-relaxed transition-all duration-400 ease-out",
-            size === 'lg' ? "text-lg sm:text-2xl md:text-3xl max-w-2xl" : "text-base sm:text-lg md:text-xl max-w-sm",
-            isAnimating ? "opacity-0 blur-sm scale-[0.98]" : "opacity-100 blur-0 scale-100"
+            "italic font-light text-gray-800 text-center leading-relaxed transition-all duration-500 ease-out",
+            size === 'lg' ? "text-lg sm:text-2xl md:text-3xl max-w-3xl" : "text-base sm:text-lg md:text-xl max-w-lg",
+            isAnimating ? "opacity-0 blur-md scale-[0.98]" : "opacity-100 blur-0 scale-100"
           )}
         >
           {displayedQuote}
         </p>
 
-        <span className="absolute right-2 sm:right-6 -bottom-6 text-5xl md:text-6xl font-serif text-emerald-900/[0.05] select-none pointer-events-none">
+        <span className="absolute right-4 sm:right-12 -bottom-10 text-6xl md:text-7xl font-serif text-emerald-900/[0.03] select-none pointer-events-none">
           "
         </span>
       </div>
 
-      <div className="flex flex-col items-center gap-4 mt-2">
+      <div className="flex flex-col items-center gap-4 mt-6">
         {/* Role text */}
         <p
           className={cn(
-            "text-[10px] sm:text-xs text-gray-500 font-bold tracking-[0.2em] uppercase transition-all duration-500 ease-out",
+            "text-[10px] sm:text-xs text-emerald-600 font-black tracking-[0.3em] uppercase transition-all duration-500 ease-out",
             isAnimating ? "opacity-0 translate-y-2" : "opacity-100 translate-y-0"
           )}
         >
           {displayedRole}
         </p>
 
-        <div className="flex flex-wrap items-center justify-center gap-2 max-w-full px-4">
+        <div className="flex flex-wrap items-center justify-center gap-3 max-w-full px-4">
           {partners.map((partner, index) => {
             const isActive = activeIndex === index;
-            const isHovered = hoveredIndex === index && !isActive;
-            const showName = isActive || isHovered;
-
+            
             return (
               <button
-                key={partner.id}
+                key={`pill-${partner.id}`}
                 onClick={() => handleSelect(index)}
-                onMouseEnter={() => setHoveredIndex(index)}
-                onMouseLeave={() => setHoveredIndex(null)}
                 className={cn(
-                  "relative flex items-center gap-0 rounded-full cursor-pointer",
-                  "transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)]",
-                  isActive ? "bg-emerald-700 shadow-md" : "bg-white border border-gray-200 hover:bg-gray-100",
-                  showName ? "pr-3 pl-1.5 py-1.5" : "p-1"
+                  "px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider transition-all duration-300",
+                  isActive 
+                    ? "bg-emerald-600 text-white shadow-lg shadow-emerald-200 scale-105" 
+                    : "bg-white text-gray-400 border border-gray-100 hover:border-emerald-200 hover:text-emerald-500"
                 )}
               >
-                {/* Avatar with smooth ring animation */}
-                <div 
-                  className={cn(
-                    "relative flex-shrink-0 flex items-center justify-center rounded-full bg-emerald-100 text-emerald-700 font-bold",
-                    size === 'lg' ? "w-10 h-10 sm:w-14 sm:h-14 text-sm" : "w-6 h-6 sm:w-8 sm:h-8 text-xs"
-                  )}
-                >
-                  {partner.avatar ? (
-                    <img
-                      src={partner.avatar}
-                      alt={partner.name}
-                      className={cn(
-                        "w-full h-full rounded-full object-cover",
-                        "transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)]",
-                        isActive ? "ring-2 ring-emerald-200" : "ring-0",
-                        !isActive && "hover:scale-105"
-                      )}
-                    />
-                  ) : (
-                    <span>{partner.name.charAt(0).toUpperCase()}</span>
-                  )}
-                </div>
-
-                <div
-                  className={cn(
-                    "grid transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)]",
-                    showName ? "grid-cols-[1fr] opacity-100 ml-2" : "grid-cols-[0fr] opacity-0 ml-0"
-                  )}
-                >
-                  <div className="overflow-hidden">
-                    <span
-                      className={cn(
-                        "text-xs sm:text-sm font-semibold whitespace-nowrap block",
-                        "transition-colors duration-300",
-                        isActive ? "text-white" : "text-gray-700"
-                      )}
-                    >
-                      {partner.name}
-                    </span>
-                  </div>
-                </div>
+                {partner.name}
               </button>
             );
           })}

@@ -27,8 +27,8 @@ export default function CampaignCard({ campaign, className }: CampaignCardProps)
     <Link
       to={`/campaigns/${campaign.slug}`}
       className={cn(
-        "group flex flex-col overflow-hidden bg-white border border-gray-100 rounded-2xl shadow-sm transition-all hover:shadow-md",
-        "md:hover:shadow-xl sm:rounded-[1.35rem]",
+        "group flex flex-col overflow-hidden bg-white border border-gray-100 rounded-sm shadow-sm transition-all hover:shadow-md",
+        "md:hover:shadow-xl",
         className
       )}
     >
@@ -45,26 +45,26 @@ export default function CampaignCard({ campaign, className }: CampaignCardProps)
 
       {/* Detail Konten Kampanye */}
       <div className="flex flex-col flex-1 p-3.5 sm:p-6">
-        <h3 className="mb-1 sm:mb-2 line-clamp-2 text-sm font-bold leading-snug text-gray-900 transition-colors group-hover:text-emerald-600 sm:text-lg">
+        <h3 className="mb-1 sm:mb-2 line-clamp-2 text-sm font-bold leading-snug text-gray-900 transition-colors group-hover:text-emerald-600 sm:text-lg tracking-tight">
           {campaign.title}
         </h3>
 
         {/* Sembunyikan deskripsi di mobile agar kartu ringkas, tampilkan di layar sm ke atas */}
-        <p className="hidden sm:block mb-5 line-clamp-2 text-sm leading-relaxed text-gray-500 sm:mb-6">
+        <p className="hidden sm:block mb-5 line-clamp-2 text-sm leading-relaxed text-gray-500 sm:mb-6 font-light">
           {campaign.short_description}
         </p>
 
         {/* Mendorong Info Progres dan Footer ke bawah agar kartu sejajar (flex-1) */}
         <div className="mt-auto space-y-3 pt-2 sm:space-y-4">
           <div className="space-y-1.5 sm:space-y-2">
-            <div className="flex justify-between text-xs sm:text-sm font-medium">
+            <div className="flex justify-between text-xs sm:text-sm font-bold tracking-tight">
               <span className="text-emerald-600">{formatCurrency(campaign.current_amount)}</span>
-              <span className="hidden sm:inline text-gray-400">Target: {formatCurrency(campaign.target_amount)}</span>
+              <span className="hidden sm:inline text-gray-400 font-normal">Target: {formatCurrency(campaign.target_amount)}</span>
             </div>
-            {/* Indikator Bar Progres */}
-            <div className="h-1.5 sm:h-2 w-full bg-gray-100 rounded-full overflow-hidden">
+            {/* Indikator Bar Progres (Minimalist) */}
+            <div className="h-1 w-full bg-gray-100 overflow-hidden">
               <div
-                className="h-full bg-emerald-500 rounded-full transition-all duration-1000"
+                className="h-full bg-emerald-600 transition-all duration-1000"
                 style={{ width: `${progress}%` }}
               />
             </div>

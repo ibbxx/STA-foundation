@@ -368,7 +368,7 @@ export type Campaign = {
   start_date?: string;
   end_date?: string;
   images?: string[];
-  collaborators?: { id: string; name: string; role: string; quote: string; avatar?: string | null }[];
+  collaborators?: { id: string; name: string; role: string; quote: string; avatar?: string | null; url?: string | null }[];
 };
 
 /**
