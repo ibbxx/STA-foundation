@@ -51,7 +51,7 @@ export const campaignManagerSchema = z
         quote: z.string().trim().min(1, 'Quote wajib diisi.'),
         avatar: z.string().nullable().optional(),
       })
-    ).optional().default([]),
+    ),
   })
   .refine((values) => new Date(values.end_date) >= new Date(values.start_date), {
     path: ['end_date'],

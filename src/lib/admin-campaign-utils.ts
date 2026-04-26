@@ -11,6 +11,7 @@ export const defaultCampaignValues: CampaignManagerValues = {
   description: '',
   is_featured: false,
   status: 'draft',
+  collaborators: [],
 };
 
 export const defaultUpdateValues: CampaignUpdateValues = {
