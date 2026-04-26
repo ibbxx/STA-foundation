@@ -17,6 +17,7 @@ import type { ComponentType } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { cn } from '../../lib/utils';
 import { getInitials } from '../../lib/admin-helpers';
+import { logError } from '../../lib/error-logger';
 import { supabase } from '../../lib/supabase';
 import Logo from '../shared/Logo';
 
@@ -48,7 +49,10 @@ export default function AdminLayout() {
     let ignore = false;
 
     async function loadUser() {
-      const { data } = await supabase.auth.getUser();
+      const { data, error } = await supabase.auth.getUser();
+      if (error) {
+        logError('AdminLayout.loadUser', error);
+      }
       if (ignore) return;
 
       const user = data.user;
@@ -76,7 +80,10 @@ export default function AdminLayout() {
 
   async function handleSignOut() {
     setIsSigningOut(true);
-    await supabase.auth.signOut();
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      logError('AdminLayout.signOut', error);
+    }
     setIsSigningOut(false);
     navigate('/admin/login');
   }
@@ -141,11 +148,11 @@ export default function AdminLayout() {
                 className={cn(
                   'flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm font-medium transition-colors',
                   active
-                    ? 'bg-emerald-50 text-emerald-700'
+                    ? 'bg-zinc-100 text-zinc-900'
                     : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900',
                 )}
               >
-                <item.icon size={18} className={active ? 'text-emerald-600' : 'text-slate-400'} />
+                <item.icon size={18} className={active ? 'text-zinc-900' : 'text-slate-400'} />
                 <span>{item.name}</span>
               </Link>
             );
@@ -186,7 +193,7 @@ export default function AdminLayout() {
             </button>
             <div className="h-6 w-px bg-slate-200"></div>
             <div className="flex items-center gap-3 cursor-default">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-100 text-xs font-bold text-emerald-700">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-zinc-100 text-xs font-bold text-zinc-900 border border-zinc-200">
                 {getInitials(adminIdentity)}
               </div>
               <div className="hidden sm:block text-left">

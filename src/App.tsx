@@ -17,6 +17,7 @@ const Faq = lazy(() => import('./pages/public/Faq'));
 const Reports = lazy(() => import('./pages/public/Reports'));
 const LaporkanSekolah = lazy(() => import('./pages/public/LaporkanSekolah'));
 const Contact = lazy(() => import('./pages/public/Contact'));
+const Leaderboard = lazy(() => import('./pages/public/Leaderboard'));
 
 /* ── Admin Pages ── */
 const AdminLogin = lazy(() => import('./pages/admin/AdminLogin'));
@@ -82,6 +83,7 @@ export default function App() {
         <Route path="/laporan" element={renderWithSuspense(<PublicLayout><Reports /></PublicLayout>)} />
         <Route path="/laporkan" element={renderWithSuspense(<PublicLayout><LaporkanSekolah /></PublicLayout>)} />
         <Route path="/kontak" element={renderWithSuspense(<PublicLayout><Contact /></PublicLayout>)} />
+        <Route path="/leaderboard" element={renderWithSuspense(<PublicLayout><Leaderboard /></PublicLayout>)} />
         <Route path="/admin/login" element={renderWithSuspense(<GuestRoute><AdminLogin /></GuestRoute>)} />
 
         {/* Rute-rute Panel Admin */}

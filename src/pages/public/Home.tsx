@@ -1,6 +1,7 @@
 import React from 'react';
-import { Logos3 } from '../../components/shared/LogoCarousel';
 import { motion, AnimatePresence } from 'framer-motion';
+import { InfiniteSlider } from '../../components/ui/infinite-slider';
+import { ProgressiveBlur } from '../../components/ui/progressive-blur';
 import {
   ArrowRight,
   ChevronDown,
@@ -13,17 +14,18 @@ import {
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Campaign } from '../../lib/supabase';
+import { logError } from '../../lib/error-logger';
 import { fetchPublicCampaigns } from '../../lib/public-campaigns';
 import { getProgramIcon } from '../../lib/program-icons';
 import { PROGRAMS } from '../../lib/programs';
 import { formatCurrency, calculateProgress, cn } from '../../lib/utils';
 
 const CATEGORIES = [
-  { name: 'Pendidikan', image: 'https://images.unsplash.com/photo-1497633762265-9d179a990aa6?auto=format&fit=crop&q=80&w=600', count: 24 },
-  { name: 'Kesehatan', image: 'https://images.unsplash.com/photo-1576091160550-2173dba999ef?auto=format&fit=crop&q=80&w=600', count: 18 },
-  { name: 'Lingkungan', image: 'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?auto=format&fit=crop&q=80&w=600', count: 12 },
-  { name: 'Bencana Alam', image: 'https://images.unsplash.com/photo-1469571486292-0ba58a3f068b?auto=format&fit=crop&q=80&w=600', count: 9 },
-  { name: 'Pangan', image: 'https://images.unsplash.com/photo-1594708767771-a7502209ff51?auto=format&fit=crop&q=80&w=600', count: 15 },
+  { name: 'Pendidikan', image: 'https://jfzvlzxslmgnssxekcme.supabase.co/storage/v1/object/public/campaign-assets/updates-demo/school_construction_1777146387719.png', count: 24 },
+  { name: 'Kesehatan', image: 'https://jfzvlzxslmgnssxekcme.supabase.co/storage/v1/object/public/campaign-assets/updates-demo/teacher_training_1777146418184.png', count: 18 },
+  { name: 'Lingkungan', image: 'https://jfzvlzxslmgnssxekcme.supabase.co/storage/v1/object/public/campaign-assets/updates-demo/book_distribution_1777146402888.png', count: 12 },
+  { name: 'Bencana Alam', image: 'https://jfzvlzxslmgnssxekcme.supabase.co/storage/v1/object/public/campaign-assets/updates-demo/school_construction_2_1777147738168.png', count: 9 },
+  { name: 'Pangan', image: 'https://jfzvlzxslmgnssxekcme.supabase.co/storage/v1/object/public/campaign-assets/updates-demo/book_distribution_2_1777147754389.png', count: 15 },
 ];
 
 const FAQ_ITEMS = [
@@ -94,6 +96,7 @@ export default function Home() {
         if (ignore) return;
         setFeaturedCampaigns(result.campaigns);
       } catch (loadError) {
+        logError('Home.loadFeaturedCampaigns', loadError);
         if (ignore) return;
         setFeaturedCampaigns([]);
         setFeaturedCampaignError(loadError instanceof Error ? loadError.message : 'Gagal memuat campaign unggulan.');
@@ -114,186 +117,222 @@ export default function Home() {
   return (
     <div className="overflow-hidden bg-white">
 
-      {/* ═══════ 1 · HERO (COMPONENT BUNDLE INTEGRATION) ═══════ */}
-      <section className="relative min-h-[100svh] w-full overflow-hidden">
-        <div className="absolute inset-0">
+      {/* ═══════ 1 · HERO ═══════ */}
+      <section className="relative min-h-screen">
+        {/* Background image — fills entire section */}
+        <div className="absolute inset-0 overflow-hidden">
           <img
-            src="https://images.unsplash.com/photo-1488521787991-ed7bbaae773c?q=80&w=2070&auto=format&fit=crop"
+            src="https://jfzvlzxslmgnssxekcme.supabase.co/storage/v1/object/public/campaign-assets/updates-demo/school_construction_1777146387719.png"
             alt="Humanitarian background"
-            className="w-full h-full object-cover"
+            className="size-full object-cover"
           />
-          <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/60 to-black/80" />
+          <div className="absolute inset-0 bg-gradient-to-t from-gray-950 via-gray-950/60 to-gray-950/20" />
         </div>
 
-        <div className="relative z-10 mx-auto flex min-h-[100svh] max-w-7xl items-center px-4 sm:px-6 lg:px-12">
-          <div className="max-w-3xl pb-20 pt-24 sm:pb-24 sm:pt-20">
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 0.2 }}
-              className="space-y-5 sm:space-y-6"
-            >
-              <h1 className="text-[2rem] font-black leading-[1.05] tracking-tight text-[#F5F1E8] sm:text-4xl md:text-5xl lg:text-[3.5rem] uppercase">
-                GOTONG ROYONG BENERIN 1000 SEKOLAH
-              </h1>
+        {/* Content overlay — bottom-left, flush left on all screens */}
+        <div className="relative z-10 flex min-h-screen items-end pb-24 sm:pb-32 pt-32">
+          <div className="flex flex-col px-5 sm:px-8 lg:px-12">
+            <div className="max-w-2xl text-left">
+              <motion.div
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.8, delay: 0.2 }}
+              >
+                <h1 className="mt-4 max-w-2xl text-balance text-3xl font-black uppercase leading-[1.1] tracking-tight text-[#F5F1E8] sm:mt-8 sm:text-4xl md:text-5xl lg:mt-16 xl:text-6xl">
+                  GOTONG ROYONG BENERIN 1000 SEKOLAH
+                </h1>
+                <p className="mt-4 max-w-xl text-balance text-sm font-light leading-relaxed text-[#F5F1E8]/85 sm:mt-6 sm:text-base">
+                  Membangun harapan dan masa depan anak Indonesia melalui ruang belajar yang aman dan layak.
+                </p>
 
-              <p className="max-w-xl text-sm font-light leading-relaxed text-[#F5F1E8]/90 sm:text-base md:text-lg">
-                Karena setiap anak berhak belajar di ruang yang aman, layak, dan penuh harapan.<br className="hidden sm:block" />
-                Mari jadi bagian dari gerakan ini. Kolaborasi Anda, sebagai individu, komunitas, institusi, maupun mitra adalah langkah nyata untuk membangun masa depan yang lebih adil dan berkelanjutan.
-              </p>
-
-              <div className="flex flex-col sm:flex-row gap-3 pt-4">
-                <Link
-                  to="/campaigns"
-                  className="px-6 py-3.5 bg-[#2C5F4F] text-[#F5F1E8] text-sm md:text-base font-bold rounded-full hover:bg-[#234A3D] transition-all duration-300 flex items-center justify-center gap-2"
-                >
-                  Donasi Sekarang
-                </Link>
-                <a
-                  href="https://wa.me/6287882799026"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="px-6 py-3.5 border border-[#F5F1E8]/30 text-[#F5F1E8] text-sm md:text-base font-medium rounded-full hover:bg-[#F5F1E8]/10 transition-all duration-300 flex items-center justify-center"
-                >
-                  Jadi Mitra Kolaborator
-                </a>
-              </div>
-            </motion.div>
+                <div className="mt-8 flex flex-col items-start gap-3 sm:mt-12 sm:flex-row">
+                  <Link
+                    to="/campaigns"
+                    className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-[#2C5F4F] pl-6 pr-4 text-sm font-bold text-[#F5F1E8] transition-all duration-300 hover:bg-[#234A3D] md:h-12 md:text-base"
+                  >
+                    <span className="whitespace-nowrap">Donasi Sekarang</span>
+                    <ArrowRight className="ml-1 h-4 w-4" />
+                  </Link>
+                  <a
+                    href="https://wa.me/6287882799026"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex h-11 items-center justify-center rounded-full border border-[#F5F1E8]/25 px-6 text-sm font-medium text-[#F5F1E8] transition-all duration-300 hover:bg-[#F5F1E8]/10 md:h-12 md:text-base"
+                  >
+                    <span className="whitespace-nowrap">Jadi Mitra Kolaborator</span>
+                  </a>
+                </div>
+              </motion.div>
+            </div>
           </div>
         </div>
-
-        <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-black/40 to-transparent pointer-events-none" />
       </section>
 
-      {/* ═══════ 2 · SOCIAL PROOF TRUST BAR (AUTO-SCROLL) ═══════ */}
-      <Logos3 />
+      {/* ═══════ 2 · TRUST BAR (INFINITE SLIDER) ═══════ */}
+      <section className="bg-white border-y border-gray-200/60 py-4">
+        <div className="group relative m-auto max-w-7xl px-6">
+          <div className="flex flex-col items-center md:flex-row">
+            <div className="shrink-0 py-6 md:max-w-48 md:border-r md:border-gray-200 md:pr-8">
+              <p className="text-center text-sm font-bold uppercase tracking-widest text-gray-400 md:text-end">
+                Dipercaya Oleh
+              </p>
+            </div>
+            <div className="relative py-8 md:w-[calc(100%-12rem)]">
+              <InfiniteSlider
+                durationOnHover={20}
+                duration={35}
+                gap={80}
+              >
+                {[
+                  'Kawan Cendekia', 'PIS Movement', 'Perempuan Lestari',
+                  'Himpunan Pemuda Indonesia', 'Admedika', 'Distrik Berisik',
+                  'Bali Nggih', 'Access English',
+                ].map((name) => (
+                  <div key={name} className="flex items-center gap-3">
+                    <span className="whitespace-nowrap text-base font-bold tracking-tight text-gray-500 transition-colors hover:text-gray-900 md:text-lg">
+                      {name}
+                    </span>
+                  </div>
+                ))}
+              </InfiniteSlider>
+
+              {/* Edge fade masks */}
+              <div className="pointer-events-none absolute inset-y-0 left-0 w-20 bg-gradient-to-r from-white to-transparent" />
+              <div className="pointer-events-none absolute inset-y-0 right-0 w-20 bg-gradient-to-l from-white to-transparent" />
+              <ProgressiveBlur
+                className="pointer-events-none absolute left-0 top-0 h-full w-20"
+                direction="left"
+                blurIntensity={1}
+              />
+              <ProgressiveBlur
+                className="pointer-events-none absolute right-0 top-0 h-full w-20"
+                direction="right"
+                blurIntensity={1}
+              />
+            </div>
+          </div>
+        </div>
+      </section>
 
 
 
       {/* ═══════ 4 · HAPPENING NOW — EDITORIAL BENTO ═══════ */}
-      <section className="py-12 sm:py-16 md:py-20">
-        <div className="max-w-7xl mx-auto px-5 sm:px-6 lg:px-8">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-8 sm:mb-10 gap-3">
+      <section className="bg-gray-50/50 py-16 sm:py-20">
+        <div className="mx-auto max-w-7xl px-5 sm:px-6 lg:px-8">
+          <div className="mb-10 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-end">
             <motion.div {...fadeUp}>
-              <p className="text-emerald-600 font-bold uppercase tracking-[0.15em] text-[11px] sm:text-xs mb-1.5">Terkini</p>
-              <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-gray-900">Sedang Berlangsung</h2>
+              <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-800">Terkini</p>
+              <h2 className="text-xl font-black tracking-tight text-gray-900 sm:text-2xl md:text-3xl">Sedang Berlangsung</h2>
             </motion.div>
-            <Link to="/campaigns" className="text-emerald-600 font-semibold flex items-center hover:text-emerald-700 group text-sm transition-colors">
+            <Link to="/campaigns" className="group flex items-center text-xs font-bold uppercase tracking-widest text-emerald-800 transition-colors hover:text-emerald-950">
               Lihat Semua
-              <ArrowRight size={15} className="ml-1 group-hover:translate-x-0.5 transition-transform" />
+              <ArrowRight size={14} className="ml-2 transition-transform group-hover:translate-x-1" />
             </Link>
           </div>
 
           {featuredCampaignError ? (
-            <div className="rounded-3xl border border-gray-200 bg-white px-6 py-5 text-sm text-red-600 shadow-sm">
+            <div className="rounded-2xl border border-gray-100 bg-white p-8 text-center text-sm text-red-600">
               {featuredCampaignError}
             </div>
           ) : loadingFeaturedCampaigns ? (
-            <div className="rounded-3xl border border-gray-200 bg-white px-6 py-16 text-center text-sm text-gray-500 shadow-sm">
-              Memuat campaign unggulan...
+            <div className="rounded-2xl border border-gray-100 bg-white p-20 text-center text-sm text-gray-400">
+              Memuat campaign...
             </div>
           ) : featuredCampaigns.length === 0 ? (
-            <div className="rounded-3xl border border-dashed border-gray-200 bg-white px-6 py-16 text-center shadow-sm">
-              <h3 className="text-lg font-semibold text-gray-900">Belum ada campaign featured</h3>
-              <p className="mt-2 text-sm text-gray-500">
-                Pilih campaign featured dari admin panel agar tampil di beranda.
-              </p>
+            <div className="rounded-2xl border border-dashed border-gray-200 bg-white p-20 text-center">
+              <h3 className="text-base font-bold text-gray-900">Belum ada campaign</h3>
             </div>
           ) : (
-            <div className="grid grid-cols-1 gap-4 md:gap-5 lg:grid-cols-12">
-              {featuredCampaigns[0] ? (() => {
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-12 lg:items-stretch">
+              {/* Main Featured Campaign */}
+              {featuredCampaigns[0] && (() => {
                 const hero = featuredCampaigns[0];
                 const progress = calculateProgress(hero.current_amount, hero.target_amount);
                 return (
                   <motion.div
-                    initial={{ opacity: 0, y: 24 }}
+                    initial={{ opacity: 0, y: 20 }}
                     whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true, margin: '-40px' }}
+                    viewport={{ once: true }}
                     transition={{ duration: 0.5 }}
                     className="lg:col-span-7 xl:col-span-8"
                   >
                     <Link
                       to={`/campaigns/${hero.slug}`}
-                      className="group relative block aspect-[4/3] overflow-hidden rounded-2xl bg-gray-900 sm:aspect-[16/10] lg:h-full lg:aspect-auto"
+                      className="group flex h-full flex-col overflow-hidden rounded-2xl border border-gray-100 bg-white transition-all duration-300 hover:shadow-xl hover:shadow-gray-200/50"
                     >
-                      <img
-                        src={hero.thumbnail_url}
-                        alt={hero.title}
-                        className="absolute inset-0 h-full w-full object-cover opacity-80 transition-transform duration-700 group-hover:scale-105"
-                        referrerPolicy="no-referrer"
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
-
-                      <div className="absolute bottom-0 left-0 right-0 space-y-3 p-5 sm:p-7 md:p-8">
-                        <span className="inline-block rounded-full bg-emerald-400/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest text-emerald-400 backdrop-blur-sm sm:text-xs">
-                          Kampanye Utama
-                        </span>
-                        <h3 className="max-w-lg text-xl font-bold leading-snug text-white transition-colors group-hover:text-emerald-300 sm:text-2xl md:text-3xl">
-                          {hero.title}
-                        </h3>
-                        <p className="max-w-md line-clamp-2 text-sm font-light leading-relaxed text-white/60">
-                          {hero.short_description}
-                        </p>
-
-                        <div className="flex items-center gap-4 pt-1">
-                          <div className="max-w-xs flex-1">
-                            <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/20">
-                              <div className="h-full rounded-full bg-emerald-400 transition-all duration-700" style={{ width: `${progress}%` }} />
-                            </div>
-                          </div>
-                          <span className="whitespace-nowrap text-sm font-bold text-emerald-400">{progress}%</span>
+                      <div className="relative aspect-[16/9] overflow-hidden lg:aspect-auto lg:flex-1">
+                        <img
+                          src={hero.thumbnail_url}
+                          alt={hero.title}
+                          className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
+                          referrerPolicy="no-referrer"
+                        />
+                        <div className="absolute inset-0 bg-gray-900/5" />
+                      </div>
+                      <div className="flex flex-col p-6 sm:p-8">
+                        <div className="mb-6 space-y-3">
+                          <h3 className="text-xl font-bold leading-tight text-gray-900 transition-colors group-hover:text-emerald-800 sm:text-2xl">
+                            {hero.title}
+                          </h3>
+                          <p className="line-clamp-2 text-sm leading-relaxed text-gray-500">
+                            {hero.short_description}
+                          </p>
                         </div>
-                        <div className="flex items-center justify-between pt-1 text-xs sm:text-sm">
-                          <span className="font-semibold text-white/90">{formatCurrency(hero.current_amount)}</span>
-                          <span className="flex items-center gap-1.5 text-white/50">
-                            <Users size={13} /> {hero.donor_count} donatur
-                          </span>
+                        <div className="mt-auto space-y-4 pt-4 border-t border-gray-50">
+                          <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider">
+                            <span className="text-emerald-800">{formatCurrency(hero.current_amount)}</span>
+                            <span className="text-gray-400">{progress}%</span>
+                          </div>
+                          <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-100">
+                            <div
+                              className="h-full rounded-full bg-emerald-700 transition-all duration-1000"
+                              style={{ width: `${progress}%` }}
+                            />
+                          </div>
                         </div>
                       </div>
                     </Link>
                   </motion.div>
                 );
-              })() : null}
+              })()}
 
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:gap-5 lg:col-span-5 lg:grid-cols-1 xl:col-span-4">
-                {featuredCampaigns.slice(1).map((campaign, index) => {
+              {/* Side Campaigns Grid */}
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:col-span-5 lg:grid-cols-1 xl:col-span-4">
+                {featuredCampaigns.slice(1, 4).map((campaign, index) => {
                   const progress = calculateProgress(campaign.current_amount, campaign.target_amount);
                   return (
                     <motion.div
                       key={campaign.id}
                       initial={{ opacity: 0, y: 20 }}
                       whileInView={{ opacity: 1, y: 0 }}
-                      viewport={{ once: true, margin: '-40px' }}
-                      transition={{ delay: 0.1 + index * 0.08, duration: 0.45 }}
+                      viewport={{ once: true }}
+                      transition={{ delay: 0.1 * index, duration: 0.5 }}
                     >
                       <Link
                         to={`/campaigns/${campaign.slug}`}
-                        className="group flex flex-col overflow-hidden rounded-xl border border-gray-100 bg-white transition-all duration-300 hover:shadow-lg hover:shadow-emerald-100/40 lg:flex-row"
+                        className="group flex h-full items-center gap-4 overflow-hidden rounded-xl border border-gray-50 bg-white p-3 transition-all duration-300 hover:shadow-lg hover:shadow-gray-200/30"
                       >
-                        <div className="relative aspect-[16/10] shrink-0 overflow-hidden lg:w-28 lg:aspect-square xl:w-32">
+                        <div className="relative aspect-square w-20 shrink-0 overflow-hidden rounded-lg bg-gray-100 sm:w-24">
                           <img
                             src={campaign.thumbnail_url}
                             alt={campaign.title}
-                            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                            loading="lazy"
-                            decoding="async"
+                            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
                             referrerPolicy="no-referrer"
                           />
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent lg:bg-none" />
                         </div>
-                        <div className="flex min-w-0 flex-1 flex-col justify-center p-3 sm:p-4">
-                          <h4 className="mb-1 line-clamp-2 text-xs font-bold leading-snug text-gray-900 transition-colors group-hover:text-emerald-700 sm:text-sm">
+                        <div className="flex min-w-0 flex-1 flex-col">
+                          <h4 className="mb-2 line-clamp-2 text-xs font-bold leading-snug text-gray-900 transition-colors group-hover:text-emerald-800 sm:text-sm">
                             {campaign.title}
                           </h4>
-                          <p className="mb-2 hidden line-clamp-1 text-[11px] leading-relaxed text-gray-400 lg:block sm:text-xs">
-                            {campaign.short_description}
-                          </p>
-                          <div className="space-y-1.5">
-                            <div className="h-1 w-full overflow-hidden rounded-full bg-gray-100">
-                              <div className="h-full rounded-full bg-emerald-500 transition-all duration-700" style={{ width: `${progress}%` }} />
+                          <div className="mt-auto space-y-2">
+                            <div className="h-1 w-full overflow-hidden rounded-full bg-gray-50">
+                              <div
+                                className="h-full rounded-full bg-emerald-700/60"
+                                style={{ width: `${progress}%` }}
+                              />
                             </div>
-                            <div className="flex items-center justify-between text-[10px] sm:text-[11px]">
-                              <span className="font-bold text-emerald-600">{formatCurrency(campaign.current_amount)}</span>
+                            <div className="flex items-center justify-between text-[10px] font-bold">
+                              <span className="text-emerald-800">{formatCurrency(campaign.current_amount)}</span>
                               <span className="text-gray-400">{progress}%</span>
                             </div>
                           </div>
@@ -309,53 +348,59 @@ export default function Home() {
       </section>
 
       {/* ═══════ 5 · STATS CTA ═══════ */}
-      <section className="relative overflow-hidden py-14 sm:py-20 md:py-24">
-        <div className="absolute inset-0 bg-gradient-to-br from-emerald-700 via-emerald-600 to-teal-600" />
-        <div className="absolute top-0 right-0 w-80 sm:w-[500px] h-80 sm:h-[500px] bg-emerald-400/15 rounded-full blur-3xl -translate-y-1/3 translate-x-1/4 pointer-events-none" />
-        <div className="absolute bottom-0 left-0 w-60 sm:w-[350px] h-60 sm:h-[350px] bg-teal-800/20 rounded-full blur-3xl translate-y-1/3 -translate-x-1/4 pointer-events-none" />
-
-        <div className="relative z-10 max-w-7xl mx-auto px-5 sm:px-6 lg:px-8">
-          <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
+      <section className="relative overflow-hidden bg-[#1A3C32] py-20 sm:py-24">
+        <div className="relative z-10 mx-auto max-w-7xl px-6 sm:px-8 lg:px-12">
+          <div className="grid items-center gap-16 lg:grid-cols-2">
             <motion.div
-              initial={{ opacity: 0, x: -24 }}
+              initial={{ opacity: 0, x: -20 }}
               whileInView={{ opacity: 1, x: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.6 }}
-              className="space-y-5 sm:space-y-6"
+              className="space-y-8"
             >
-              <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-[2.75rem] font-extrabold text-white leading-tight">
-                Berdonasi Bersama Kami — Simpel, Efektif, dan Berdampak
-              </h2>
-              <p className="text-emerald-100/80 text-sm sm:text-base leading-relaxed max-w-lg">
-                Lebih dari 1.000 campaign telah berhasil disalurkan dan memberikan dampak nyata kepada puluhan ribu penerima manfaat di seluruh Indonesia.
-              </p>
+              <div className="space-y-4">
+                <h2 className="text-3xl font-black leading-tight text-white sm:text-4xl lg:text-5xl">
+                  Berdonasi Bersama Kami — Simpel, Efektif, & Berdampak
+                </h2>
+                <p className="max-w-lg text-base font-light leading-relaxed text-emerald-100/70">
+                  Lebih dari 1.000 kampanye telah berhasil disalurkan dan memberikan dampak nyata kepada puluhan ribu penerima manfaat di seluruh pelosok Indonesia.
+                </p>
+              </div>
               <Link
                 to="/campaigns"
-                className="inline-flex items-center bg-white text-emerald-700 px-6 sm:px-7 py-3 sm:py-3.5 rounded-full font-bold hover:bg-emerald-50 transition-all shadow-lg text-sm group"
+                className="group inline-flex items-center gap-3 rounded-full bg-white px-8 py-4 text-sm font-bold text-emerald-900 transition-all hover:bg-emerald-50 hover:shadow-xl hover:shadow-black/10"
               >
                 Mulai Berdonasi
-                <ArrowRight size={16} className="ml-2 group-hover:translate-x-0.5 transition-transform" />
+                <ArrowRight size={16} className="transition-transform group-hover:translate-x-1" />
               </Link>
             </motion.div>
 
             <motion.div
-              initial={{ opacity: 0, x: 24 }}
+              initial={{ opacity: 0, x: 20 }}
               whileInView={{ opacity: 1, x: 0 }}
               viewport={{ once: true }}
-              transition={{ duration: 0.6, delay: 0.15 }}
-              className="grid grid-cols-2 gap-3 sm:gap-4"
+              transition={{ duration: 0.6, delay: 0.2 }}
+              className="grid grid-cols-2 gap-4 sm:gap-6"
             >
               {[
-                { value: 'Rp 250 Juta+', label: 'Total Donasi Tersalurkan', icon: Heart },
-                { value: '60', label: 'Pejuang Tanah Air', icon: Users },
-                { value: '5 Lokasi', label: 'Di 4 Pulau Berbeda', icon: CheckCircle2 },
-                { value: '9', label: 'Mitra Kolaborator', icon: HandHeart },
-                { value: '+3M', label: 'Penayangan Eksukasi & Promosi', icon: BarChart3 },
+                { value: 'Rp 250 Juta+', label: 'Donasi Tersalurkan', icon: Heart },
+                { value: '60+', label: 'Pejuang Tanah Air', icon: Users },
+                { value: '5', label: 'Lokasi Provinsi', icon: CheckCircle2 },
+                { value: '9', label: 'Mitra Kolaborasi', icon: HandHeart },
+                { value: '3M+', label: 'Edukasi & Promosi', icon: BarChart3 },
               ].map((stat, i) => (
-                <div key={i} className="bg-white/10 backdrop-blur-sm rounded-xl sm:rounded-2xl p-4 sm:p-5 md:p-6 border border-white/10">
-                  <stat.icon size={20} className="text-emerald-300 mb-2 sm:mb-3" />
-                  <h3 className="text-xl sm:text-2xl md:text-3xl font-extrabold text-white leading-none">{stat.value}</h3>
-                  <p className="text-emerald-200/70 text-[10px] sm:text-[11px] mt-1.5 font-medium tracking-wide uppercase">{stat.label}</p>
+                <div 
+                  key={i} 
+                  className={cn(
+                    "flex flex-col justify-center rounded-2xl bg-white/5 p-6 border border-white/5 transition-colors hover:bg-white/10",
+                    i === 4 ? "col-span-2 sm:col-span-1" : ""
+                  )}
+                >
+                  <stat.icon size={20} className="mb-4 text-emerald-400" />
+                  <div className="space-y-1">
+                    <h3 className="text-2xl font-black text-white sm:text-3xl">{stat.value}</h3>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-200/50">{stat.label}</p>
+                  </div>
                 </div>
               ))}
             </motion.div>
@@ -461,7 +506,7 @@ export default function Home() {
             {/* Image */}
             <div className="relative aspect-[16/10] lg:aspect-auto order-1 lg:order-2">
               <img
-                src="https://images.unsplash.com/photo-1469571486292-0ba58a3f068b?auto=format&fit=crop&q=80&w=1200"
+                src="https://jfzvlzxslmgnssxekcme.supabase.co/storage/v1/object/public/campaign-assets/updates-demo/fundraising_milestone_1777146436734.png"
                 alt="Kebersamaan"
                 className="w-full h-full object-cover"
                 loading="lazy"

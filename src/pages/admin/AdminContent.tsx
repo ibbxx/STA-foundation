@@ -3,28 +3,18 @@ import { AlertCircle, CheckCircle2, Edit2, Layers3, Plus, RefreshCw, Save, Searc
 import { useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import AdminModal from '../../components/admin/AdminModal';
-import { AdminProgramValues, adminProgramSchema, programIconOptions } from '../../lib/admin-schemas';
+import { adminProgramSchema, programIconOptions, type AdminProgramValues } from '../../lib/admin-schemas';
 import { formatAdminDate } from '../../lib/admin-helpers';
-import { ProgramInsert, ProgramRow, supabase } from '../../lib/supabase';
+import { deleteProgram, fetchProgramRows, insertProgram, updateProgram } from '../../lib/admin-repository';
+import {
+  buildProgramSummary,
+  defaultProgramValues,
+  filterPrograms,
+  toProgramPayload,
+} from '../../lib/admin-view-models';
+import { logError } from '../../lib/error-logger';
+import { ProgramRow } from '../../lib/supabase';
 import { cn } from '../../lib/utils';
-
-const defaultValues: AdminProgramValues = {
-  slug: '',
-  title: '',
-  description: '',
-  icon_name: '',
-  content: '',
-};
-
-function toProgramPayload(values: AdminProgramValues): ProgramInsert {
-  return {
-    slug: values.slug.trim(),
-    title: values.title.trim(),
-    description: values.description.trim(),
-    icon_name: values.icon_name.trim(),
-    content: values.content?.trim() ? values.content.trim() : null,
-  };
-}
 
 export default function AdminContent() {
   const [programs, setPrograms] = useState<ProgramRow[]>([]);
@@ -45,19 +35,17 @@ export default function AdminContent() {
     formState: { errors, isSubmitting },
   } = useForm<AdminProgramValues>({
     resolver: zodResolver(adminProgramSchema),
-    defaultValues,
+    defaultValues: defaultProgramValues,
   });
 
   async function loadPrograms() {
     setLoading(true);
     setError(null);
 
-    const { data, error: fetchError } = await supabase
-      .from('programs')
-      .select('*')
-      .order('updated_at', { ascending: false });
+    const { data, error: fetchError } = await fetchProgramRows();
 
     if (fetchError) {
+      logError('AdminContent.loadPrograms', fetchError);
       setError(fetchError.message);
       setPrograms([]);
       setLoading(false);
@@ -84,36 +72,18 @@ export default function AdminContent() {
       return;
     }
 
-    reset(defaultValues);
+    reset(defaultProgramValues);
   }, [editingProgram, mode, reset]);
 
-  const filteredPrograms = useMemo(() => {
-    const query = searchQuery.trim().toLowerCase();
-    if (!query) return programs;
+  const filteredPrograms = useMemo(() => filterPrograms(programs, searchQuery), [programs, searchQuery]);
 
-    return programs.filter((program) =>
-      [program.title, program.slug, program.icon_name]
-        .join(' ')
-        .toLowerCase()
-        .includes(query),
-    );
-  }, [programs, searchQuery]);
-
-  const summary = useMemo(() => {
-    const lastUpdated = programs[0]?.updated_at ?? null;
-
-    return {
-      total: programs.length,
-      withContent: programs.filter((program) => Boolean(program.content?.trim())).length,
-      lastUpdated: lastUpdated ? formatAdminDate(lastUpdated, true) : '-',
-    };
-  }, [programs]);
+  const summary = useMemo(() => buildProgramSummary(programs), [programs]);
 
   function closeModal(force = false) {
     if (isSubmitting && !force) return;
     setMode(null);
     setEditingProgram(null);
-    reset(defaultValues);
+    reset(defaultProgramValues);
   }
 
   function openCreateModal() {
@@ -134,12 +104,16 @@ export default function AdminContent() {
 
     const payload = toProgramPayload(values);
     const query = mode === 'edit' && editingProgram
-      ? supabase.from('programs').update(payload as never).eq('id', editingProgram.id)
-      : supabase.from('programs').insert(payload as never);
+      ? updateProgram(editingProgram.id, payload)
+      : insertProgram(payload);
 
     const { error: submitError } = await query;
 
     if (submitError) {
+      logError('AdminContent.submitProgram', submitError, {
+        mode,
+        programId: editingProgram?.id,
+      });
       setError(submitError.message);
       return;
     }
@@ -152,13 +126,18 @@ export default function AdminContent() {
   async function handleDelete(program: ProgramRow) {
     setNotice(null);
     setError(null);
-    const confirmed = window.confirm(`Hapus program "${program.title}"?`);
+    const confirmed = window.confirm(
+      `Apakah Anda yakin ingin menghapus program "${program.title}"?\n\nTindakan ini tidak dapat dibatalkan dan data tidak dapat dikembalikan lagi.`
+    );
     if (!confirmed) return;
 
     setDeletingId(program.id);
-    const { error: deleteError } = await supabase.from('programs').delete().eq('id', program.id);
+    const { error: deleteError } = await deleteProgram(program.id);
 
     if (deleteError) {
+      logError('AdminContent.deleteProgram', deleteError, {
+        programId: program.id,
+      });
       setError(deleteError.message);
       setDeletingId(null);
       return;
@@ -189,7 +168,7 @@ export default function AdminContent() {
           </button>
           <button
             onClick={openCreateModal}
-            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-xl text-sm font-medium shadow-sm hover:bg-emerald-700 transition-colors"
+            className="flex items-center gap-2 px-4 py-2 bg-zinc-900 text-white rounded-xl text-sm font-medium shadow-sm hover:bg-zinc-950 transition-colors"
           >
             <Plus size={16} />
             Tambah Program
@@ -199,7 +178,7 @@ export default function AdminContent() {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="p-5 rounded-2xl border border-slate-200 bg-white shadow-sm flex items-start gap-4">
-          <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl">
+          <div className="p-3 bg-zinc-100 text-zinc-900 rounded-xl">
             <Layers3 size={24} />
           </div>
           <div>
@@ -225,7 +204,7 @@ export default function AdminContent() {
       </div>
 
       {notice && (
-        <div className="flex items-start gap-3 p-4 rounded-xl border border-emerald-200 bg-emerald-50 text-sm text-emerald-700">
+        <div className="flex items-start gap-3 p-4 rounded-xl border border-zinc-200 bg-zinc-100 text-sm text-zinc-950">
           <CheckCircle2 size={18} className="shrink-0 mt-0.5" />
           <div>
             <p className="font-semibold">Berhasil</p>
@@ -253,7 +232,7 @@ export default function AdminContent() {
               placeholder="Cari program..."
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-xl text-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition-all placeholder:text-slate-400"
+              className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-xl text-sm focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 outline-none transition-all placeholder:text-slate-400"
             />
           </div>
           <div className="flex flex-wrap gap-2 hidden lg:flex">
@@ -292,7 +271,7 @@ export default function AdminContent() {
                       <span className="px-2.5 py-1 text-xs font-mono text-slate-600 bg-slate-100 rounded-md">{program.slug}</span>
                     </td>
                     <td className="px-6 py-4">
-                      <span className="px-2.5 py-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 rounded-md uppercase tracking-wider">{program.icon_name}</span>
+                      <span className="px-2.5 py-1 text-[11px] font-semibold text-zinc-950 bg-zinc-100 rounded-md uppercase tracking-wider">{program.icon_name}</span>
                     </td>
                     <td className="px-6 py-4 text-sm text-slate-500">{formatAdminDate(program.updated_at, true)}</td>
                     <td className="px-6 py-4 text-right">
@@ -300,7 +279,7 @@ export default function AdminContent() {
                         <button
                           type="button"
                           onClick={() => openEditModal(program)}
-                          className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+                          className="p-2 text-slate-400 hover:text-zinc-900 hover:bg-zinc-100 rounded-lg transition-colors"
                           title="Edit"
                         >
                           <Edit2 size={16} />
@@ -343,7 +322,7 @@ export default function AdminContent() {
               type="submit"
               form="program-form"
               disabled={isSubmitting}
-              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-emerald-600 rounded-xl hover:bg-emerald-700 transition-colors disabled:opacity-50"
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-zinc-900 rounded-xl hover:bg-zinc-950 transition-colors disabled:opacity-50"
             >
               {isSubmitting ? 'Menyimpan...' : 'Simpan'}
             </button>
@@ -357,7 +336,7 @@ export default function AdminContent() {
               <input
                 type="text"
                 {...register('title')}
-                className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition-all placeholder:text-slate-400"
+                className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 outline-none transition-all placeholder:text-slate-400"
               />
               {errors.title && <p className="text-xs text-rose-500">{errors.title.message}</p>}
             </label>
@@ -367,7 +346,7 @@ export default function AdminContent() {
               <input
                 type="text"
                 {...register('slug')}
-                className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition-all placeholder:text-slate-400"
+                className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 outline-none transition-all placeholder:text-slate-400"
               />
               {errors.slug && <p className="text-xs text-rose-500">{errors.slug.message}</p>}
             </label>
@@ -378,7 +357,7 @@ export default function AdminContent() {
             <textarea
               rows={3}
               {...register('description')}
-              className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition-all placeholder:text-slate-400"
+              className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 outline-none transition-all placeholder:text-slate-400"
             />
             {errors.description && <p className="text-xs text-rose-500">{errors.description.message}</p>}
           </label>
@@ -394,7 +373,7 @@ export default function AdminContent() {
                   className={cn(
                     'px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider rounded-lg transition-colors border',
                     selectedIcon === iconName
-                      ? 'bg-emerald-600 text-white border-emerald-600'
+                      ? 'bg-zinc-900 text-white border-zinc-900'
                       : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50 hover:text-slate-700',
                   )}
                 >
@@ -410,7 +389,7 @@ export default function AdminContent() {
             <textarea
               rows={8}
               {...register('content')}
-              className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition-all placeholder:text-slate-400"
+              className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 outline-none transition-all placeholder:text-slate-400"
             />
             {errors.content && <p className="text-xs text-rose-500">{errors.content.message}</p>}
           </label>

@@ -1,6 +1,7 @@
 import { Search } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import CampaignCard from '../../components/shared/CampaignCard';
+import { logError } from '../../lib/error-logger';
 import { fetchPublicCampaigns } from '../../lib/public-campaigns';
 import { Campaign, CategoryRow } from '../../lib/supabase';
 
@@ -26,6 +27,7 @@ export default function Campaigns() {
         setCampaigns(result.campaigns);
         setCategories(result.categories);
       } catch (loadError) {
+        logError('Campaigns.loadCampaigns', loadError);
         if (ignore) return;
         setCampaigns([]);
         setCategories([]);

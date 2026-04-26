@@ -7,12 +7,14 @@ import {
   RefreshCw,
   Save,
   Send,
+  Trash2,
+  ExternalLink,
   Image as ImageIcon,
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import { useForm, Controller } from 'react-hook-form';
-import CampaignStatusBadge, { getCampaignTemporalStatus } from '../../components/admin/campaigns/CampaignStatusBadge';
-import ImageDropzone, { ImagePreviewItem } from '../../components/admin/campaigns/ImageDropzone';
+import { useForm, Controller, useFieldArray } from 'react-hook-form';
+import CampaignStatusBadge from '../../components/admin/campaigns/CampaignStatusBadge';
+import ImageDropzone from '../../components/admin/campaigns/ImageDropzone';
 import RichTextEditor from '../../components/admin/campaigns/RichTextEditor';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
 import AdminModal from '../../components/admin/AdminModal';
@@ -22,7 +24,30 @@ import {
   campaignManagerSchema,
   campaignUpdateSchema,
 } from '../../lib/admin-schemas';
+import {
+  defaultCampaignValues,
+  defaultUpdateValues,
+  formatDateRange,
+  getCampaignImages,
+  slugify,
+  toExistingImageItems,
+  toQueuedImageItems,
+} from '../../lib/admin-campaign-utils';
 import { formatAdminDate } from '../../lib/admin-helpers';
+import {
+  deleteCampaign,
+  deleteCampaignUpdate,
+  fetchCampaignDonationProbe,
+  fetchCampaignDonationRows,
+  fetchCampaignManagerRows,
+  fetchCampaignUpdateImageRows,
+  fetchCampaignUpdateRows,
+  insertCampaignUpdate,
+  saveCampaign,
+} from '../../lib/admin-repository';
+import { logError } from '../../lib/error-logger';
+import type { ImagePreviewItem } from '../../lib/image-preview';
+import { revokeQueuedItems } from '../../lib/image-preview';
 import { deleteFilesFromStorage, getCampaignAssetsBucketName, uploadFileToStorage } from '../../lib/supabase-storage';
 import {
   CampaignInsert,
@@ -31,73 +56,8 @@ import {
   CampaignUpdateRow,
   CategoryRow,
   DonationRow,
-  supabase,
 } from '../../lib/supabase';
 import { cn } from '../../lib/utils';
-
-const defaultCampaignValues: CampaignManagerValues = {
-  title: '',
-  category_id: '',
-  target_amount: 0,
-  start_date: '',
-  end_date: '',
-  description: '',
-  is_featured: false,
-};
-
-const defaultUpdateValues: CampaignUpdateValues = {
-  title: '',
-  content: '',
-  update_type: 'General',
-};
-
-function slugify(value: string) {
-  return value
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 80);
-}
-
-function getCampaignImages(campaign: CampaignRow | null) {
-  if (!campaign) return [];
-  if (Array.isArray(campaign.images) && campaign.images.length > 0) return campaign.images;
-  if (campaign.image_url) return [campaign.image_url];
-  return [];
-}
-
-function toExistingImageItems(urls: string[]): ImagePreviewItem[] {
-  return urls.map((url, index) => ({
-    id: `existing-${index}-${url}`,
-    url,
-    name: `image-${index + 1}`,
-    kind: 'existing',
-  }));
-}
-
-function toQueuedImageItems(files: File[]): ImagePreviewItem[] {
-  return files.map((file) => ({
-    id: `queued-${crypto.randomUUID()}`,
-    url: URL.createObjectURL(file),
-    name: file.name,
-    kind: 'queued',
-    file,
-  }));
-}
-
-function revokeQueuedItems(items: ImagePreviewItem[]) {
-  items.forEach((item) => {
-    if (item.kind === 'queued') {
-      URL.revokeObjectURL(item.url);
-    }
-  });
-}
-
-function formatDateRange(startDate?: string | null, endDate?: string | null) {
-  if (!startDate || !endDate) return 'Tanggal belum lengkap';
-  return `${startDate} - ${endDate}`;
-}
 
 export default function AdminCampaigns() {
   const [campaigns, setCampaigns] = useState<CampaignRow[]>([]);
@@ -106,17 +66,24 @@ export default function AdminCampaigns() {
   const [selectedCampaignId, setSelectedCampaignId] = useState<string | null>(null);
   const [campaignSearch, setCampaignSearch] = useState('');
   const [campaignImages, setCampaignImages] = useState<ImagePreviewItem[]>([]);
-  const [timelineImage, setTimelineImage] = useState<ImagePreviewItem | null>(null);
-  const [timelineImageFile, setTimelineImageFile] = useState<File | null>(null);
+  const [timelineImages, setTimelineImages] = useState<ImagePreviewItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingUpdates, setLoadingUpdates] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [activeModalTab, setActiveModalTab] = useState<'detail' | 'updates' | 'donatur'>('detail');
+  const [modalDonations, setModalDonations] = useState<DonationRow[]>([]);
+  const [loadingDonations, setLoadingDonations] = useState(false);
 
   const campaignForm = useForm<CampaignManagerValues>({
     resolver: zodResolver(campaignManagerSchema),
     defaultValues: defaultCampaignValues,
+  });
+
+  const { fields: collabFields, append: appendCollab, remove: removeCollab } = useFieldArray({
+    control: campaignForm.control,
+    name: 'collaborators',
   });
 
   const updateForm = useForm<CampaignUpdateValues>({
@@ -151,12 +118,13 @@ export default function AdminCampaigns() {
     setLoading(true);
     setError(null);
 
-    const [{ data: campaignRows, error: campaignsError }, { data: categoryRows, error: categoriesError }] = await Promise.all([
-      supabase.from('campaigns').select('*').order('created_at', { ascending: false }),
-      supabase.from('categories').select('*').order('name', { ascending: true }),
-    ]);
+    const [{ data: campaignRows, error: campaignsError }, { data: categoryRows, error: categoriesError }] = await fetchCampaignManagerRows();
 
     if (campaignsError || categoriesError) {
+      logError('AdminCampaigns.loadCampaignManager', campaignsError ?? categoriesError, {
+        campaignsError,
+        categoriesError,
+      });
       setError(campaignsError?.message ?? categoriesError?.message ?? 'Gagal memuat campaign manager.');
       setCampaigns([]);
       setCategories([]);
@@ -184,13 +152,10 @@ export default function AdminCampaigns() {
   async function loadCampaignUpdates(campaignId: string) {
     setLoadingUpdates(true);
 
-    const { data, error: updatesError } = await supabase
-      .from('campaign_updates')
-      .select('*')
-      .eq('campaign_id', campaignId)
-      .order('created_at', { ascending: false });
+    const { data, error: updatesError } = await fetchCampaignUpdateRows(campaignId);
 
     if (updatesError) {
+      logError('AdminCampaigns.loadCampaignUpdates', updatesError, { campaignId });
       setError(updatesError.message);
       setUpdates([]);
       setLoadingUpdates(false);
@@ -199,6 +164,21 @@ export default function AdminCampaigns() {
 
     setUpdates(data ?? []);
     setLoadingUpdates(false);
+  }
+
+
+  async function loadCampaignDonations(campaignId: string) {
+    setLoadingDonations(true);
+    const { data, error: fetchError } = await fetchCampaignDonationRows(campaignId);
+
+    if (fetchError) {
+      logError('AdminCampaigns.loadCampaignDonations', fetchError, { campaignId });
+    }
+
+    if (!fetchError) {
+      setModalDonations(data ?? []);
+    }
+    setLoadingDonations(false);
   }
 
   function resetCampaignEditor(campaign: CampaignRow | null) {
@@ -210,6 +190,8 @@ export default function AdminCampaigns() {
       end_date: campaign?.end_date ?? '',
       description: campaign?.description ?? '',
       is_featured: campaign?.is_featured ?? false,
+      status: campaign?.status ?? 'draft',
+      collaborators: campaign?.collaborators ?? [],
     });
 
     setCampaignImages((current) => {
@@ -220,13 +202,12 @@ export default function AdminCampaigns() {
 
   function resetTimelineComposer() {
     updateForm.reset(defaultUpdateValues);
-    setTimelineImage((current) => {
-      if (current?.kind === 'queued') {
-        URL.revokeObjectURL(current.url);
-      }
-      return null;
+    setTimelineImages((current) => {
+      current.forEach((item) => {
+        if (item.kind === 'queued') URL.revokeObjectURL(item.url);
+      });
+      return [];
     });
-    setTimelineImageFile(null);
   }
 
   function handleNewCampaign() {
@@ -254,42 +235,71 @@ export default function AdminCampaigns() {
     });
   }
 
-  function handleTimelineImageAdd(files: File[]) {
-    const [file] = files;
-    if (!file) return;
-
-    setTimelineImage((current) => {
-      if (current?.kind === 'queued') {
-        URL.revokeObjectURL(current.url);
-      }
-
-      return {
-        id: `timeline-${crypto.randomUUID()}`,
-        url: URL.createObjectURL(file),
-        name: file.name,
-        kind: 'queued',
-      };
-    });
-    setTimelineImageFile(file);
+  function handleCampaignImageReorder(reordered: ImagePreviewItem[]) {
+    setCampaignImages(reordered);
   }
 
-  function handleTimelineImageRemove() {
-    setTimelineImage((current) => {
-      if (current?.kind === 'queued') {
-        URL.revokeObjectURL(current.url);
+  function handleCampaignImageCropReplace(id: string, croppedFile: File) {
+    setCampaignImages((current) =>
+      current.map((item) => {
+        if (item.id !== id) return item;
+        // Revoke old objectURL if it was a queued item
+        if (item.kind === 'queued') {
+          URL.revokeObjectURL(item.url);
+        }
+        return {
+          ...item,
+          url: URL.createObjectURL(croppedFile),
+          file: croppedFile,
+          name: croppedFile.name,
+          kind: 'queued' as const,
+        };
+      }),
+    );
+  }
+
+  function handleTimelineImageAdd(files: File[]) {
+    const nextQueuedItems = toQueuedImageItems(files);
+    setTimelineImages((current) => [...current, ...nextQueuedItems]);
+  }
+
+  function handleTimelineImageRemove(id: string) {
+    setTimelineImages((current) => {
+      const target = current.find((item) => item.id === id);
+      if (target?.kind === 'queued') {
+        URL.revokeObjectURL(target.url);
       }
-      return null;
+      return current.filter((item) => item.id !== id);
     });
-    setTimelineImageFile(null);
+  }
+
+  function handleTimelineImageReorder(reordered: ImagePreviewItem[]) {
+    setTimelineImages(reordered);
+  }
+
+  function handleTimelineImageCropReplace(id: string, croppedFile: File) {
+    setTimelineImages((current) =>
+      current.map((item) => {
+        if (item.id !== id) return item;
+        if (item.kind === 'queued') {
+          URL.revokeObjectURL(item.url);
+        }
+        return {
+          ...item,
+          url: URL.createObjectURL(croppedFile),
+          file: croppedFile,
+          name: croppedFile.name,
+          kind: 'queued' as const,
+        };
+      }),
+    );
   }
 
   useEffect(() => {
     loadCampaignManager();
     return () => {
       revokeQueuedItems(campaignImages);
-      if (timelineImage?.kind === 'queued') {
-        URL.revokeObjectURL(timelineImage.url);
-      }
+      revokeQueuedItems(timelineImages);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -304,6 +314,7 @@ export default function AdminCampaigns() {
     }
 
     loadCampaignUpdates(selectedCampaignId);
+    loadCampaignDonations(selectedCampaignId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedCampaignId, selectedCampaign]);
 
@@ -315,6 +326,9 @@ export default function AdminCampaigns() {
       const existingUrls = campaignImages
         .filter((item) => item.kind === 'existing')
         .map((item) => item.url);
+
+      const oldUrls = selectedCampaign?.images ?? [];
+      const removedUrls = oldUrls.filter((url) => !existingUrls.includes(url));
 
       const queuedItems = campaignImages.filter((item) => item.kind === 'queued');
 
@@ -328,8 +342,11 @@ export default function AdminCampaigns() {
                 bucket: getCampaignAssetsBucketName(),
                 folder: 'campaigns',
               })),
-          );
+            );
         } catch (uploadError) {
+          logError('AdminCampaigns.uploadCampaignImages', uploadError, {
+            queuedCount: queuedItems.length,
+          });
           setError(`Gagal mengupload gambar: ${uploadError instanceof Error ? uploadError.message : 'Periksa koneksi dan pastikan storage bucket sudah dibuat.'}`);
           return;
         }
@@ -337,7 +354,6 @@ export default function AdminCampaigns() {
 
       const imageUrls = [...existingUrls, ...freshUploads];
       const categoryName = categoryMap.get(values.category_id)?.name ?? null;
-      const temporalStatus = getCampaignTemporalStatus(values.start_date, values.end_date);
 
       const slug = selectedCampaign?.slug || `${slugify(values.title)}-${Date.now().toString(36)}`;
 
@@ -353,17 +369,19 @@ export default function AdminCampaigns() {
         target_amount: values.target_amount,
         image_url: imageUrls[0] ?? null,
         category: categoryName,
-        status: temporalStatus === 'Ended' ? 'completed' : 'active',
+        status: values.status,
+        collaborators: values.collaborators,
         current_amount: selectedCampaign?.current_amount ?? 0,
       };
 
-      const query = selectedCampaign
-        ? supabase.from('campaigns').update(payload as never).eq('id', selectedCampaign.id).select('*').single()
-        : supabase.from('campaigns').insert(payload as never).select('*').single();
-
-      const { data, error: submitError } = await query;
+      const { data, error: submitError } = await saveCampaign(payload, selectedCampaign?.id);
 
       if (submitError) {
+        logError('AdminCampaigns.submitCampaign', submitError, {
+          mode: selectedCampaign ? 'edit' : 'create',
+          campaignId: selectedCampaign?.id,
+          slug,
+        });
         const msg = submitError.message;
         if (msg.includes('duplicate') || msg.includes('unique')) {
           setError('Slug campaign sudah digunakan. Coba ubah judul sedikit lalu simpan ulang.');
@@ -382,9 +400,19 @@ export default function AdminCampaigns() {
       const savedCampaign = data as CampaignRow | null;
       const nextId = savedCampaign?.id ?? selectedCampaign?.id ?? null;
       setNotice(selectedCampaign ? 'Campaign berhasil diperbarui.' : 'Campaign berhasil dibuat.');
+
+      if (removedUrls.length > 0) {
+        deleteFilesFromStorage(removedUrls).catch((err) => {
+          logError('AdminCampaigns.cleanupRemovedImages', err);
+        });
+      }
+
       await loadCampaignManager(nextId);
       setIsModalOpen(false);
     } catch (unexpectedError) {
+      logError('AdminCampaigns.handleCampaignSubmitUnexpected', unexpectedError, {
+        campaignId: selectedCampaign?.id,
+      });
       setError(`Terjadi kesalahan: ${unexpectedError instanceof Error ? unexpectedError.message : 'Silakan coba lagi.'}`);
     }
   }
@@ -395,12 +423,25 @@ export default function AdminCampaigns() {
     setError(null);
     setNotice(null);
 
-    let imageUrl: string | null = null;
-    if (timelineImageFile) {
-      imageUrl = await uploadFileToStorage(timelineImageFile, {
-        bucket: getCampaignAssetsBucketName(),
-        folder: 'campaign-updates',
-      });
+    const queuedFiles = timelineImages
+      .filter((item) => item.kind === 'queued' && item.file)
+      .map((item) => item.file!);
+
+    let uploadedUrls: string[] = [];
+    if (queuedFiles.length > 0) {
+      try {
+        const uploadPromises = queuedFiles.map((file) =>
+          uploadFileToStorage(file, {
+            bucket: getCampaignAssetsBucketName(),
+            folder: 'campaign-updates',
+          })
+        );
+        uploadedUrls = await Promise.all(uploadPromises);
+      } catch (err) {
+        logError('AdminCampaigns.handleUpdateSubmitUpload', err);
+        setError('Gagal mengupload gambar timeline. Silakan coba lagi.');
+        return;
+      }
     }
 
     const payload: CampaignUpdateInsert = {
@@ -408,18 +449,54 @@ export default function AdminCampaigns() {
       title: values.title.trim(),
       content: values.content.trim(),
       update_type: values.update_type,
-      image_url: imageUrl,
+      image_url: uploadedUrls[0] ?? null,
+      images: uploadedUrls.length > 0 ? uploadedUrls : null,
+      ...(values.created_at ? { created_at: new Date(values.created_at).toISOString() } : {}),
     };
 
-    const { error: submitError } = await supabase.from('campaign_updates').insert(payload as never);
+    const { error: submitError } = await insertCampaignUpdate(payload);
 
     if (submitError) {
+      logError('AdminCampaigns.handleUpdateSubmit', submitError, {
+        campaignId: selectedCampaignId,
+      });
       setError(submitError.message);
       return;
     }
 
     setNotice('Update campaign berhasil dipublikasikan.');
     resetTimelineComposer();
+    await loadCampaignUpdates(selectedCampaignId);
+  }
+
+  async function handleDeleteUpdate(updateId: string, title: string, imageUrl: string | null, images: string[] | null) {
+    if (!selectedCampaignId) return;
+
+    const confirmed = window.confirm(`Hapus update timeline "${title}"?`);
+    if (!confirmed) return;
+
+    setError(null);
+    setNotice(null);
+
+    const { error: deleteError } = await deleteCampaignUpdate(updateId);
+
+    if (deleteError) {
+      logError('AdminCampaigns.handleDeleteUpdate', deleteError, { updateId });
+      setError(deleteError.message);
+      return;
+    }
+
+    const urlsToDelete: string[] = [];
+    if (imageUrl) urlsToDelete.push(imageUrl);
+    if (images && images.length > 0) urlsToDelete.push(...images);
+
+    if (urlsToDelete.length > 0) {
+      deleteFilesFromStorage(urlsToDelete).catch((err) => {
+        logError('AdminCampaigns.handleDeleteUpdateStorage', err, { urlsToDelete });
+      });
+    }
+
+    setNotice('Update timeline berhasil dihapus.');
     await loadCampaignUpdates(selectedCampaignId);
   }
 
@@ -432,19 +509,22 @@ export default function AdminCampaigns() {
     setError(null);
     setNotice(null);
 
-    const { data: donationRows, error: donationsError } = await supabase
-      .from('donations')
-      .select('id')
-      .eq('campaign_id', selectedCampaign.id)
-      .limit(1);
+    const { data: donationRows, error: donationsError } = await fetchCampaignDonationProbe(selectedCampaign.id);
 
     if (donationsError) {
+      logError('AdminCampaigns.checkRelatedDonationsBeforeDelete', donationsError, {
+        campaignId: selectedCampaign.id,
+      });
       setError(donationsError.message);
       return;
     }
 
     const relatedDonations = (donationRows ?? []) as Pick<DonationRow, 'id'>[];
     if (relatedDonations.length > 0) {
+      logError('AdminCampaigns.deleteCampaignBlockedByDonations', new Error('Campaign memiliki riwayat donasi.'), {
+        campaignId: selectedCampaign.id,
+        donationCount: relatedDonations.length,
+      });
       setError('Campaign ini sudah memiliki riwayat donasi dan tidak bisa dihapus langsung.');
       return;
     }
@@ -456,11 +536,13 @@ export default function AdminCampaigns() {
     ];
 
     // Ambil gambar dari timeline updates
-    const { data: updateRows } = await supabase
-      .from('campaign_updates')
-      .select('image_url')
-      .eq('campaign_id', selectedCampaign.id)
-      .not('image_url', 'is', null);
+    const { data: updateRows, error: updateImagesError } = await fetchCampaignUpdateImageRows(selectedCampaign.id);
+
+    if (updateImagesError) {
+      logError('AdminCampaigns.loadUpdateImagesBeforeDelete', updateImagesError, {
+        campaignId: selectedCampaign.id,
+      });
+    }
 
     const updateImageUrls = (updateRows ?? [])
       .map((row) => (row as { image_url: string | null }).image_url)
@@ -469,12 +551,12 @@ export default function AdminCampaigns() {
     const allImageUrls = [...campaignImageUrls, ...updateImageUrls];
 
     // Hapus data dari database terlebih dahulu
-    const { error: deleteError } = await supabase
-      .from('campaigns')
-      .delete()
-      .eq('id', selectedCampaign.id);
+    const { error: deleteError } = await deleteCampaign(selectedCampaign.id);
 
     if (deleteError) {
+      logError('AdminCampaigns.deleteCampaign', deleteError, {
+        campaignId: selectedCampaign.id,
+      });
       setError(deleteError.message);
       return;
     }
@@ -482,6 +564,13 @@ export default function AdminCampaigns() {
     // Bersihkan file dari storage (best-effort, tidak block UI jika gagal)
     if (allImageUrls.length > 0) {
       const result = await deleteFilesFromStorage(allImageUrls);
+      if (result.failed > 0) {
+        logError('AdminCampaigns.storageCleanupAfterDelete', new Error('Sebagian file storage gagal dihapus.'), {
+          campaignId: selectedCampaign.id,
+          deleted: result.deleted,
+          failed: result.failed,
+        });
+      }
       console.log(`Storage cleanup: ${result.deleted} dihapus, ${result.failed} gagal`);
     }
 
@@ -626,11 +715,63 @@ export default function AdminCampaigns() {
           open={isModalOpen}
           onClose={() => setIsModalOpen(false)}
           title={selectedCampaign ? 'Edit Campaign' : 'Create Campaign'}
-          description="Masukkan informasi utama campaign. Form ini mengikuti layout bersih agar tim admin bisa fokus pada konten dan jadwal tayang."
           widthClassName="max-w-4xl"
+          headerActions={
+            <div className="flex items-center gap-1.5 mr-2">
+              {selectedCampaign ? (
+                <>
+                  <a
+                    href={`/campaigns/${selectedCampaign.slug}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title="Preview Campaign"
+                    className="rounded-md p-2 text-zinc-400 transition-all hover:bg-zinc-100 hover:text-zinc-900"
+                  >
+                    <ExternalLink size={18} />
+                  </a>
+                  <button
+                    type="button"
+                    onClick={handleDeleteCampaign}
+                    title="Hapus Campaign"
+                    className="rounded-md p-2 text-red-400 transition-all hover:bg-red-50 hover:text-red-600"
+                  >
+                    <Trash2 size={18} />
+                  </button>
+                </>
+              ) : null}
+              <button
+                type="submit"
+                form="campaign-edit-form"
+                disabled={campaignForm.formState.isSubmitting}
+                title="Save Campaign"
+                className="rounded-md p-2 text-emerald-600 transition-all hover:bg-emerald-50 hover:text-emerald-700 disabled:opacity-50"
+              >
+                {campaignForm.formState.isSubmitting ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+              </button>
+            </div>
+          }
         >
+          <div className="flex gap-6 border-b border-gray-200 mb-6">
+            {(['detail', 'updates', 'donatur'] as const).map((tab) => (
+              <button
+                key={tab}
+                type="button"
+                onClick={() => setActiveModalTab(tab)}
+                className={`pb-3 text-sm font-semibold transition-colors relative ${
+                  activeModalTab === tab ? 'text-zinc-900' : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                {tab === 'detail' ? 'Detail & Target' : tab === 'updates' ? 'Timeline Updates' : 'Daftar Donatur'}
+                {activeModalTab === tab && (
+                  <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-zinc-900" />
+                )}
+              </button>
+            ))}
+          </div>
+
           <div className="space-y-8 pb-4">
-            <form onSubmit={campaignForm.handleSubmit(handleCampaignSubmit)} className="space-y-6">
+            <div className={activeModalTab === 'detail' ? 'block' : 'hidden'}>
+            <form id="campaign-edit-form" onSubmit={campaignForm.handleSubmit(handleCampaignSubmit)} className="space-y-6">
               <Card className="border-gray-200 bg-white shadow-sm">
               {selectedCampaign ? (
                 <div className="px-6 pt-6 pb-2">
@@ -708,19 +849,114 @@ export default function AdminCampaigns() {
                   </div>
                 </div>
 
-                <label className="flex items-start gap-3 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
-                  <input
-                    type="checkbox"
-                    {...campaignForm.register('is_featured')}
-                    className="mt-1 h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
-                  />
-                  <div>
-                    <p className="text-sm font-medium text-gray-700">Tampilkan di beranda</p>
-                    <p className="mt-1 text-xs text-gray-500">
-                      Aktifkan featured agar campaign ini bisa muncul di section campaign halaman utama.
-                    </p>
+
+                {/* ─── FITUR MITRA CAMPAIGN ─── */}
+                <div className="mt-6 border-t border-gray-100 pt-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <h3 className="text-sm font-semibold text-gray-900">Mitra Kolaborator (Opsional)</h3>
+                      <p className="text-xs text-gray-500 mt-1">Tambahkan mitra yang berpartisipasi dalam campaign ini.</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => appendCollab({ id: crypto.randomUUID(), name: '', role: '', quote: '', avatar: '' })}
+                      className="inline-flex items-center gap-1.5 rounded-lg bg-gray-50 px-3 py-1.5 text-xs font-medium text-emerald-600 transition-colors hover:bg-emerald-50"
+                    >
+                      <Plus size={14} /> Tambah Mitra
+                    </button>
                   </div>
-                </label>
+
+                  <div className="space-y-4">
+                    {collabFields.map((field, index) => (
+                      <div key={field.id} className="relative rounded-xl border border-gray-200 bg-gray-50 p-4">
+                        <button
+                          type="button"
+                          onClick={() => removeCollab(index)}
+                          className="absolute right-3 top-3 rounded-full p-1 text-gray-400 hover:bg-red-50 hover:text-red-600 transition-colors"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                        
+                        <div className="grid gap-4 md:grid-cols-2 pr-6">
+                          <div className="space-y-1.5">
+                            <label className="text-xs font-medium text-gray-700">Nama Mitra *</label>
+                            <input
+                              {...campaignForm.register(`collaborators.${index}.name`)}
+                              placeholder="Contoh: Kawan Cendekia"
+                              className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm outline-none focus:border-emerald-500"
+                            />
+                            {campaignForm.formState.errors.collaborators?.[index]?.name && (
+                              <p className="text-[10px] text-red-600">{campaignForm.formState.errors.collaborators[index]?.name?.message}</p>
+                            )}
+                          </div>
+                          
+                          <div className="space-y-1.5">
+                            <label className="text-xs font-medium text-gray-700">Peran *</label>
+                            <input
+                              {...campaignForm.register(`collaborators.${index}.role`)}
+                              placeholder="Contoh: Mitra Lapangan"
+                              className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm outline-none focus:border-emerald-500"
+                            />
+                            {campaignForm.formState.errors.collaborators?.[index]?.role && (
+                              <p className="text-[10px] text-red-600">{campaignForm.formState.errors.collaborators[index]?.role?.message}</p>
+                            )}
+                          </div>
+
+                          <div className="space-y-1.5 md:col-span-2">
+                            <label className="text-xs font-medium text-gray-700">Pesan / Quote *</label>
+                            <input
+                              {...campaignForm.register(`collaborators.${index}.quote`)}
+                              placeholder="Contoh: Kami berkomitmen..."
+                              className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm outline-none focus:border-emerald-500"
+                            />
+                            {campaignForm.formState.errors.collaborators?.[index]?.quote && (
+                              <p className="text-[10px] text-red-600">{campaignForm.formState.errors.collaborators[index]?.quote?.message}</p>
+                            )}
+                          </div>
+                          
+                          <div className="space-y-1.5 md:col-span-2">
+                            <label className="text-xs font-medium text-gray-700">URL Logo (Opsional)</label>
+                            <input
+                              {...campaignForm.register(`collaborators.${index}.avatar`)}
+                              placeholder="https://.../logo.png"
+                              className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm outline-none focus:border-emerald-500"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                    {collabFields.length === 0 && (
+                      <div className="text-center py-6 text-sm text-gray-500 border border-dashed border-gray-200 rounded-xl bg-white">
+                        Belum ada mitra. Klik "Tambah Mitra" jika ada.
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="grid gap-6 lg:grid-cols-2 mt-6 items-end">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-700">Status Publikasi</label>
+                    <select
+                      {...campaignForm.register('status')}
+                      className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 outline-none transition-colors focus:border-gray-300"
+                    >
+                      <option value="draft">Draft (Sembunyikan)</option>
+                      <option value="active">Active (Tayang)</option>
+                      <option value="completed">Completed (Selesai)</option>
+                    </select>
+                  </div>
+
+                  <div className="pb-2.5">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        {...campaignForm.register('is_featured')}
+                        className="h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                      />
+                      <span className="text-sm font-medium text-gray-700">Tampilkan di beranda (Featured)</span>
+                    </label>
+                  </div>
+                </div>
 
                 <Controller
                   name="description"
@@ -743,6 +979,8 @@ export default function AdminCampaigns() {
                   items={campaignImages}
                   onFilesAdd={handleCampaignImageAdd}
                   onRemove={handleCampaignImageRemove}
+                  onReorder={handleCampaignImageReorder}
+                  onCropReplace={handleCampaignImageCropReplace}
                 />
               </CardContent>
             </Card>
@@ -751,36 +989,16 @@ export default function AdminCampaigns() {
               <div className="text-sm text-gray-500">
                 {selectedCampaign ? `Campaign ID: ${selectedCampaign.id}` : 'Campaign baru akan dibuat setelah disimpan.'}
               </div>
-              <div className="flex flex-wrap items-center gap-3">
-                {selectedCampaign ? (
-                  <button
-                    type="button"
-                    onClick={handleDeleteCampaign}
-                    className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-600 shadow-sm transition-colors hover:bg-gray-50"
-                  >
-                    Hapus
-                  </button>
-                ) : null}
-                <button
-                  type="submit"
-                  disabled={campaignForm.formState.isSubmitting}
-                  className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {campaignForm.formState.isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                  {campaignForm.formState.isSubmitting ? 'Saving...' : 'Save campaign'}
-                </button>
-              </div>
             </div>
           </form>
+          </div>
 
+          <div className={activeModalTab === 'updates' ? 'block' : 'hidden'}>
           <Card className="border-gray-200 bg-white shadow-sm">
             <CardHeader className="space-y-3">
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <CardTitle className="text-lg font-semibold text-gray-900">Timeline updates</CardTitle>
-                  <CardDescription className="text-sm text-gray-500">
-                    Publikasikan update perkembangan campaign dalam format feed yang bersih dan mudah dipindai.
-                  </CardDescription>
                 </div>
                 <span className="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-500">
                   {updates.length} posts
@@ -791,7 +1009,7 @@ export default function AdminCampaigns() {
               {selectedCampaign ? (
                 <>
                   <form onSubmit={updateForm.handleSubmit(handleUpdateSubmit)} className="space-y-5 rounded-lg border border-gray-200 bg-gray-50 p-5">
-                    <div className="grid gap-4 lg:grid-cols-[1fr_220px]">
+                    <div className="grid gap-4 lg:grid-cols-[1fr_200px_200px]">
                       <div className="space-y-2">
                         <label className="text-sm font-medium text-gray-700">Judul update</label>
                         <input
@@ -814,6 +1032,14 @@ export default function AdminCampaigns() {
                         </select>
                         {updateForm.formState.errors.update_type ? <p className="text-xs text-red-600">{updateForm.formState.errors.update_type.message}</p> : null}
                       </div>
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-gray-700">Tanggal Kejadian</label>
+                        <input
+                          type="date"
+                          {...updateForm.register('created_at')}
+                          className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 outline-none transition-colors focus:border-gray-300"
+                        />
+                      </div>
                     </div>
 
                     <Controller
@@ -831,13 +1057,15 @@ export default function AdminCampaigns() {
                     />
 
                     <ImageDropzone
-                      label="Gambar pendukung"
-                      description="Opsional. Anda bisa menambahkan satu gambar untuk memperkuat update ini."
-                      items={timelineImage ? [timelineImage] : []}
+                      label="Galeri update"
+                      description="Tambahkan satu atau beberapa gambar dokumentasi untuk memperkuat update ini."
+                      items={timelineImages}
                       onFilesAdd={handleTimelineImageAdd}
                       onRemove={handleTimelineImageRemove}
-                      multiple={false}
-                      emptyHint="Satu gambar opsional untuk update timeline."
+                      onReorder={handleTimelineImageReorder}
+                      onCropReplace={handleTimelineImageCropReplace}
+                      multiple={true}
+                      emptyHint="Drop beberapa gambar di sini untuk galeri update."
                     />
 
                     <div className="flex justify-end">
@@ -863,27 +1091,41 @@ export default function AdminCampaigns() {
                       </div>
                     ) : (
                       updates.map((update) => (
-                        <div key={update.id} className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-                          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                            <div>
-                              <div className="flex flex-wrap items-center gap-2">
-                                <span className="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-600">
-                                  {update.update_type}
-                                </span>
-                                <span className="text-xs text-gray-400">{formatAdminDate(update.created_at, true)}</span>
-                              </div>
-                              <h3 className="mt-2 text-base font-medium text-gray-900">{update.title}</h3>
-                            </div>
+                        <div key={update.id} className="group relative rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteUpdate(update.id, update.title, update.image_url, update.images)}
+                            title="Hapus Update"
+                            className="absolute top-3 right-3 rounded-md p-1.5 text-gray-400 opacity-0 transition-all hover:bg-red-50 hover:text-red-600 group-hover:opacity-100"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                          <div className="flex flex-wrap items-center gap-2 mb-1 pr-8">
+                            <span className="rounded-full bg-gray-100 px-2.5 py-0.5 text-[11px] font-medium text-gray-600">
+                              {update.update_type}
+                            </span>
+                            <span className="text-[11px] text-gray-400">{formatAdminDate(update.created_at, true)}</span>
                           </div>
-                          <div
-                            className="prose prose-sm max-w-none mt-3 leading-6 text-gray-600"
-                            dangerouslySetInnerHTML={{ __html: update.content }}
-                          />
-                          {update.image_url ? (
-                            <div className="mt-4 overflow-hidden rounded-md border border-gray-200">
-                              <img src={update.image_url} alt={update.title} className="h-48 w-full object-cover" />
-                            </div>
-                          ) : null}
+                          <h3 className="text-sm font-semibold text-gray-900 mb-1.5 pr-8">{update.title}</h3>
+                          <div className="flex flex-col gap-3 mt-2">
+                            {update.images && update.images.length > 0 ? (
+                              <div className={`grid gap-2 ${update.images.length === 1 ? 'grid-cols-1' : update.images.length === 2 ? 'grid-cols-2' : 'grid-cols-2 sm:grid-cols-3'}`}>
+                                {update.images.map((imgUrl, i) => (
+                                  <div key={i} className={`relative overflow-hidden rounded-md border border-gray-100 bg-gray-50 ${update.images!.length === 3 && i === 0 ? 'col-span-2 sm:col-span-1' : ''} ${update.images!.length === 1 ? 'aspect-video' : 'aspect-square sm:aspect-video'}`}>
+                                    <img src={imgUrl} alt={`${update.title} ${i + 1}`} className="h-full w-full object-cover" />
+                                  </div>
+                                ))}
+                              </div>
+                            ) : update.image_url ? (
+                              <div className="relative w-full aspect-video overflow-hidden rounded-md border border-gray-100 bg-gray-50">
+                                <img src={update.image_url} alt={update.title} className="h-full w-full object-cover" />
+                              </div>
+                            ) : null}
+                            <div
+                              className="prose prose-sm max-w-none leading-relaxed text-gray-700 [&_img]:hidden [&_p]:my-0 [&_h2]:text-sm [&_h2]:font-bold [&_h3]:text-sm [&_h3]:font-bold"
+                              dangerouslySetInnerHTML={{ __html: update.content }}
+                            />
+                          </div>
                         </div>
                       ))
                     )}
@@ -895,7 +1137,45 @@ export default function AdminCampaigns() {
                 </div>
               )}
             </CardContent>
-          </Card>
+            </Card>
+          </div>
+
+          {activeModalTab === 'donatur' && (
+            <Card className="border-gray-200 bg-white shadow-sm">
+              <CardHeader className="space-y-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <CardTitle className="text-lg font-semibold text-gray-900">Daftar Donatur</CardTitle>
+                  </div>
+                  <span className="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-500">
+                    {modalDonations.length} donatur
+                  </span>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {loadingDonations ? (
+                  <div className="py-8 text-center text-sm text-gray-500">Memuat donatur...</div>
+                ) : modalDonations.length === 0 ? (
+                  <div className="py-8 text-center text-sm text-gray-500">Belum ada donatur untuk campaign ini.</div>
+                ) : (
+                  <div className="space-y-4">
+                    {modalDonations.map((donation) => (
+                      <div key={donation.id} className="flex items-start justify-between border-b border-gray-100 pb-4 last:border-0 last:pb-0">
+                        <div>
+                          <p className="font-semibold text-gray-900">{donation.is_anonymous ? 'Orang Baik' : donation.donor_name}</p>
+                          <p className="text-sm text-gray-500">{new Date(donation.created_at).toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                          {donation.message && (
+                            <p className="mt-2 text-sm italic text-gray-600">"{donation.message}"</p>
+                          )}
+                        </div>
+                        <span className="font-bold text-emerald-600">Rp {donation.amount.toLocaleString('id-ID')}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
           </div>
         </AdminModal>
       </div>

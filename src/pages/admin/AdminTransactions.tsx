@@ -3,12 +3,16 @@ import { useEffect, useMemo, useState } from 'react';
 import AdminModal from '../../components/admin/AdminModal';
 import { downloadCsv } from '../../lib/admin-export';
 import { formatAdminDate } from '../../lib/admin-helpers';
-import { CampaignRow, DonationRow, supabase } from '../../lib/supabase';
+import { fetchTransactionRows } from '../../lib/admin-repository';
+import {
+  buildTransactionSummary,
+  buildTransactionViews,
+  filterTransactions,
+  type TransactionView,
+} from '../../lib/admin-view-models';
+import { logError } from '../../lib/error-logger';
+import { CampaignRow, DonationRow } from '../../lib/supabase';
 import { cn, formatCurrency } from '../../lib/utils';
-
-type TransactionView = DonationRow & {
-  campaign_title: string;
-};
 
 export default function AdminTransactions() {
   const [transactions, setTransactions] = useState<TransactionView[]>([]);
@@ -22,12 +26,13 @@ export default function AdminTransactions() {
     setLoading(true);
     setError(null);
 
-    const [donationsResult, campaignsResult] = await Promise.all([
-      supabase.from('donations').select('*').order('created_at', { ascending: false }),
-      supabase.from('campaigns').select('id, title'),
-    ]);
+    const [donationsResult, campaignsResult] = await fetchTransactionRows();
 
     if (donationsResult.error || campaignsResult.error) {
+      logError('AdminTransactions.loadTransactions', donationsResult.error ?? campaignsResult.error, {
+        donationsError: donationsResult.error,
+        campaignsError: campaignsResult.error,
+      });
       setError(donationsResult.error?.message ?? campaignsResult.error?.message ?? 'Terjadi kesalahan saat memuat data.');
       setTransactions([]);
       setLoading(false);
@@ -36,14 +41,7 @@ export default function AdminTransactions() {
 
     const donationRows = (donationsResult.data ?? []) as DonationRow[];
     const campaignRows = (campaignsResult.data ?? []) as Pick<CampaignRow, 'id' | 'title'>[];
-    const campaignMap = new Map(campaignRows.map((campaign) => [campaign.id, campaign.title]));
-
-    setTransactions(
-      donationRows.map((transaction) => ({
-        ...transaction,
-        campaign_title: campaignMap.get(transaction.campaign_id) ?? 'Campaign tidak ditemukan',
-      })),
-    );
+    setTransactions(buildTransactionViews(donationRows, campaignRows));
 
     setLoading(false);
   }
@@ -52,41 +50,12 @@ export default function AdminTransactions() {
     loadTransactions();
   }, []);
 
-  const filteredTransactions = useMemo(() => {
-    const query = searchQuery.trim().toLowerCase();
+  const filteredTransactions = useMemo(
+    () => filterTransactions(transactions, searchQuery, statusFilter),
+    [transactions, searchQuery, statusFilter],
+  );
 
-    return transactions.filter((transaction) => {
-      const matchesQuery = !query || [
-        transaction.id,
-        transaction.donor_name ?? '',
-        transaction.donor_email ?? '',
-        transaction.campaign_title,
-        transaction.payment_method ?? '',
-        transaction.payment_status,
-      ]
-        .join(' ')
-        .toLowerCase()
-        .includes(query);
-
-      const matchesStatus = statusFilter === 'all' || transaction.payment_status === statusFilter;
-      return matchesQuery && matchesStatus;
-    });
-  }, [transactions, searchQuery, statusFilter]);
-
-  const summary = useMemo(() => {
-    const base = {
-      success: { total: 0, count: 0 },
-      pending: { total: 0, count: 0 },
-      failed: { total: 0, count: 0 },
-    };
-
-    transactions.forEach((transaction) => {
-      base[transaction.payment_status].total += transaction.amount;
-      base[transaction.payment_status].count += 1;
-    });
-
-    return base;
-  }, [transactions]);
+  const summary = useMemo(() => buildTransactionSummary(transactions), [transactions]);
 
   function exportTransactions() {
     if (filteredTransactions.length === 0) return;
@@ -122,7 +91,7 @@ export default function AdminTransactions() {
           <button
             onClick={exportTransactions}
             disabled={filteredTransactions.length === 0}
-            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-xl text-sm font-medium shadow-sm hover:bg-emerald-700 transition-colors disabled:opacity-50"
+            className="flex items-center gap-2 px-4 py-2 bg-zinc-900 text-white rounded-xl text-sm font-medium shadow-sm hover:bg-zinc-950 transition-colors disabled:opacity-50"
           >
             <Download size={16} />
             Ekspor CSV
@@ -132,7 +101,7 @@ export default function AdminTransactions() {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {[
-          { label: 'Berhasil', data: summary.success, color: 'text-emerald-600', bg: 'bg-emerald-50', icon: CheckCircle },
+          { label: 'Berhasil', data: summary.success, color: 'text-zinc-900', bg: 'bg-zinc-100', icon: CheckCircle },
           { label: 'Pending', data: summary.pending, color: 'text-amber-600', bg: 'bg-amber-50', icon: Clock },
           { label: 'Gagal', data: summary.failed, color: 'text-rose-600', bg: 'bg-rose-50', icon: XCircle },
         ].map((item) => (
@@ -158,7 +127,7 @@ export default function AdminTransactions() {
               placeholder="Cari ID, donor, atau campaign..."
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-xl text-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition-all placeholder:text-slate-400"
+              className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-xl text-sm focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 outline-none transition-all placeholder:text-slate-400"
             />
           </div>
           <div className="flex bg-slate-100/50 p-1 rounded-xl overflow-x-auto">
@@ -174,7 +143,7 @@ export default function AdminTransactions() {
                 className={cn(
                   'px-4 py-1.5 text-xs font-semibold uppercase tracking-wider rounded-lg transition-colors whitespace-nowrap',
                   statusFilter === item.value
-                    ? 'bg-white text-emerald-700 shadow-sm border border-slate-200/50'
+                    ? 'bg-white text-zinc-950 shadow-sm border border-slate-200/50'
                     : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50',
                 )}
               >
@@ -228,7 +197,7 @@ export default function AdminTransactions() {
                       </p>
                     </td>
                     <td className="px-6 py-4">
-                      <p className="text-sm font-semibold text-emerald-600">{formatCurrency(transaction.amount)}</p>
+                      <p className="text-sm font-semibold text-zinc-900">{formatCurrency(transaction.amount)}</p>
                       <p className="text-xs text-slate-500 mt-1">{transaction.payment_method ?? '-'}</p>
                     </td>
                     <td className="px-6 py-4 text-center">
@@ -236,7 +205,7 @@ export default function AdminTransactions() {
                         className={cn(
                           'inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold uppercase tracking-wider',
                           transaction.payment_status === 'success'
-                            ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200/50'
+                            ? 'bg-zinc-100 text-zinc-950 ring-1 ring-zinc-200/50'
                             : transaction.payment_status === 'failed'
                               ? 'bg-rose-50 text-rose-700 ring-1 ring-rose-200/50'
                               : 'bg-amber-50 text-amber-700 ring-1 ring-amber-200/50',
@@ -249,7 +218,7 @@ export default function AdminTransactions() {
                       <div className="flex items-center justify-end opacity-0 group-hover:opacity-100 transition-opacity">
                         <button
                           onClick={() => setSelectedTransaction(transaction)}
-                          className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+                          className="p-2 text-slate-400 hover:text-zinc-900 hover:bg-zinc-100 rounded-lg transition-colors"
                           title="Lihat Detail"
                         >
                           <Eye size={16} />

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { logError } from './error-logger';
 
 export const REPORT_SCHOOL_STORAGE_KEY = 'sta-report-school-draft-v2';
 export const REPORT_SCHOOL_ADMIN_NUMBER = '6287882799026'; // New WA number
@@ -284,7 +285,10 @@ export function loadReportSchoolDraft(): ReportSchoolFormValues {
       ...REPORT_SCHOOL_DEFAULT_VALUES,
       ...parsed,
     };
-  } catch {
+  } catch (draftError) {
+    logError('report-school.loadReportSchoolDraft', draftError, {
+      storageKey: REPORT_SCHOOL_STORAGE_KEY,
+    });
     return REPORT_SCHOOL_DEFAULT_VALUES;
   }
 }

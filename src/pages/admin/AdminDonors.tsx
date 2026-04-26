@@ -3,66 +3,10 @@ import { useEffect, useMemo, useState } from 'react';
 import AdminModal from '../../components/admin/AdminModal';
 import { downloadCsv } from '../../lib/admin-export';
 import { formatAdminDate, getInitials } from '../../lib/admin-helpers';
-import { DonationRow, supabase } from '../../lib/supabase';
+import { fetchDonorDonationRows } from '../../lib/admin-repository';
+import { deriveDonors, filterDonors, type DonorSummary } from '../../lib/admin-view-models';
+import { logError } from '../../lib/error-logger';
 import { cn, formatCurrency } from '../../lib/utils';
-
-type DonorSummary = {
-  id: string;
-  name: string;
-  email: string | null;
-  phone: string | null;
-  total_donated: number;
-  transaction_count: number;
-  first_donation_at: string;
-  last_donation_at: string;
-  status: 'identified' | 'anonymous';
-};
-
-function deriveDonors(donations: DonationRow[]) {
-  const grouped = new Map<string, DonorSummary>();
-
-  donations.forEach((donation) => {
-    const key = donation.is_anonymous
-      ? `anonymous:${donation.donor_name ?? donation.id}`
-      : `${donation.donor_email ?? ''}:${donation.donor_name ?? donation.id}`;
-
-    const existing = grouped.get(key);
-    const donatedAmount = donation.payment_status === 'success' ? donation.amount : 0;
-
-    if (!existing) {
-      grouped.set(key, {
-        id: key,
-        name: donation.is_anonymous ? 'Anonim' : donation.donor_name ?? 'Tanpa nama',
-        email: donation.is_anonymous ? null : donation.donor_email,
-        phone: donation.is_anonymous ? null : donation.donor_phone,
-        total_donated: donatedAmount,
-        transaction_count: 1,
-        first_donation_at: donation.created_at,
-        last_donation_at: donation.created_at,
-        status: donation.is_anonymous ? 'anonymous' : 'identified',
-      });
-      return;
-    }
-
-    existing.total_donated += donatedAmount;
-    existing.transaction_count += 1;
-    if (!existing.phone && !donation.is_anonymous) {
-      existing.phone = donation.donor_phone;
-    }
-
-    if (new Date(donation.created_at) < new Date(existing.first_donation_at)) {
-      existing.first_donation_at = donation.created_at;
-    }
-
-    if (new Date(donation.created_at) > new Date(existing.last_donation_at)) {
-      existing.last_donation_at = donation.created_at;
-    }
-  });
-
-  return Array.from(grouped.values()).sort(
-    (left, right) => new Date(right.last_donation_at).getTime() - new Date(left.last_donation_at).getTime(),
-  );
-}
 
 export default function AdminDonors() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -75,12 +19,10 @@ export default function AdminDonors() {
     setLoading(true);
     setError(null);
 
-    const { data, error: fetchError } = await supabase
-      .from('donations')
-      .select('*')
-      .order('created_at', { ascending: false });
+    const { data, error: fetchError } = await fetchDonorDonationRows();
 
     if (fetchError) {
+      logError('AdminDonors.loadDonors', fetchError);
       setError(fetchError.message);
       setDonors([]);
       setLoading(false);
@@ -95,17 +37,7 @@ export default function AdminDonors() {
     loadDonors();
   }, []);
 
-  const filteredDonors = useMemo(() => {
-    const query = searchQuery.trim().toLowerCase();
-    if (!query) return donors;
-
-    return donors.filter((donor) =>
-      [donor.name, donor.email ?? '', donor.id]
-        .join(' ')
-        .toLowerCase()
-        .includes(query),
-    );
-  }, [donors, searchQuery]);
+  const filteredDonors = useMemo(() => filterDonors(donors, searchQuery), [donors, searchQuery]);
 
   function exportDonors() {
     if (filteredDonors.length === 0) return;
@@ -141,7 +73,7 @@ export default function AdminDonors() {
           <button
             onClick={exportDonors}
             disabled={filteredDonors.length === 0}
-            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-xl text-sm font-medium shadow-sm hover:bg-emerald-700 transition-colors disabled:opacity-50"
+            className="flex items-center gap-2 px-4 py-2 bg-zinc-900 text-white rounded-xl text-sm font-medium shadow-sm hover:bg-zinc-950 transition-colors disabled:opacity-50"
           >
             <Download size={16} />
             Ekspor CSV
@@ -168,7 +100,7 @@ export default function AdminDonors() {
               placeholder="Cari nama, email, atau ID donor..."
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-xl text-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition-all placeholder:text-slate-400"
+              className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-xl text-sm focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 outline-none transition-all placeholder:text-slate-400"
             />
           </div>
         </div>
@@ -194,7 +126,7 @@ export default function AdminDonors() {
                   <tr key={donor.id} className="group hover:bg-slate-50/50 transition-colors">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 flex-shrink-0 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-sm">
+                        <div className="w-10 h-10 flex-shrink-0 rounded-full bg-zinc-200 text-zinc-950 flex items-center justify-center font-bold text-sm">
                           {getInitials(donor.name)}
                         </div>
                         <div>
@@ -220,7 +152,7 @@ export default function AdminDonors() {
                       </div>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <p className="text-sm font-semibold text-emerald-600">{formatCurrency(donor.total_donated)}</p>
+                      <p className="text-sm font-semibold text-zinc-900">{formatCurrency(donor.total_donated)}</p>
                       <p className="text-xs text-slate-500 mt-0.5">{donor.transaction_count} transaksi</p>
                     </td>
                     <td className="px-6 py-4 text-center">
@@ -228,7 +160,7 @@ export default function AdminDonors() {
                         className={cn(
                           'inline-block px-2.5 py-1 rounded-full text-[11px] font-semibold uppercase tracking-wider',
                           donor.status === 'identified'
-                            ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200/50'
+                            ? 'bg-zinc-100 text-zinc-950 ring-1 ring-zinc-200/50'
                             : 'bg-slate-100 text-slate-600 ring-1 ring-slate-200',
                         )}
                       >
@@ -239,7 +171,7 @@ export default function AdminDonors() {
                       <div className="flex items-center justify-end opacity-0 group-hover:opacity-100 transition-opacity">
                         <button
                           onClick={() => setSelectedDonor(donor)}
-                          className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+                          className="p-2 text-slate-400 hover:text-zinc-900 hover:bg-zinc-100 rounded-lg transition-colors"
                           title="Detail"
                         >
                           <Eye size={16} />

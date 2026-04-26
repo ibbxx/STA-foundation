@@ -2,17 +2,16 @@ import { AlertCircle, CheckCircle2, Eye, MapPin, Phone, RefreshCw, School, Searc
 import { useEffect, useMemo, useState } from 'react';
 import AdminModal from '../../components/admin/AdminModal';
 import { formatAdminDate } from '../../lib/admin-helpers';
-import { SchoolReportRow, supabase } from '../../lib/supabase';
+import { fetchSchoolReportRows, updateSchoolReportStatus } from '../../lib/admin-repository';
+import {
+  buildReportSummary,
+  filterReports,
+  getReportImageUrls,
+  type ReportStatus,
+} from '../../lib/admin-view-models';
+import { logError } from '../../lib/error-logger';
+import { SchoolReportRow } from '../../lib/supabase';
 import { cn } from '../../lib/utils';
-
-type ReportStatus = SchoolReportRow['status'];
-
-function getImageUrls(imageUrls: SchoolReportRow['image_urls']) {
-  if (Array.isArray(imageUrls)) {
-    return imageUrls.filter((item): item is string => typeof item === 'string');
-  }
-  return [];
-}
 
 export default function AdminSchoolReports() {
   const [reports, setReports] = useState<SchoolReportRow[]>([]);
@@ -27,12 +26,10 @@ export default function AdminSchoolReports() {
     setLoading(true);
     setError(null);
 
-    const { data, error: fetchError } = await supabase
-      .from('school_reports')
-      .select('*')
-      .order('updated_at', { ascending: false });
+    const { data, error: fetchError } = await fetchSchoolReportRows();
 
     if (fetchError) {
+      logError('AdminSchoolReports.loadReports', fetchError);
       setError(fetchError.message);
       setReports([]);
       setLoading(false);
@@ -47,38 +44,22 @@ export default function AdminSchoolReports() {
     loadReports();
   }, []);
 
-  const filteredReports = useMemo(() => {
-    const query = searchQuery.trim().toLowerCase();
+  const filteredReports = useMemo(
+    () => filterReports(reports, searchQuery, statusFilter),
+    [reports, searchQuery, statusFilter],
+  );
 
-    return reports.filter((report) => {
-      const matchesQuery = !query || [
-        report.reporter_name,
-        report.reporter_phone,
-        report.school_name,
-        report.location,
-        report.status,
-      ].join(' ').toLowerCase().includes(query);
-
-      const matchesStatus = statusFilter === 'all' || report.status === statusFilter;
-      return matchesQuery && matchesStatus;
-    });
-  }, [reports, searchQuery, statusFilter]);
-
-  const summary = useMemo(() => ({
-    total: reports.length,
-    pending: reports.filter((report) => report.status === 'pending').length,
-    verified: reports.filter((report) => report.status === 'verified').length,
-    actioned: reports.filter((report) => report.status === 'actioned').length,
-  }), [reports]);
+  const summary = useMemo(() => buildReportSummary(reports), [reports]);
 
   async function updateStatus(report: SchoolReportRow, nextStatus: ReportStatus) {
     setUpdatingId(report.id);
-    const { error: updateError } = await supabase
-      .from('school_reports')
-      .update({ status: nextStatus } as never)
-      .eq('id', report.id);
+    const { error: updateError } = await updateSchoolReportStatus(report.id, { status: nextStatus });
 
     if (updateError) {
+      logError('AdminSchoolReports.updateStatus', updateError, {
+        reportId: report.id,
+        nextStatus,
+      });
       setError(updateError.message);
       setUpdatingId(null);
       return;
@@ -111,7 +92,7 @@ export default function AdminSchoolReports() {
           { label: 'Total Laporan', value: summary.total, tone: 'text-slate-900', bg: 'bg-white border-slate-200' },
           { label: 'Pending', value: summary.pending, tone: 'text-amber-700', bg: 'bg-amber-50 border-amber-100' },
           { label: 'Verified', value: summary.verified, tone: 'text-sky-700', bg: 'bg-sky-50 border-sky-100' },
-          { label: 'Actioned', value: summary.actioned, tone: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-100' },
+          { label: 'Actioned', value: summary.actioned, tone: 'text-zinc-950', bg: 'bg-zinc-100 border-zinc-200' },
         ].map((item) => (
           <div key={item.label} className={cn('p-5 rounded-2xl border shadow-sm', item.bg)}>
             <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">{item.label}</p>
@@ -129,7 +110,7 @@ export default function AdminSchoolReports() {
               placeholder="Cari sekolah, lokasi, pelapor..."
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-xl text-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition-all placeholder:text-slate-400"
+              className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-xl text-sm focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 outline-none transition-all placeholder:text-slate-400"
             />
           </div>
 
@@ -147,7 +128,7 @@ export default function AdminSchoolReports() {
                 className={cn(
                   'px-4 py-1.5 text-xs font-semibold uppercase tracking-wider rounded-lg transition-colors whitespace-nowrap',
                   statusFilter === value
-                    ? 'bg-white text-emerald-700 shadow-sm border border-slate-200/50'
+                    ? 'bg-white text-zinc-950 shadow-sm border border-slate-200/50'
                     : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50',
                 )}
               >
@@ -206,7 +187,7 @@ export default function AdminSchoolReports() {
                             ? 'bg-amber-50 text-amber-700 ring-1 ring-amber-200/50'
                             : report.status === 'verified'
                               ? 'bg-sky-50 text-sky-700 ring-1 ring-sky-200/50'
-                              : 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200/50',
+                              : 'bg-zinc-100 text-zinc-950 ring-1 ring-zinc-200/50',
                         )}
                       >
                         {report.status}
@@ -218,7 +199,7 @@ export default function AdminSchoolReports() {
                         <button
                           type="button"
                           onClick={() => setSelectedReport(report)}
-                          className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+                          className="p-2 text-slate-400 hover:text-zinc-900 hover:bg-zinc-100 rounded-lg transition-colors"
                           title="Lihat detail"
                         >
                           <Eye size={16} />
@@ -239,7 +220,7 @@ export default function AdminSchoolReports() {
                             type="button"
                             onClick={() => updateStatus(report, 'actioned')}
                             disabled={updatingId === report.id}
-                            className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors disabled:opacity-50"
+                            className="p-2 text-slate-400 hover:text-zinc-900 hover:bg-zinc-100 rounded-lg transition-colors disabled:opacity-50"
                             title="Tandai actioned"
                           >
                             <CheckCircle2 size={16} />
@@ -279,7 +260,7 @@ export default function AdminSchoolReports() {
                   type="button"
                   onClick={() => updateStatus(selectedReport, 'actioned')}
                   disabled={updatingId === selectedReport.id}
-                  className="px-4 py-2 text-sm font-medium text-white bg-emerald-600 rounded-xl hover:bg-emerald-700 transition-colors disabled:opacity-50"
+                  className="px-4 py-2 text-sm font-medium text-white bg-zinc-900 rounded-xl hover:bg-zinc-950 transition-colors disabled:opacity-50"
                 >
                   Tandai Selesai (Actioned)
                 </button>
@@ -340,13 +321,13 @@ export default function AdminSchoolReports() {
 
             <div className="space-y-3">
               <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Lampiran Foto</p>
-              {getImageUrls(selectedReport.image_urls).length === 0 ? (
+              {getReportImageUrls(selectedReport.image_urls).length === 0 ? (
                 <div className="p-8 text-center border border-dashed border-slate-200 rounded-xl text-sm text-slate-500">
                   Tidak ada lampiran foto.
                 </div>
               ) : (
                 <div className="grid gap-4 md:grid-cols-3">
-                  {getImageUrls(selectedReport.image_urls).map((imageUrl) => (
+                  {getReportImageUrls(selectedReport.image_urls).map((imageUrl) => (
                     <a
                       key={imageUrl}
                       href={imageUrl}

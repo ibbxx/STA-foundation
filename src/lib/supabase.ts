@@ -60,9 +60,11 @@ export interface Database {
           is_featured: boolean;
           target_amount: number;
           current_amount: number;
+          donor_count: number;
           image_url: string | null;
           category: string | null;
-          status: 'active' | 'completed';
+          status: 'draft' | 'active' | 'completed';
+          collaborators: any[] | null;
           created_at: string;
           updated_at: string;
         };
@@ -78,9 +80,11 @@ export interface Database {
           is_featured?: boolean;
           target_amount: number;
           current_amount?: number;
+          donor_count?: number;
           image_url?: string | null;
           category?: string | null;
-          status?: 'active' | 'completed';
+          status?: 'draft' | 'active' | 'completed';
+          collaborators?: any[] | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -96,9 +100,11 @@ export interface Database {
           is_featured?: boolean;
           target_amount?: number;
           current_amount?: number;
+          donor_count?: number;
           image_url?: string | null;
           category?: string | null;
-          status?: 'active' | 'completed';
+          status?: 'draft' | 'active' | 'completed';
+          collaborators?: any[] | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -171,6 +177,7 @@ export interface Database {
           title: string;
           content: string;
           image_url: string | null;
+          images: string[] | null;
           update_type: 'General' | 'Fundraising Progress' | 'Distribution';
           created_at: string;
         };
@@ -180,6 +187,7 @@ export interface Database {
           title: string;
           content: string;
           image_url?: string | null;
+          images?: string[] | null;
           update_type: 'General' | 'Fundraising Progress' | 'Distribution';
           created_at?: string;
         };
@@ -189,6 +197,7 @@ export interface Database {
           title?: string;
           content?: string;
           image_url?: string | null;
+          images?: string[] | null;
           update_type?: 'General' | 'Fundraising Progress' | 'Distribution';
           created_at?: string;
         };
@@ -264,6 +273,14 @@ export interface Database {
           is_anonymous: boolean;
         };
       };
+      public_campaign_stats: {
+        Row: {
+          campaign_id: string;
+          current_amount: number;
+          donor_count: number;
+          updated_at: string;
+        };
+      };
     };
   };
 }
@@ -299,6 +316,7 @@ export type CampaignUpdateRow = Database['public']['Tables']['campaign_updates']
 export type CampaignUpdateInsert = Database['public']['Tables']['campaign_updates']['Insert'];
 export type CampaignUpdateUpdate = Database['public']['Tables']['campaign_updates']['Update'];
 export type PublicCampaignDonationRow = Database['public']['Views']['public_campaign_donations']['Row'];
+export type PublicCampaignStatsRow = Database['public']['Views']['public_campaign_stats']['Row'];
 
 export type SchoolReportRow = Database['public']['Tables']['school_reports']['Row'];
 export type SchoolReportInsert = Database['public']['Tables']['school_reports']['Insert'];
@@ -324,7 +342,7 @@ export type Campaign = {
   banner_url: string;
   category_id: string;
   category_name?: string;
-  status: 'active' | 'inactive' | 'completed';
+  status: 'draft' | 'active' | 'inactive' | 'completed';
   deadline: string;
   is_featured: boolean;
   created_at: string;
@@ -362,6 +380,7 @@ export type CampaignUpdate = {
   title: string;
   content: string;
   image_url?: string;
+  images?: string[] | null;
   update_type?: 'General' | 'Fundraising Progress' | 'Distribution';
   created_at: string;
 };

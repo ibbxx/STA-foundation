@@ -42,6 +42,16 @@ export const campaignManagerSchema = z
     end_date: z.string().trim().min(1, 'Tanggal akhir wajib diisi.'),
     description: z.string().trim().min(1, 'Deskripsi campaign wajib diisi.'),
     is_featured: z.boolean(),
+    status: z.enum(['draft', 'active', 'completed']),
+    collaborators: z.array(
+      z.object({
+        id: z.string(),
+        name: z.string().trim().min(1, 'Nama mitra wajib diisi.'),
+        role: z.string().trim().min(1, 'Peran wajib diisi.'),
+        quote: z.string().trim().min(1, 'Quote wajib diisi.'),
+        avatar: z.string().nullable().optional(),
+      })
+    ).optional().default([]),
   })
   .refine((values) => new Date(values.end_date) >= new Date(values.start_date), {
     path: ['end_date'],
@@ -54,6 +64,7 @@ export const campaignUpdateSchema = z.object({
   title: z.string().trim().min(1, 'Judul update wajib diisi.'),
   content: z.string().trim().min(1, 'Isi update wajib diisi.'),
   update_type: z.enum(['General', 'Fundraising Progress', 'Distribution']),
+  created_at: z.string().trim().optional().or(z.literal('')),
 });
 
 export type CampaignUpdateValues = z.infer<typeof campaignUpdateSchema>;

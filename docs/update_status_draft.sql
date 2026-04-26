@@ -1,0 +1,12 @@
+-- ============================================================
+-- CATATAN: Script ini TIDAK PERLU dijalankan.
+-- ============================================================
+-- Kolom `status` pada tabel `campaigns` menggunakan tipe TEXT,
+-- bukan ENUM. Artinya, nilai "draft" sudah langsung diterima
+-- tanpa perlu migrasi database.
+--
+-- Nilai status yang digunakan aplikasi:
+--   - 'draft'     : Campaign belum tayang (tersembunyi dari publik)
+--   - 'active'    : Campaign aktif dan tayang di website
+--   - 'completed' : Campaign selesai
+-- ============================================================

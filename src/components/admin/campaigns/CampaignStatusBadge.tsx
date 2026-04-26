@@ -30,10 +30,10 @@ export default function CampaignStatusBadge({ startDate, endDate, className }: C
   return (
     <span
       className={cn(
-        'inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium',
-        status === 'Upcoming' && 'bg-slate-100 text-slate-600',
-        status === 'Ongoing' && 'bg-emerald-50 text-emerald-700',
-        status === 'Ended' && 'bg-orange-50 text-orange-700',
+        'inline-flex items-center rounded-md px-2.5 py-1 text-xs font-medium border',
+        status === 'Upcoming' && 'border-zinc-200 bg-zinc-50 text-zinc-500',
+        status === 'Ongoing' && 'border-zinc-900 bg-zinc-100 text-zinc-900',
+        status === 'Ended' && 'border-zinc-200 bg-white text-zinc-400',
         className,
       )}
     >

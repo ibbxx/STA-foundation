@@ -1,25 +1,31 @@
 import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { motion, useScroll, useMotionValueEvent } from "framer-motion";
-import { Menu, X } from "lucide-react";
+import { Menu, X, Trophy } from "lucide-react";
 import { cn } from "../../lib/utils";
 import Logo from "../shared/Logo";
 
 export default function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
   const { scrollY } = useScroll();
   const location = useLocation();
   const isTransparentNavPage = location.pathname === "/" || location.pathname === "/tentang-kami";
-  const isOverlayMode = isTransparentNavPage && !isScrolled;
+  const isOverlayMode = isTransparentNavPage && !isScrolled && !isHovered;
 
-  // Halaman dengan hero gelap memakai chrome terang agar tetap kontras.
-  const isLightText = isTransparentNavPage;
+  // Navbar sekarang selalu menggunakan tema gelap (hitam total) saat tidak transparan,
+  // jadi kita harus memastikan teks selalu terang agar kontras.
+  const isLightText = !isTransparentNavPage || isScrolled || isHovered || isTransparentNavPage;
   
-  const textColorBrand = isLightText ? "text-[#F5F1E8]" : "text-gray-900";
-  const textColorMenu = isLightText ? "text-[#F5F1E8]/80" : "text-gray-900";
-  const hoverColorMenu = isLightText ? "hover:text-[#F5F1E8]" : "hover:text-black";
-  const iconColor = isLightText ? "text-[#F5F1E8]" : "text-gray-900";
+  // Catatan: Karena desain kita saat ini menggunakan hero yang gelap di halaman transparan,
+  // maka isLightText akan selalu true. Jika ke depannya ada halaman transparan dengan 
+  // background terang, logika ini perlu disesuaikan.
+
+  const textColorBrand = "text-[#F5F1E8]";
+  const textColorMenu = "text-[#F5F1E8]/80";
+  const hoverColorMenu = "hover:text-[#F5F1E8]";
+  const iconColor = "text-[#F5F1E8]";
 
   useMotionValueEvent(scrollY, "change", (latest) => {
     setIsScrolled(latest > 10);
@@ -50,23 +56,25 @@ export default function Navbar() {
 
   return (
     <motion.header
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
       initial={false}
       animate={{
         backgroundColor: isTransparentNavPage
-          ? isScrolled
-            ? "rgba(0, 0, 0, 0.85)"
+          ? (isScrolled || isHovered)
+            ? "#000000"
             : "rgba(0, 0, 0, 0)"
-          : "rgba(255, 255, 255, 0.92)",
-        backdropFilter: isOverlayMode ? "blur(0px)" : "blur(14px)",
+          : "#000000",
+        backdropFilter: isOverlayMode ? "blur(0px)" : "blur(0px)",
       }}
       transition={{ duration: 0.3 }}
       className="fixed top-0 left-0 right-0 z-50 border-b"
       style={{
         borderBottomColor: isTransparentNavPage
-          ? isScrolled
+          ? (isScrolled || isHovered)
             ? "rgba(255, 255, 255, 0.1)"
             : "rgba(255, 255, 255, 0)"
-          : "rgba(17, 24, 39, 0.08)",
+          : "rgba(255, 255, 255, 0.1)",
       }}
     >
       <nav className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-12">
@@ -107,8 +115,8 @@ export default function Navbar() {
                     "text-sm font-light transition-all duration-300 border-b py-1",
                     textColorMenu,
                     hoverColorMenu,
-                    isActive 
-                      ? (isLightText ? "border-[#F5F1E8]" : "border-black") 
+                    isActive
+                      ? (isLightText ? "border-[#F5F1E8]" : "border-black")
                       : "border-transparent",
                     isLightText ? "hover:border-[#F5F1E8]" : "hover:border-black"
                   )}
@@ -117,6 +125,18 @@ export default function Navbar() {
                 </Link>
               );
             })}
+            <Link
+              to="/leaderboard"
+              className={cn(
+                "flex items-center gap-2 text-sm font-medium transition-all duration-300 py-1 border-b border-transparent",
+                location.pathname === "/leaderboard" 
+                  ? (isLightText ? "text-yellow-400 border-yellow-400" : "text-yellow-600 border-yellow-600")
+                  : cn(textColorMenu, hoverColorMenu)
+              )}
+            >
+              <Trophy size={16} />
+              Leaderboard
+            </Link>
           </div>
 
           {/* Core CTA */}

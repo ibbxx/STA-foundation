@@ -20,8 +20,8 @@ export default function Footer() {
               Platform kolaboratif penggalangan dana dan aksi nyata untuk membangkitkan fasilitas pendidikan Indonesia yang berakar pada kearifan lokal.
             </p>
             <div className="flex space-x-4">
-              <a href="https://www.instagram.com/sekolah.tanahair" target="_blank" rel="noreferrer" className="hover:text-emerald-500 transition-colors"><Instagram size={20} /></a>
-              <a href="https://wa.me/6287882799026" target="_blank" rel="noreferrer" className="hover:text-emerald-500 transition-colors"><Phone size={20} /></a>
+              <a href="https://www.instagram.com/sekolah.tanahair" target="_blank" rel="noreferrer" className="hover:text-zinc-1000 transition-colors"><Instagram size={20} /></a>
+              <a href="https://wa.me/6287882799026" target="_blank" rel="noreferrer" className="hover:text-zinc-1000 transition-colors"><Phone size={20} /></a>
             </div>
           </div>
 
@@ -29,10 +29,10 @@ export default function Footer() {
           <div>
             <h3 className="text-white font-bold mb-6">Tautan Cepat</h3>
             <ul className="space-y-4 text-sm">
-              <li><Link to="/campaigns" className="hover:text-emerald-500 transition-colors">Semua Campaign</Link></li>
-              <li><Link to="/tentang-kami" className="hover:text-emerald-500 transition-colors">Tentang Kami</Link></li>
-              <li><Link to="/faq" className="hover:text-emerald-500 transition-colors">FAQ</Link></li>
-              <li><Link to="/kontak" className="hover:text-emerald-500 transition-colors">Kontak</Link></li>
+              <li><Link to="/campaigns" className="hover:text-zinc-1000 transition-colors">Semua Campaign</Link></li>
+              <li><Link to="/tentang-kami" className="hover:text-zinc-1000 transition-colors">Tentang Kami</Link></li>
+              <li><Link to="/faq" className="hover:text-zinc-1000 transition-colors">FAQ</Link></li>
+              <li><Link to="/kontak" className="hover:text-zinc-1000 transition-colors">Kontak</Link></li>
             </ul>
           </div>
 
@@ -40,10 +40,10 @@ export default function Footer() {
           <div>
             <h3 className="text-white font-bold mb-6">Kategori</h3>
             <ul className="space-y-4 text-sm">
-              <li><Link to="/campaigns?cat=pendidikan" className="hover:text-emerald-500 transition-colors">Pendidikan</Link></li>
-              <li><Link to="/campaigns?cat=kesehatan" className="hover:text-emerald-500 transition-colors">Kesehatan</Link></li>
-              <li><Link to="/campaigns?cat=lingkungan" className="hover:text-emerald-500 transition-colors">Lingkungan</Link></li>
-              <li><Link to="/campaigns?cat=bencana" className="hover:text-emerald-500 transition-colors">Bencana Alam</Link></li>
+              <li><Link to="/campaigns?cat=pendidikan" className="hover:text-zinc-1000 transition-colors">Pendidikan</Link></li>
+              <li><Link to="/campaigns?cat=kesehatan" className="hover:text-zinc-1000 transition-colors">Kesehatan</Link></li>
+              <li><Link to="/campaigns?cat=lingkungan" className="hover:text-zinc-1000 transition-colors">Lingkungan</Link></li>
+              <li><Link to="/campaigns?cat=bencana" className="hover:text-zinc-1000 transition-colors">Bencana Alam</Link></li>
             </ul>
           </div>
 
@@ -52,20 +52,20 @@ export default function Footer() {
             <h3 className="text-white font-bold mb-6">Hubungi Kami</h3>
             <ul className="space-y-4 text-sm">
               <li className="flex items-start space-x-3">
-                <MapPin size={18} className="text-emerald-500 shrink-0 mt-0.5" />
-                <a href="https://maps.app.goo.gl/2TCDEiREJtVFZCv4A" target="_blank" rel="noreferrer" className="hover:text-emerald-500 transition-colors">
+                <MapPin size={18} className="text-zinc-1000 shrink-0 mt-0.5" />
+                <a href="https://maps.app.goo.gl/2TCDEiREJtVFZCv4A" target="_blank" rel="noreferrer" className="hover:text-zinc-1000 transition-colors">
                   Jalan Rusa 1, Pondok Ranji, Ciputat Timur, Tangerang Selatan 15412
                 </a>
               </li>
               <li className="flex items-center space-x-3">
-                <Phone size={18} className="text-emerald-500 shrink-0" />
-                <a href="https://wa.me/6287882799026" target="_blank" rel="noreferrer" className="hover:text-emerald-500 transition-colors">
+                <Phone size={18} className="text-zinc-1000 shrink-0" />
+                <a href="https://wa.me/6287882799026" target="_blank" rel="noreferrer" className="hover:text-zinc-1000 transition-colors">
                   0878-8279-9026
                 </a>
               </li>
               <li className="flex items-center space-x-3">
-                <Mail size={18} className="text-emerald-500 shrink-0" />
-                <a href="mailto:admin@sekolahtanahair.com" className="hover:text-emerald-500 transition-colors">
+                <Mail size={18} className="text-zinc-1000 shrink-0" />
+                <a href="mailto:admin@sekolahtanahair.com" className="hover:text-zinc-1000 transition-colors">
                   admin@sekolahtanahair.com
                 </a>
               </li>

@@ -2,6 +2,7 @@ import { Session } from '@supabase/supabase-js';
 import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
+import { logError } from '../../lib/error-logger';
 import { supabase } from '../../lib/supabase';
 
 type ProtectedRouteProps = {
@@ -22,7 +23,11 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
       if (ignore) return;
 
       if (error) {
-        await supabase.auth.signOut();
+        logError('ProtectedRoute.loadSession', error);
+        const { error: signOutError } = await supabase.auth.signOut();
+        if (signOutError) {
+          logError('ProtectedRoute.signOutAfterSessionError', signOutError);
+        }
         setSession(null);
         setLoading(false);
         return;

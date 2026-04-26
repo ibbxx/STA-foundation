@@ -3,6 +3,7 @@ import { Users, Clock } from 'lucide-react';
 import { getDaysLeft } from '../../lib/public-campaigns';
 import { Campaign } from '../../lib/supabase';
 import { formatCurrency, calculateProgress, cn } from '../../lib/utils';
+import OptimizedImage from '../ui/OptimizedImage';
 
 /**
  * Properti untuk komponen CampaignCard
@@ -23,23 +24,21 @@ export default function CampaignCard({ campaign, className }: CampaignCardProps)
   const categoryLabel = campaign.category_name || 'Campaign';
 
   return (
-    <Link 
+    <Link
       to={`/campaigns/${campaign.slug}`}
       className={cn(
         "group flex flex-col overflow-hidden bg-white border border-gray-100 rounded-2xl shadow-sm transition-all hover:shadow-md",
-        "md:hover:shadow-xl sm:rounded-[1.35rem]", 
+        "md:hover:shadow-xl sm:rounded-[1.35rem]",
         className
       )}
     >
       {/* Visualisasi Kartu: Gambar dan Label Kategori */}
       <div className="relative aspect-video w-full overflow-hidden sm:aspect-[16/10]">
-        <img
-          src={campaign.thumbnail_url || `https://picsum.photos/seed/${campaign.id}/800/500`}
+        <OptimizedImage
+          src={campaign.thumbnail_url}
           alt={campaign.title}
-          className="w-full h-full object-cover transition-transform duration-500 md:group-hover:scale-105"
-          loading="lazy"
-          decoding="async"
-          referrerPolicy="no-referrer"
+          isThumbnail
+          className="transition-transform duration-500 md:group-hover:scale-105"
         />
         <span className="absolute top-3 left-3 sm:top-4 sm:left-4 bg-white/90 backdrop-blur-sm text-emerald-700 text-[9px] sm:text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full shadow-sm">
           {categoryLabel}
@@ -51,7 +50,7 @@ export default function CampaignCard({ campaign, className }: CampaignCardProps)
         <h3 className="mb-1 sm:mb-2 line-clamp-2 text-sm font-bold leading-snug text-gray-900 transition-colors group-hover:text-emerald-600 sm:text-lg">
           {campaign.title}
         </h3>
-        
+
         {/* Sembunyikan deskripsi di mobile agar kartu ringkas, tampilkan di layar sm ke atas */}
         <p className="hidden sm:block mb-5 line-clamp-2 text-sm leading-relaxed text-gray-500 sm:mb-6">
           {campaign.short_description}

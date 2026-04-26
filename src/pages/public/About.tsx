@@ -1,5 +1,51 @@
 import { motion } from 'framer-motion';
 import { Heart, Target, Users, ShieldCheck } from 'lucide-react';
+import TeamShowcase, { type TeamMember } from '../../components/ui/team-showcase';
+
+const TEAM_MEMBERS: TeamMember[] = [
+  {
+    id: '1',
+    name: 'Ibnu Fajar',
+    role: 'FOUNDER & CEO',
+    image: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=400',
+    social: { linkedin: '#', instagram: '#' },
+  },
+  {
+    id: '2',
+    name: 'Sarah Chen',
+    role: 'CO-FOUNDER & COO',
+    image: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=400',
+    social: { linkedin: '#', instagram: '#' },
+  },
+  {
+    id: '3',
+    name: 'Dimas Anggara',
+    role: 'HEAD OF FIELD OPS',
+    image: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&q=80&w=400',
+    social: { linkedin: '#' },
+  },
+  {
+    id: '4',
+    name: 'Nadia Putri',
+    role: 'DIRECTOR OF PARTNERSHIPS',
+    image: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&q=80&w=400',
+    social: { linkedin: '#', instagram: '#' },
+  },
+  {
+    id: '5',
+    name: 'Andi Prasetyo',
+    role: 'CTO - TECH LEAD',
+    image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=400',
+    social: { linkedin: '#', twitter: '#' },
+  },
+  {
+    id: '6',
+    name: 'Rina Maharani',
+    role: 'HEAD OF COMMUNITY',
+    image: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&q=80&w=400',
+    social: { instagram: '#' },
+  },
+];
 
 /**
  * Komponen Halaman Tentang Kami (About).
@@ -12,7 +58,7 @@ export default function About() {
       <section className="relative flex min-h-[100svh] flex-col items-center justify-center overflow-hidden bg-gray-900">
         <div className="absolute inset-0 w-full h-full">
           <img 
-            src="https://images.unsplash.com/photo-1488521787991-ed7bbaae773c?q=80&w=2000&auto=format&fit=crop" 
+            src="https://jfzvlzxslmgnssxekcme.supabase.co/storage/v1/object/public/campaign-assets/updates-demo/book_distribution_1777146402888.png" 
             alt="Kebahagiaan Anak-Anak Indonesia"
             className="w-full h-full object-cover opacity-80"
           />
@@ -95,7 +141,7 @@ export default function About() {
             </div>
             <div className="relative">
               <img
-                src="https://images.unsplash.com/photo-1531206715517-5c0ba140b2b8?auto=format&fit=crop&q=80&w=1200"
+                src="https://jfzvlzxslmgnssxekcme.supabase.co/storage/v1/object/public/campaign-assets/updates-demo/teacher_training_1777146418184.png"
                 alt="Team"
                 className="rounded-[2rem] shadow-xl sm:rounded-[3rem] sm:shadow-2xl"
                 loading="lazy"
@@ -106,38 +152,15 @@ export default function About() {
         </div>
       </section>
 
-      {/* Bagian Partner (Mitra) */}
+      {/* Bagian Tim Inti (Founder / CEO / dll) — TeamShowcase */}
       <section className="bg-gray-50 py-16 sm:py-24">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="mx-auto mb-12 max-w-3xl space-y-4 text-center sm:mb-16">
-            <h2 className="text-emerald-600 font-bold uppercase tracking-widest text-sm">Kolaborator</h2>
-            <h3 className="text-3xl font-black text-gray-900 sm:text-4xl">Mitra Sekolah Tanah Air</h3>
-            <p className="text-base text-gray-600 sm:text-lg">Gerakan raksasa ini tidak mungkin dilakukan sendirian. Terima kasih untuk rekan-rekan yang turut andil.</p>
+          <div className="mx-auto mb-10 max-w-3xl space-y-4 text-center sm:mb-14">
+            <h2 className="text-emerald-600 font-bold uppercase tracking-widest text-sm">Di Balik Layar</h2>
+            <h3 className="text-3xl font-black text-gray-900 sm:text-4xl">Tim Sekolah Tanah Air</h3>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {[
-              { name: 'Kawan Cendekia', url: 'https://www.instagram.com/kawancendekia' },
-              { name: 'PIS Movement', url: 'https://www.instagram.com/pismovement' },
-              { name: 'Perempuan Lestari', url: 'https://www.instagram.com/perempuan.lestari' },
-              { name: 'Himpunan Pemuda Indonesia', url: 'https://www.instagram.com/pemudaorid' },
-              { name: 'Admedika', url: 'https://www.instagram.com/admedika_ig' },
-              { name: 'Distrik Berisik', url: 'https://www.instagram.com/distrik_berisik' },
-              { name: 'Bali Nggih', url: 'https://www.instagram.com/balinggih' },
-              { name: 'Access English', url: '#' },
-              { name: 'Beyond Professional', url: '#' },
-            ].map((mitra, i) => (
-              <a 
-                key={i} 
-                href={mitra.url} 
-                target="_blank" 
-                rel="noreferrer"
-                className="flex items-center justify-center p-6 bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:border-emerald-200 hover:scale-105 transition-all text-center"
-              >
-                <span className="font-bold tracking-tight text-gray-700">{mitra.name}</span>
-              </a>
-            ))}
-          </div>
+          <TeamShowcase members={TEAM_MEMBERS} />
         </div>
       </section>
     </div>

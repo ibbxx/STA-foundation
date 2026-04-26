@@ -6,6 +6,7 @@ import {
   PublicCampaignDonationRow,
   supabase,
 } from './supabase';
+import { logError } from './error-logger';
 
 export type CampaignDonationSummary = Pick<
   PublicCampaignDonationRow,
@@ -29,7 +30,7 @@ export function getCampaignImages(row: Pick<CampaignRow, 'images' | 'image_url'>
 }
 
 export function getCampaignPrimaryImage(row: Pick<CampaignRow, 'images' | 'image_url' | 'id'>) {
-  return getCampaignImages(row)[0] ?? `https://picsum.photos/seed/${row.id}/1200/720`;
+  return getCampaignImages(row)[0] ?? null;
 }
 
 export function getDaysLeft(endDate?: string | null) {
@@ -44,20 +45,9 @@ export function getDaysLeft(endDate?: string | null) {
   return Math.max(0, diff);
 }
 
-function buildDonationCountMap(rows: Pick<PublicCampaignDonationRow, 'campaign_id'>[]) {
-  const counts = new Map<string, number>();
-
-  rows.forEach((row) => {
-    counts.set(row.campaign_id, (counts.get(row.campaign_id) ?? 0) + 1);
-  });
-
-  return counts;
-}
-
 export function mapCampaignRowToPublicCampaign(
   row: CampaignRow,
   categoryMap: Map<string, CategoryRow>,
-  donorCountMap: Map<string, number>,
 ): Campaign {
   const images = getCampaignImages(row);
   const htmlDescription = row.description ?? '';
@@ -89,7 +79,7 @@ export function mapCampaignRowToPublicCampaign(
     deadline: row.end_date ?? '',
     is_featured: row.is_featured,
     created_at: row.created_at,
-    donor_count: donorCountMap.get(row.id) ?? 0,
+    donor_count: row.donor_count ?? 0,
     start_date: row.start_date ?? undefined,
     end_date: row.end_date ?? undefined,
     images,
@@ -104,6 +94,7 @@ export async function fetchPublicCampaigns(options?: {
   let campaignsQuery = supabase
     .from('campaigns')
     .select('*')
+    .neq('status', 'draft')
     .order('created_at', { ascending: false });
 
   if (options?.featuredOnly) {
@@ -118,26 +109,22 @@ export async function fetchPublicCampaigns(options?: {
     campaignsQuery = campaignsQuery.limit(options.limit);
   }
 
-  const [{ data: campaignRows, error: campaignsError }, { data: categoryRows, error: categoriesError }, { data: donationRows, error: donationsError }] = await Promise.all([
+  const [{ data: campaignRows, error: campaignsError }, { data: categoryRows, error: categoriesError }] = await Promise.all([
     campaignsQuery,
     supabase.from('categories').select('*').order('name', { ascending: true }),
-    supabase.from('public_campaign_donations').select('campaign_id'),
   ]);
 
   if (campaignsError || categoriesError) {
     throw new Error(campaignsError?.message ?? categoriesError?.message ?? 'Gagal memuat campaign publik.');
   }
 
-  // Donation count is non-critical; degrade gracefully if view is inaccessible
   const safeCampaignRows: CampaignRow[] = campaignRows ?? [];
   const safeCategoryRows: CategoryRow[] = categoryRows ?? [];
-  const safeDonationRows: Pick<PublicCampaignDonationRow, 'campaign_id'>[] = donationRows ?? [];
 
   const categoryMap = new Map(safeCategoryRows.map((category) => [category.id, category]));
-  const donorCountMap = buildDonationCountMap(safeDonationRows);
 
   return {
-    campaigns: safeCampaignRows.map((row) => mapCampaignRowToPublicCampaign(row, categoryMap, donorCountMap)),
+    campaigns: safeCampaignRows.map((row) => mapCampaignRowToPublicCampaign(row, categoryMap)),
     categories: safeCategoryRows,
   };
 }
@@ -159,9 +146,8 @@ export async function fetchPublicCampaignDetail(slug: string) {
 
   const safeCampaignRow = campaignRow as CampaignRow;
 
-  const [{ data: categoryRows, error: categoriesError }, { data: donationRows, error: donationsError }, { data: updateRows, error: updatesError }, { data: recentDonationRows, error: recentDonationsError }] = await Promise.all([
+  const [{ data: categoryRows, error: categoriesError }, { data: updateRows, error: updatesError }, { data: recentDonationRows, error: recentDonationsError }] = await Promise.all([
     supabase.from('categories').select('*').order('name', { ascending: true }),
-    supabase.from('public_campaign_donations').select('campaign_id'),
     supabase.from('campaign_updates').select('*').eq('campaign_id', safeCampaignRow.id).order('created_at', { ascending: false }),
     supabase
       .from('public_campaign_donations')
@@ -179,14 +165,19 @@ export async function fetchPublicCampaignDetail(slug: string) {
     );
   }
 
+  if (recentDonationsError) {
+    logError('public-campaigns.fetchPublicCampaignDetail.recentDonations', recentDonationsError, {
+      campaignId: safeCampaignRow.id,
+      slug,
+    });
+  }
+
   const safeCategoryRows: CategoryRow[] = (categoryRows ?? []) as CategoryRow[];
-  const safeDonationRows: Pick<PublicCampaignDonationRow, 'campaign_id'>[] = (donationRows ?? []) as Pick<PublicCampaignDonationRow, 'campaign_id'>[];
 
   const categoryMap = new Map(safeCategoryRows.map((category) => [category.id, category]));
-  const donorCountMap = buildDonationCountMap(safeDonationRows);
 
   return {
-    campaign: mapCampaignRowToPublicCampaign(safeCampaignRow, categoryMap, donorCountMap),
+    campaign: mapCampaignRowToPublicCampaign(safeCampaignRow, categoryMap),
     updates: (updateRows ?? []) as CampaignUpdateRow[],
     donations: (recentDonationRows ?? []) as CampaignDonationSummary[],
   };

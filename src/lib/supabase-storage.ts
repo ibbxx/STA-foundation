@@ -1,4 +1,5 @@
 import imageCompression from 'browser-image-compression';
+import { logError } from './error-logger';
 import { supabase } from './supabase';
 
 const defaultBucket = (import.meta as any).env?.VITE_SUPABASE_STORAGE_BUCKET || 'site-media';
@@ -63,6 +64,12 @@ export async function uploadFileToStorage(file: File, options: UploadOptions = {
     });
 
   if (uploadError) {
+    logError('supabase-storage.uploadFileToStorage', uploadError, {
+      bucket,
+      filePath,
+      fileType: finalFile.type,
+      fileSize: finalFile.size,
+    });
     throw uploadError;
   }
 
@@ -107,7 +114,8 @@ export function parseStorageUrl(publicUrl: string): { bucket: string; path: stri
 
     if (!bucket || !path) return null;
     return { bucket, path };
-  } catch {
+  } catch (parseError) {
+    logError('supabase-storage.parseStorageUrl', parseError, { publicUrl });
     return null;
   }
 }
@@ -139,7 +147,10 @@ export async function deleteFilesFromStorage(urls: string[]): Promise<{ deleted:
   for (const [bucket, paths] of bucketMap) {
     const { error } = await supabase.storage.from(bucket).remove(paths);
     if (error) {
-      console.error(`Storage cleanup error (bucket: ${bucket}):`, error.message);
+      logError('supabase-storage.deleteFilesFromStorage', error, {
+        bucket,
+        paths,
+      });
       failed += paths.length;
     } else {
       deleted += paths.length;

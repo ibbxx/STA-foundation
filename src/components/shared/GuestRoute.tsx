@@ -2,6 +2,7 @@ import { Session } from '@supabase/supabase-js';
 import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import { Navigate } from 'react-router-dom';
+import { logError } from '../../lib/error-logger';
 import { supabase } from '../../lib/supabase';
 
 type GuestRouteProps = {
@@ -16,7 +17,10 @@ export default function GuestRoute({ children }: GuestRouteProps) {
     let ignore = false;
 
     async function loadSession() {
-      const { data } = await supabase.auth.getSession();
+      const { data, error } = await supabase.auth.getSession();
+      if (error) {
+        logError('GuestRoute.loadSession', error);
+      }
       if (ignore) return;
       setSession(data.session);
       setLoading(false);

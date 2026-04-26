@@ -1,7 +1,6 @@
 import { useEditor, EditorContent, type Editor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Link from '@tiptap/extension-link';
-import Image from '@tiptap/extension-image';
 import {
   Bold,
   Italic,
@@ -13,9 +12,9 @@ import {
   Undo,
   Redo,
   Link as LinkIcon,
-  Image as ImageIcon,
   Minus,
 } from 'lucide-react';
+import { logError } from '../../../lib/error-logger';
 import { cn } from '../../../lib/utils';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
@@ -95,32 +94,6 @@ function MenuBar({ editor }: { editor: Editor }) {
     editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
   };
 
-  const addImage = () => {
-    const url = window.prompt('Image URL:');
-    if (url) {
-      editor.chain().focus().setImage({ src: url }).run();
-    }
-  };
-
-  const uploadImage = () => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'image/*';
-    input.onchange = () => {
-      const file = input.files?.[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = () => {
-        const result = reader.result;
-        if (typeof result === 'string') {
-          editor.chain().focus().setImage({ src: result }).run();
-        }
-      };
-      reader.readAsDataURL(file);
-    };
-    input.click();
-  };
-
   return (
     <div className="flex flex-wrap items-center gap-1 border-b border-gray-200 bg-gray-50/50 px-3 py-2">
       <ToolbarBtn title="Bold" onAction={() => editor.chain().focus().toggleBold().run()} active={editor.isActive('bold')}>
@@ -159,12 +132,6 @@ function MenuBar({ editor }: { editor: Editor }) {
       <ToolbarBtn title="Link" onAction={addLink} active={editor.isActive('link')}>
         <LinkIcon size={16} />
       </ToolbarBtn>
-      <ToolbarBtn title="Image URL" onAction={addImage}>
-        <ImageIcon size={16} />
-      </ToolbarBtn>
-      <ToolbarBtn title="Upload Image" onAction={uploadImage}>
-        <span className="text-[10px] font-bold">📎</span>
-      </ToolbarBtn>
 
       <Divider />
 
@@ -200,11 +167,7 @@ export default function RichTextEditor({
       StarterKit,
       Link.configure({
         openOnClick: false,
-        HTMLAttributes: { class: 'text-emerald-600 underline' },
-      }),
-      Image.configure({
-        allowBase64: true,
-        HTMLAttributes: { class: 'rounded-lg max-w-full cursor-pointer' },
+        HTMLAttributes: { class: 'text-zinc-900 underline' },
       }),
     ],
     content: value,
@@ -242,7 +205,7 @@ export default function RichTextEditor({
       <div
         className={cn(
           'overflow-hidden rounded-lg border bg-white shadow-sm transition-colors',
-          error ? 'border-red-500' : 'border-gray-200 focus-within:border-emerald-500',
+          error ? 'border-red-500' : 'border-gray-200 focus-within:border-zinc-900',
           className,
         )}
       >

@@ -12,6 +12,7 @@ import {
   Banknote,
   CheckCircle2,
 } from 'lucide-react';
+import { logError } from '../../lib/error-logger';
 import { fetchPublicCampaignForDonate } from '../../lib/public-campaigns';
 import { Campaign, DonationInsert, supabase } from '../../lib/supabase';
 import { formatCurrency, cn } from '../../lib/utils';
@@ -82,9 +83,11 @@ export default function Donate() {
 
         setCampaign(nextCampaign);
         if (!nextCampaign) {
+          logError('Donate.loadCampaign.notFound', new Error('Campaign tidak ditemukan.'), { slug });
           setPageError('Campaign tidak ditemukan.');
         }
       } catch (loadError) {
+        logError('Donate.loadCampaign', loadError, { slug });
         if (ignore) return;
         setCampaign(null);
         setPageError(loadError instanceof Error ? loadError.message : 'Gagal memuat campaign.');
@@ -127,6 +130,10 @@ export default function Donate() {
       .single();
 
     if (error) {
+      logError('Donate.submitDonation', error, {
+        campaignId: campaign.id,
+        paymentMethod: data.paymentMethod,
+      });
       setPageError(error.message);
       setIsSubmitting(false);
       return;

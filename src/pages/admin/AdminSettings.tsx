@@ -24,54 +24,24 @@ import {
   adminSiteContentSchema,
 } from '../../lib/admin-schemas';
 import { formatAdminDate, previewJson } from '../../lib/admin-helpers';
-import { SiteContentInsert, SiteContentRow, supabase } from '../../lib/supabase';
+import {
+  deleteSiteContent,
+  fetchSiteContentRows,
+  insertSiteContent,
+  listStorageBuckets,
+  updateSiteContent,
+  upsertSiteContent,
+} from '../../lib/admin-repository';
+import {
+  buildHeroValues,
+  defaultContentValues,
+  defaultHeroValues,
+  heroKeys,
+  stringifySiteContentValue,
+} from '../../lib/admin-view-models';
+import { logError } from '../../lib/error-logger';
+import { SiteContentInsert, SiteContentRow } from '../../lib/supabase';
 import { cn } from '../../lib/utils';
-
-const heroKeys = [
-  'hero_title',
-  'hero_description',
-  'hero_primary_label',
-  'hero_primary_link',
-  'hero_secondary_label',
-  'hero_secondary_link',
-] as const;
-
-const defaultHeroValues: AdminHeroSettingsValues = {
-  hero_title: '',
-  hero_description: '',
-  hero_primary_label: '',
-  hero_primary_link: '',
-  hero_secondary_label: '',
-  hero_secondary_link: '',
-};
-
-const defaultContentValues: AdminSiteContentValues = {
-  key: '',
-  value_text: '{\n  \n}',
-};
-
-function stringifyValue(value: SiteContentRow['value']) {
-  return value === null ? 'null' : JSON.stringify(value, null, 2);
-}
-
-function getStringValue(value: SiteContentRow['value']) {
-  if (typeof value === 'string') return value;
-  if (value === null) return '';
-  return JSON.stringify(value);
-}
-
-function buildHeroValues(entries: SiteContentRow[]): AdminHeroSettingsValues {
-  const entryByKey = new Map(entries.map((entry) => [entry.key, entry]));
-
-  return {
-    hero_title: getStringValue(entryByKey.get('hero_title')?.value ?? null),
-    hero_description: getStringValue(entryByKey.get('hero_description')?.value ?? null),
-    hero_primary_label: getStringValue(entryByKey.get('hero_primary_label')?.value ?? null),
-    hero_primary_link: getStringValue(entryByKey.get('hero_primary_link')?.value ?? null),
-    hero_secondary_label: getStringValue(entryByKey.get('hero_secondary_label')?.value ?? null),
-    hero_secondary_link: getStringValue(entryByKey.get('hero_secondary_link')?.value ?? null),
-  };
-}
 
 export default function AdminSettings() {
   const [entries, setEntries] = useState<SiteContentRow[]>([]);
@@ -102,12 +72,10 @@ export default function AdminSettings() {
     setLoading(true);
     setError(null);
 
-    const { data, error: fetchError } = await supabase
-      .from('site_content')
-      .select('*')
-      .order('updated_at', { ascending: false });
+    const { data, error: fetchError } = await fetchSiteContentRows();
 
     if (fetchError) {
+      logError('AdminSettings.loadSettings', fetchError);
       setError(fetchError.message);
       setEntries([]);
       setLoading(false);
@@ -124,7 +92,7 @@ export default function AdminSettings() {
   async function checkStorageBuckets() {
     setStorageStatus((prev) => ({ ...prev, checking: true }));
     try {
-      const { data: buckets, error: bucketError } = await supabase.storage.listBuckets();
+      const { data: buckets, error: bucketError } = await listStorageBuckets();
       if (bucketError) throw bucketError;
 
       const bucketNames = buckets?.map((b) => b.name) ?? [];
@@ -134,7 +102,7 @@ export default function AdminSettings() {
         checking: false,
       });
     } catch (err) {
-      console.error('Storage check failed:', err);
+      logError('AdminSettings.checkStorageBuckets', err);
       setStorageStatus((prev) => ({ ...prev, checking: false }));
     }
   }
@@ -147,7 +115,7 @@ export default function AdminSettings() {
     if (mode === 'edit' && editingEntry) {
       contentForm.reset({
         key: editingEntry.key,
-        value_text: stringifyValue(editingEntry.value),
+        value_text: stringifySiteContentValue(editingEntry.value),
       });
       return;
     }
@@ -179,11 +147,12 @@ export default function AdminSettings() {
       { key: 'hero_secondary_link', value: values.hero_secondary_link.trim() || null },
     ];
 
-    const { error: submitError } = await supabase
-      .from('site_content')
-      .upsert(payload as never, { onConflict: 'key' });
+    const { error: submitError } = await upsertSiteContent(payload);
 
     if (submitError) {
+      logError('AdminSettings.handleHeroSubmit', submitError, {
+        keys: payload.map((entry) => entry.key),
+      });
       setError(submitError.message);
       setHeroSaving(false);
       return;
@@ -217,18 +186,35 @@ export default function AdminSettings() {
     setNotice(null);
     setError(null);
 
+    let parsedValue: SiteContentInsert['value'];
+    try {
+      parsedValue = JSON.parse(values.value_text);
+    } catch (parseError) {
+      logError('AdminSettings.handleContentSubmit.parseJson', parseError, {
+        mode,
+        key: values.key,
+        entryId: editingEntry?.id,
+      });
+      throw parseError;
+    }
+
     const payload: SiteContentInsert = {
       key: values.key.trim(),
-      value: JSON.parse(values.value_text),
+      value: parsedValue,
     };
 
     const query = mode === 'edit' && editingEntry
-      ? supabase.from('site_content').update({ value: payload.value } as never).eq('id', editingEntry.id)
-      : supabase.from('site_content').insert(payload as never);
+      ? updateSiteContent(editingEntry.id, { value: payload.value })
+      : insertSiteContent(payload);
 
     const { error: submitError } = await query;
 
     if (submitError) {
+      logError('AdminSettings.handleContentSubmit', submitError, {
+        mode,
+        key: payload.key,
+        entryId: editingEntry?.id,
+      });
       setError(submitError.message);
       return;
     }
@@ -241,13 +227,19 @@ export default function AdminSettings() {
   async function handleDelete(entry: SiteContentRow) {
     setNotice(null);
     setError(null);
-    const confirmed = window.confirm(`Hapus site content "${entry.key}"?`);
+    const confirmed = window.confirm(
+      `Apakah Anda yakin ingin menghapus site content "${entry.key}"?\n\nTindakan ini tidak dapat dibatalkan dan data tidak dapat dikembalikan lagi.`
+    );
     if (!confirmed) return;
 
     setDeletingId(entry.id);
-    const { error: deleteError } = await supabase.from('site_content').delete().eq('id', entry.id);
+    const { error: deleteError } = await deleteSiteContent(entry.id);
 
     if (deleteError) {
+      logError('AdminSettings.handleDelete', deleteError, {
+        entryId: entry.id,
+        key: entry.key,
+      });
       setError(deleteError.message);
       setDeletingId(null);
       return;
@@ -277,7 +269,7 @@ export default function AdminSettings() {
           </button>
           <button
             onClick={openCreateModal}
-            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-xl text-sm font-medium shadow-sm hover:bg-emerald-700 transition-colors"
+            className="flex items-center gap-2 px-4 py-2 bg-zinc-900 text-white rounded-xl text-sm font-medium shadow-sm hover:bg-zinc-950 transition-colors"
           >
             <Plus size={16} />
             Tambah Entri
@@ -286,7 +278,7 @@ export default function AdminSettings() {
       </div>
 
       {notice && (
-        <div className="flex items-start gap-3 p-4 rounded-xl border border-emerald-200 bg-emerald-50 text-sm text-emerald-700">
+        <div className="flex items-start gap-3 p-4 rounded-xl border border-zinc-200 bg-zinc-100 text-sm text-zinc-950">
           <CheckCircle2 size={18} className="shrink-0 mt-0.5" />
           <div>
             <p className="font-semibold">Berhasil</p>
@@ -319,7 +311,7 @@ export default function AdminSettings() {
               <button
                 type="submit"
                 disabled={heroSaving}
-                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-emerald-600 rounded-xl hover:bg-emerald-700 transition-colors disabled:opacity-50"
+                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-zinc-900 rounded-xl hover:bg-zinc-950 transition-colors disabled:opacity-50"
               >
                 {heroSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
                 {heroSaving ? 'Menyimpan...' : 'Simpan Hero'}
@@ -332,7 +324,7 @@ export default function AdminSettings() {
                 <input
                   type="text"
                   {...heroForm.register('hero_title')}
-                  className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition-all placeholder:text-slate-400"
+                  className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 outline-none transition-all placeholder:text-slate-400"
                 />
                 {heroForm.formState.errors.hero_title && <p className="text-xs text-rose-500">{heroForm.formState.errors.hero_title.message}</p>}
               </label>
@@ -342,7 +334,7 @@ export default function AdminSettings() {
                 <textarea
                   rows={3}
                   {...heroForm.register('hero_description')}
-                  className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition-all placeholder:text-slate-400"
+                  className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 outline-none transition-all placeholder:text-slate-400"
                 />
                 {heroForm.formState.errors.hero_description && <p className="text-xs text-rose-500">{heroForm.formState.errors.hero_description.message}</p>}
               </label>
@@ -353,7 +345,7 @@ export default function AdminSettings() {
                   <input
                     type="text"
                     {...heroForm.register('hero_primary_label')}
-                    className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition-all placeholder:text-slate-400"
+                    className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 outline-none transition-all placeholder:text-slate-400"
                   />
                   {heroForm.formState.errors.hero_primary_label && <p className="text-xs text-rose-500">{heroForm.formState.errors.hero_primary_label.message}</p>}
                 </label>
@@ -363,7 +355,7 @@ export default function AdminSettings() {
                   <input
                     type="text"
                     {...heroForm.register('hero_primary_link')}
-                    className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition-all placeholder:text-slate-400"
+                    className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 outline-none transition-all placeholder:text-slate-400"
                   />
                   {heroForm.formState.errors.hero_primary_link && <p className="text-xs text-rose-500">{heroForm.formState.errors.hero_primary_link.message}</p>}
                 </label>
@@ -375,7 +367,7 @@ export default function AdminSettings() {
                   <input
                     type="text"
                     {...heroForm.register('hero_secondary_label')}
-                    className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition-all placeholder:text-slate-400"
+                    className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 outline-none transition-all placeholder:text-slate-400"
                   />
                   {heroForm.formState.errors.hero_secondary_label && <p className="text-xs text-rose-500">{heroForm.formState.errors.hero_secondary_label.message}</p>}
                 </label>
@@ -385,7 +377,7 @@ export default function AdminSettings() {
                   <input
                     type="text"
                     {...heroForm.register('hero_secondary_link')}
-                    className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition-all placeholder:text-slate-400"
+                    className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 outline-none transition-all placeholder:text-slate-400"
                   />
                   {heroForm.formState.errors.hero_secondary_link && <p className="text-xs text-rose-500">{heroForm.formState.errors.hero_secondary_link.message}</p>}
                 </label>
@@ -397,14 +389,14 @@ export default function AdminSettings() {
         <div className="space-y-6">
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
             <div className="flex items-center gap-2 text-slate-900 mb-4">
-              <Globe size={18} className="text-emerald-600" />
+              <Globe size={18} className="text-zinc-900" />
               <h3 className="text-base font-semibold">Preview Ringkas</h3>
             </div>
             <div className="p-4 bg-slate-50 border border-slate-100 rounded-xl">
               <h4 className="text-lg font-bold text-slate-900 leading-tight">{heroPreview.hero_title || 'Judul hero'}</h4>
               <p className="mt-2 text-xs text-slate-500 leading-relaxed">{heroPreview.hero_description || 'Deskripsi hero.'}</p>
               <div className="mt-4 flex flex-wrap gap-2">
-                <span className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-white bg-emerald-600 rounded-lg">
+                <span className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-white bg-zinc-900 rounded-lg">
                   {heroPreview.hero_primary_label || 'CTA Utama'}
                 </span>
                 {heroPreview.hero_secondary_label && (
@@ -430,7 +422,7 @@ export default function AdminSettings() {
                 {storageStatus.checking ? (
                   <Loader2 size={14} className="animate-spin text-slate-400" />
                 ) : storageStatus.siteMedia ? (
-                  <span className="px-2 py-0.5 text-[10px] font-bold text-emerald-600 bg-emerald-50 rounded uppercase">Active</span>
+                  <span className="px-2 py-0.5 text-[10px] font-bold text-zinc-900 bg-zinc-100 rounded uppercase">Active</span>
                 ) : (
                   <span className="px-2 py-0.5 text-[10px] font-bold text-rose-600 bg-rose-50 rounded uppercase">Missing</span>
                 )}
@@ -443,7 +435,7 @@ export default function AdminSettings() {
                 {storageStatus.checking ? (
                   <Loader2 size={14} className="animate-spin text-slate-400" />
                 ) : storageStatus.campaignAssets ? (
-                  <span className="px-2 py-0.5 text-[10px] font-bold text-emerald-600 bg-emerald-50 rounded uppercase">Active</span>
+                  <span className="px-2 py-0.5 text-[10px] font-bold text-zinc-900 bg-zinc-100 rounded uppercase">Active</span>
                 ) : (
                   <span className="px-2 py-0.5 text-[10px] font-bold text-rose-600 bg-rose-50 rounded uppercase">Missing</span>
                 )}
@@ -488,7 +480,7 @@ export default function AdminSettings() {
                       <div className="flex flex-col gap-1.5 items-start">
                         <span className="px-2.5 py-1 text-[11px] font-mono font-medium text-slate-600 bg-slate-100 rounded-md">{entry.key}</span>
                         {heroKeys.includes(entry.key as (typeof heroKeys)[number]) && (
-                          <span className="px-2 py-0.5 text-[9px] font-semibold text-emerald-700 bg-emerald-50 rounded-sm uppercase tracking-wider border border-emerald-100">
+                          <span className="px-2 py-0.5 text-[9px] font-semibold text-zinc-950 bg-zinc-100 rounded-sm uppercase tracking-wider border border-zinc-200">
                             Hero
                           </span>
                         )}
@@ -503,7 +495,7 @@ export default function AdminSettings() {
                         <button
                           type="button"
                           onClick={() => openEditModal(entry)}
-                          className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+                          className="p-2 text-slate-400 hover:text-zinc-900 hover:bg-zinc-100 rounded-lg transition-colors"
                         >
                           <Edit2 size={16} />
                         </button>
@@ -544,7 +536,7 @@ export default function AdminSettings() {
               type="submit"
               form="site-content-form"
               disabled={contentForm.formState.isSubmitting}
-              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-emerald-600 rounded-xl hover:bg-emerald-700 transition-colors disabled:opacity-50"
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-zinc-900 rounded-xl hover:bg-zinc-950 transition-colors disabled:opacity-50"
             >
               {contentForm.formState.isSubmitting ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
               {contentForm.formState.isSubmitting ? 'Menyimpan...' : 'Simpan'}
@@ -559,7 +551,7 @@ export default function AdminSettings() {
               type="text"
               {...contentForm.register('key')}
               disabled={mode === 'edit'}
-              className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition-all placeholder:text-slate-400 disabled:bg-slate-50 disabled:text-slate-500"
+              className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 outline-none transition-all placeholder:text-slate-400 disabled:bg-slate-50 disabled:text-slate-500"
             />
             {contentForm.formState.errors.key && <p className="text-xs text-rose-500">{contentForm.formState.errors.key.message}</p>}
           </label>
@@ -569,7 +561,7 @@ export default function AdminSettings() {
             <textarea
               rows={8}
               {...contentForm.register('value_text')}
-              className="w-full px-3 py-2 font-mono text-sm bg-white border border-slate-200 rounded-xl focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition-all placeholder:text-slate-400"
+              className="w-full px-3 py-2 font-mono text-sm bg-white border border-slate-200 rounded-xl focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 outline-none transition-all placeholder:text-slate-400"
             />
             {contentForm.formState.errors.value_text && <p className="text-xs text-rose-500">{contentForm.formState.errors.value_text.message}</p>}
           </label>
