@@ -3,11 +3,10 @@ import { useEffect, useMemo, useState } from 'react';
 import CampaignCard from '../../components/shared/CampaignCard';
 import { logError } from '../../lib/error-logger';
 import { fetchPublicCampaigns } from '../../lib/public-campaigns';
-import { Campaign, CategoryRow } from '../../lib/supabase';
+import { Campaign } from '../../lib/supabase';
 
 export default function Campaigns() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
-  const [categories, setCategories] = useState<CategoryRow[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState('Semua');
   const [loading, setLoading] = useState(true);
@@ -25,12 +24,10 @@ export default function Campaigns() {
         if (ignore) return;
 
         setCampaigns(result.campaigns);
-        setCategories(result.categories);
       } catch (loadError) {
         logError('Campaigns.loadCampaigns', loadError);
         if (ignore) return;
         setCampaigns([]);
-        setCategories([]);
         setError(loadError instanceof Error ? loadError.message : 'Gagal memuat campaign.');
       } finally {
         if (!ignore) {
@@ -46,10 +43,15 @@ export default function Campaigns() {
     };
   }, []);
 
-  const categoryOptions = useMemo(
-    () => ['Semua', ...categories.map((category) => category.name)],
-    [categories],
-  );
+  // Hanya tampilkan kategori yang memiliki campaign aktif
+  const categoryOptions = useMemo(() => {
+    const uniqueCategories = [...new Set(
+      campaigns
+        .map((c) => c.category_name)
+        .filter((name): name is string => !!name)
+    )];
+    return ['Semua', ...uniqueCategories.sort()];
+  }, [campaigns]);
 
   const filteredCampaigns = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
