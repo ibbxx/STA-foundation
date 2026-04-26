@@ -40,9 +40,7 @@ export default function CampaignCard({ campaign, className }: CampaignCardProps)
           isThumbnail
           className="transition-transform duration-500 md:group-hover:scale-105"
         />
-        <span className="absolute top-3 left-3 sm:top-4 sm:left-4 bg-white/90 backdrop-blur-sm text-emerald-700 text-[9px] sm:text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full shadow-sm">
-          {categoryLabel}
-        </span>
+
       </div>
 
       {/* Detail Konten Kampanye */}
