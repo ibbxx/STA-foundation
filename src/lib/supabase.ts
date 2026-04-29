@@ -207,6 +207,7 @@ export interface Database {
           id: string;
           reporter_name: string;
           reporter_phone: string;
+          reporter_ip: string | null;
           school_name: string;
           location: string;
           description: string;
@@ -219,6 +220,7 @@ export interface Database {
           id?: string;
           reporter_name: string;
           reporter_phone: string;
+          reporter_ip?: string | null;
           school_name: string;
           location: string;
           description: string;
@@ -231,6 +233,7 @@ export interface Database {
           id?: string;
           reporter_name?: string;
           reporter_phone?: string;
+          reporter_ip?: string | null;
           school_name?: string;
           location?: string;
           description?: string;
@@ -238,6 +241,26 @@ export interface Database {
           status?: 'pending' | 'verified' | 'actioned';
           created_at?: string;
           updated_at?: string;
+        };
+      };
+      spammer_blacklist: {
+        Row: {
+          id: string;
+          identifier: string;
+          reason: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          identifier: string;
+          reason?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          identifier?: string;
+          reason?: string | null;
+          created_at?: string;
         };
       };
       site_content: {
@@ -339,6 +362,9 @@ export type PublicCampaignStatsRow = Database['public']['Views']['public_campaig
 export type SchoolReportRow = Database['public']['Tables']['school_reports']['Row'];
 export type SchoolReportInsert = Database['public']['Tables']['school_reports']['Insert'];
 export type SchoolReportUpdate = Database['public']['Tables']['school_reports']['Update'];
+
+export type SpammerBlacklistRow = Database['public']['Tables']['spammer_blacklist']['Row'];
+export type SpammerBlacklistInsert = Database['public']['Tables']['spammer_blacklist']['Insert'];
 
 export type SiteContentRow = Database['public']['Tables']['site_content']['Row'];
 export type SiteContentInsert = Database['public']['Tables']['site_content']['Insert'];

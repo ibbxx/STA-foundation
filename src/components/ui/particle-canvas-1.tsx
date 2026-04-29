@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 
 const Helper = {
   createShader: (gl: WebGLRenderingContext, type: number, source: string) => {
@@ -72,7 +72,6 @@ const ParticleCanvas = ({ maxParticles = 1000, particleSizeMin = 2, particleSize
   const particlesRef = useRef<any[]>([]);
   const tickRef = useRef(0);
   const dimensionsRef = useRef({ width: 0, height: 0, cx: 0, cy: 0 });
-  const [isAnimating] = useState(true);
   const animationFrameIdRef = useRef<number | null>(null);
 
   function getCircleTriangles(x: number, y: number, r: number) {
@@ -175,7 +174,6 @@ const ParticleCanvas = ({ maxParticles = 1000, particleSizeMin = 2, particleSize
     };
 
     const animate = () => {
-      if (!isAnimating) return;
       webglRef.current.clear();
       tickRef.current++;
       if (particlesRef.current.length < maxParticles) {
@@ -215,7 +213,7 @@ const ParticleCanvas = ({ maxParticles = 1000, particleSizeMin = 2, particleSize
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('resize', handleResize);
     };
-  }, [isAnimating, maxParticles, particleSizeMin, particleSizeMax, speedScale]);
+  }, [maxParticles, particleSizeMin, particleSizeMax, speedScale]);
 
   return (
     <canvas

@@ -1,10 +1,9 @@
 import React from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { InfiniteSlider } from '../../components/ui/infinite-slider';
 import { ProgressiveBlur } from '../../components/ui/progressive-blur';
 import {
   ArrowRight,
-  ChevronDown,
   HandHeart,
   Quote,
   Heart,
@@ -20,53 +19,6 @@ import { getProgramIcon } from '../../lib/program-icons';
 import { PROGRAMS } from '../../lib/programs';
 import { formatCurrency, calculateProgress, cn } from '../../lib/utils';
 
-const CATEGORIES = [
-  { name: 'Pendidikan', image: 'https://jfzvlzxslmgnssxekcme.supabase.co/storage/v1/object/public/campaign-assets/updates-demo/school_construction_1777146387719.png', count: 24 },
-  { name: 'Kesehatan', image: 'https://jfzvlzxslmgnssxekcme.supabase.co/storage/v1/object/public/campaign-assets/updates-demo/teacher_training_1777146418184.png', count: 18 },
-  { name: 'Lingkungan', image: 'https://jfzvlzxslmgnssxekcme.supabase.co/storage/v1/object/public/campaign-assets/updates-demo/book_distribution_1777146402888.png', count: 12 },
-  { name: 'Bencana Alam', image: 'https://jfzvlzxslmgnssxekcme.supabase.co/storage/v1/object/public/campaign-assets/updates-demo/school_construction_2_1777147738168.png', count: 9 },
-  { name: 'Pangan', image: 'https://jfzvlzxslmgnssxekcme.supabase.co/storage/v1/object/public/campaign-assets/updates-demo/book_distribution_2_1777147754389.png', count: 15 },
-];
-
-const FAQ_ITEMS = [
-  { q: 'Bagaimana cara memulai penggalangan dana?', a: 'Anda cukup mendaftar akun, membuat halaman campaign dengan informasi lengkap, dan membagikannya ke jaringan Anda. Tim kami akan memverifikasi campaign dalam 1x24 jam.' },
-  { q: 'Apakah ada biaya yang dikenakan saat berdonasi?', a: 'Kami mengenakan biaya platform sebesar 5% dari total donasi yang terkumpul untuk operasional dan pengembangan platform. Tidak ada biaya tersembunyi.' },
-  { q: 'Bagaimana saya bisa yakin dananya tersalur dengan benar?', a: 'Setiap campaign wajib memberikan update berkala dan laporan penggunaan dana. Kami juga melakukan verifikasi identitas penggalang dana dan menyediakan laporan transparansi publik.' },
-  { q: 'Berapa lama proses pencairan dana ke penggalang?', a: 'Dana dapat dicairkan kapan saja setelah minimal terkumpul Rp 1.000.000. Proses transfer membutuhkan 1-3 hari kerja ke rekening yang terdaftar.' },
-  { q: 'Apakah saya bisa membuat campaign anonim?', a: 'Ya, Anda bisa memilih untuk menyembunyikan identitas Anda sebagai penggalang dana. Namun, kami tetap memerlukan verifikasi identitas untuk keamanan.' },
-];
-
-/* ─────────── Sub-Components ─────────── */
-
-function FAQItem({ q, a, isOpen, onClick }: { q: string; a: string; isOpen: boolean; onClick: () => void }) {
-  return (
-    <div className="border-b border-gray-100 last:border-b-0">
-      <button onClick={onClick} className="w-full flex items-center justify-between py-5 md:py-6 text-left group">
-        <span className="text-sm sm:text-base md:text-lg font-semibold text-gray-800 group-hover:text-emerald-700 transition-colors pr-6 leading-snug">
-          {q}
-        </span>
-        <ChevronDown
-          size={18}
-          className={cn('shrink-0 text-gray-400 transition-transform duration-300', isOpen && 'rotate-180 text-emerald-600')}
-        />
-      </button>
-      <AnimatePresence initial={false}>
-        {isOpen && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.25, ease: 'easeInOut' }}
-            className="overflow-hidden"
-          >
-            <p className="pb-5 md:pb-6 text-gray-500 leading-relaxed text-sm">{a}</p>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-}
-
 /* ─────────── Animation Variants ─────────── */
 
 const fadeUp = {
@@ -79,7 +31,6 @@ const fadeUp = {
 /* ─────────── Main Component ─────────── */
 
 export default function Home() {
-  const [openFaq, setOpenFaq] = React.useState<number | null>(0);
   const [featuredCampaigns, setFeaturedCampaigns] = React.useState<Campaign[]>([]);
   const [loadingFeaturedCampaigns, setLoadingFeaturedCampaigns] = React.useState(true);
   const [featuredCampaignError, setFeaturedCampaignError] = React.useState<string | null>(null);
@@ -146,11 +97,21 @@ export default function Home() {
                 </p>
 
                 <div className="mt-8 flex flex-col items-start gap-3 sm:mt-12 sm:flex-row">
+                  {/* HIDDEN FOR PRESENTATION MODE 
                   <Link
                     to="/campaigns"
                     className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-[#2C5F4F] pl-6 pr-4 text-sm font-bold text-[#F5F1E8] transition-all duration-300 hover:bg-[#234A3D] md:h-12 md:text-base"
                   >
                     <span className="whitespace-nowrap">Donasi Sekarang</span>
+                    <ArrowRight className="ml-1 h-4 w-4" />
+                  </Link>
+                  */}
+                  {/* TEMPORARY CTA */}
+                  <Link
+                    to="/tentang-kami"
+                    className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-[#2C5F4F] pl-6 pr-4 text-sm font-bold text-[#F5F1E8] transition-all duration-300 hover:bg-[#234A3D] md:h-12 md:text-base"
+                  >
+                    <span className="whitespace-nowrap">Pelajari Lebih Lanjut</span>
                     <ArrowRight className="ml-1 h-4 w-4" />
                   </Link>
                   <a
@@ -179,19 +140,35 @@ export default function Home() {
             </div>
             <div className="relative py-8 md:w-[calc(100%-12rem)]">
               <InfiniteSlider
-                durationOnHover={20}
                 duration={35}
                 gap={80}
+                stopOnHover={true}
+                draggable={true}
               >
                 {[
-                  'Kawan Cendekia', 'PIS Movement', 'Perempuan Lestari',
-                  'Himpunan Pemuda Indonesia', 'Admedika', 'Distrik Berisik',
-                  'Bali Nggih', 'Access English',
-                ].map((name) => (
-                  <div key={name} className="flex items-center gap-3">
-                    <span className="whitespace-nowrap text-base font-bold tracking-tight text-gray-500 transition-colors hover:text-gray-900 md:text-lg">
-                      {name}
-                    </span>
+                  { name: 'Admedika', src: '/mitra/assets/admedika.png', href: 'https://www.instagram.com/admedika_ig?igsh=MW04d3hhMmYxa3pvMQ==', sizeClass: 'h-14 md:h-20 scale-110' },
+                  { name: 'Bali Nggih', src: '/mitra/assets/balinggih.png', href: 'https://www.instagram.com/balinggih?igsh=MTg5MDBsZ3JvdzJqZw==', sizeClass: 'h-8 md:h-12' },
+                  { name: 'Distrik Berisik', src: '/mitra/assets/blue-db.png', href: 'https://www.instagram.com/distrik_berisik?igsh=Mmk3bTN6eG5maHZ3', sizeClass: 'h-8 md:h-12' },
+                  { name: 'PIS Movement', src: '/mitra/assets/peacemaker.png', href: 'https://www.instagram.com/pismovement?igsh=c25kNWZtNDJkcWI1', sizeClass: 'h-14 md:h-20' },
+                  { name: 'Kawan Cendekia', src: '/mitra/assets/img-0338.png', href: 'https://www.instagram.com/kawancendekia?igsh=ZTlzNHhqem13MHlo', sizeClass: 'h-14 md:h-20' },
+                  { name: 'Perempuan Lestari', src: '/mitra/assets/wa-image.jpg', href: 'https://www.instagram.com/perempuan.lestari?igsh=MW5uMW9tcHltYWZ5OA==', sizeClass: 'h-14 md:h-20' },
+                ].map((partner) => (
+                  <div key={partner.name} className="flex items-center justify-center px-4 min-h-[6rem]">
+                    <a 
+                      href={partner.href} 
+                      target="_blank" 
+                      rel="noreferrer"
+                      className="transition-transform hover:scale-110"
+                    >
+                      <img
+                        src={partner.src}
+                        alt={`Logo ${partner.name}`}
+                        className={cn(
+                          "w-auto object-contain mix-blend-multiply origin-center",
+                          partner.sizeClass
+                        )}
+                      />
+                    </a>
                   </div>
                 ))}
               </InfiniteSlider>
@@ -217,196 +194,202 @@ export default function Home() {
 
 
       {/* ═══════ 4 · HAPPENING NOW — EDITORIAL BENTO ═══════ */}
-      <section className="bg-gray-50/50 py-16 sm:py-20">
-        <div className="mx-auto max-w-7xl px-5 sm:px-6 lg:px-8">
-          <div className="mb-10 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-end">
-            <motion.div {...fadeUp}>
-              <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-800">Terkini</p>
-              <h2 className="text-xl font-black tracking-tight text-gray-900 sm:text-2xl md:text-3xl">Sedang Berlangsung</h2>
-            </motion.div>
-            <Link to="/campaigns" className="group flex items-center text-xs font-bold uppercase tracking-widest text-emerald-800 transition-colors hover:text-emerald-950">
-              Lihat Semua
-              <ArrowRight size={14} className="ml-2 transition-transform group-hover:translate-x-1" />
-            </Link>
-          </div>
+      {/* HIDDEN FOR PRESENTATION MODE */}
+      {false && (
+        <section className="bg-gray-50/50 py-16 sm:py-20">
+          <div className="mx-auto max-w-7xl px-5 sm:px-6 lg:px-8">
+            <div className="mb-10 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-end">
+              <motion.div {...fadeUp}>
+                <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-800">Terkini</p>
+                <h2 className="text-xl font-black tracking-tight text-gray-900 sm:text-2xl md:text-3xl">Sedang Berlangsung</h2>
+              </motion.div>
+              <Link to="/campaigns" className="group flex items-center text-xs font-bold uppercase tracking-widest text-emerald-800 transition-colors hover:text-emerald-950">
+                Lihat Semua
+                <ArrowRight size={14} className="ml-2 transition-transform group-hover:translate-x-1" />
+              </Link>
+            </div>
 
-          {featuredCampaignError ? (
-            <div className="rounded-2xl border border-gray-100 bg-white p-8 text-center text-sm text-red-600">
-              {featuredCampaignError}
-            </div>
-          ) : loadingFeaturedCampaigns ? (
-            <div className="rounded-2xl border border-gray-100 bg-white p-20 text-center text-sm text-gray-400">
-              Memuat campaign...
-            </div>
-          ) : featuredCampaigns.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-gray-200 bg-white p-20 text-center">
-              <h3 className="text-base font-bold text-gray-900">Belum ada campaign</h3>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-12 lg:items-stretch">
-              {/* Main Featured Campaign */}
-              {featuredCampaigns[0] && (() => {
-                const hero = featuredCampaigns[0];
-                const progress = calculateProgress(hero.current_amount, hero.target_amount);
-                return (
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true }}
-                    transition={{ duration: 0.5 }}
-                    className="lg:col-span-7 xl:col-span-8"
-                  >
-                    <Link
-                      to={`/campaigns/${hero.slug}`}
-                      className="group flex h-full flex-col overflow-hidden rounded-2xl border border-gray-100 bg-white transition-all duration-300 hover:shadow-xl hover:shadow-gray-200/50"
-                    >
-                      <div className="relative aspect-[16/9] overflow-hidden lg:aspect-auto lg:flex-1">
-                        <img
-                          src={hero.thumbnail_url}
-                          alt={hero.title}
-                          className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
-                          referrerPolicy="no-referrer"
-                        />
-                        <div className="absolute inset-0 bg-gray-900/5" />
-                      </div>
-                      <div className="flex flex-col p-6 sm:p-8">
-                        <div className="mb-6 space-y-3">
-                          <h3 className="text-xl font-bold leading-tight text-gray-900 transition-colors group-hover:text-emerald-800 sm:text-2xl">
-                            {hero.title}
-                          </h3>
-                          <p className="line-clamp-2 text-sm leading-relaxed text-gray-500">
-                            {hero.short_description}
-                          </p>
-                        </div>
-                        <div className="mt-auto space-y-4 pt-4 border-t border-gray-50">
-                          <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider">
-                            <span className="text-emerald-800">{formatCurrency(hero.current_amount)}</span>
-                            <span className="text-gray-400">{progress}%</span>
-                          </div>
-                          <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-100">
-                            <div
-                              className="h-full rounded-full bg-emerald-700 transition-all duration-1000"
-                              style={{ width: `${progress}%` }}
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    </Link>
-                  </motion.div>
-                );
-              })()}
-
-              {/* Side Campaigns Grid */}
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:col-span-5 lg:grid-cols-1 xl:col-span-4">
-                {featuredCampaigns.slice(1, 4).map((campaign, index) => {
-                  const progress = calculateProgress(campaign.current_amount, campaign.target_amount);
+            {featuredCampaignError ? (
+              <div className="rounded-2xl border border-gray-100 bg-white p-8 text-center text-sm text-red-600">
+                {featuredCampaignError}
+              </div>
+            ) : loadingFeaturedCampaigns ? (
+              <div className="rounded-2xl border border-gray-100 bg-white p-20 text-center text-sm text-gray-400">
+                Memuat campaign...
+              </div>
+            ) : featuredCampaigns.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-gray-200 bg-white p-20 text-center">
+                <h3 className="text-base font-bold text-gray-900">Belum ada campaign</h3>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-6 lg:grid-cols-12 lg:items-stretch">
+                {/* Main Featured Campaign */}
+                {featuredCampaigns[0] && (() => {
+                  const hero = featuredCampaigns[0];
+                  const progress = calculateProgress(hero.current_amount, hero.target_amount);
                   return (
                     <motion.div
-                      key={campaign.id}
                       initial={{ opacity: 0, y: 20 }}
                       whileInView={{ opacity: 1, y: 0 }}
                       viewport={{ once: true }}
-                      transition={{ delay: 0.1 * index, duration: 0.5 }}
+                      transition={{ duration: 0.5 }}
+                      className="lg:col-span-7 xl:col-span-8"
                     >
                       <Link
-                        to={`/campaigns/${campaign.slug}`}
-                        className="group flex h-full items-center gap-4 overflow-hidden rounded-xl border border-gray-50 bg-white p-3 transition-all duration-300 hover:shadow-lg hover:shadow-gray-200/30"
+                        to={`/campaigns/${hero.slug}`}
+                        className="group flex h-full flex-col overflow-hidden rounded-2xl border border-gray-100 bg-white transition-all duration-300 hover:shadow-xl hover:shadow-gray-200/50"
                       >
-                        <div className="relative aspect-square w-20 shrink-0 overflow-hidden rounded-lg bg-gray-100 sm:w-24">
+                        <div className="relative aspect-[16/9] overflow-hidden lg:aspect-auto lg:flex-1">
                           <img
-                            src={campaign.thumbnail_url}
-                            alt={campaign.title}
-                            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
+                            src={hero.thumbnail_url}
+                            alt={hero.title}
+                            className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
                             referrerPolicy="no-referrer"
                           />
+                          <div className="absolute inset-0 bg-gray-900/5" />
                         </div>
-                        <div className="flex min-w-0 flex-1 flex-col">
-                          <h4 className="mb-2 line-clamp-2 text-xs font-bold leading-snug text-gray-900 transition-colors group-hover:text-emerald-800 sm:text-sm">
-                            {campaign.title}
-                          </h4>
-                          <div className="mt-auto space-y-2">
-                            <div className="h-1 w-full overflow-hidden rounded-full bg-gray-50">
+                        <div className="flex flex-col p-6 sm:p-8">
+                          <div className="mb-6 space-y-3">
+                            <h3 className="text-xl font-bold leading-tight text-gray-900 transition-colors group-hover:text-emerald-800 sm:text-2xl">
+                              {hero.title}
+                            </h3>
+                            <p className="line-clamp-2 text-sm leading-relaxed text-gray-500">
+                              {hero.short_description}
+                            </p>
+                          </div>
+                          <div className="mt-auto space-y-4 pt-4 border-t border-gray-50">
+                            <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider">
+                              <span className="text-emerald-800">{formatCurrency(hero.current_amount)}</span>
+                              <span className="text-gray-400">{progress}%</span>
+                            </div>
+                            <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-100">
                               <div
-                                className="h-full rounded-full bg-emerald-700/60"
+                                className="h-full rounded-full bg-emerald-700 transition-all duration-1000"
                                 style={{ width: `${progress}%` }}
                               />
-                            </div>
-                            <div className="flex items-center justify-between text-[10px] font-bold">
-                              <span className="text-emerald-800">{formatCurrency(campaign.current_amount)}</span>
-                              <span className="text-gray-400">{progress}%</span>
                             </div>
                           </div>
                         </div>
                       </Link>
                     </motion.div>
                   );
-                })}
+                })()}
+
+                {/* Side Campaigns Grid */}
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:col-span-5 lg:grid-cols-1 xl:col-span-4">
+                  {featuredCampaigns.slice(1, 4).map((campaign, index) => {
+                    const progress = calculateProgress(campaign.current_amount, campaign.target_amount);
+                    return (
+                      <motion.div
+                        key={campaign.id}
+                        initial={{ opacity: 0, y: 20 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        viewport={{ once: true }}
+                        transition={{ delay: 0.1 * index, duration: 0.5 }}
+                      >
+                        <Link
+                          to={`/campaigns/${campaign.slug}`}
+                          className="group flex h-full items-center gap-4 overflow-hidden rounded-xl border border-gray-50 bg-white p-3 transition-all duration-300 hover:shadow-lg hover:shadow-gray-200/30"
+                        >
+                          <div className="relative aspect-square w-20 shrink-0 overflow-hidden rounded-lg bg-gray-100 sm:w-24">
+                            <img
+                              src={campaign.thumbnail_url}
+                              alt={campaign.title}
+                              className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
+                              referrerPolicy="no-referrer"
+                            />
+                          </div>
+                          <div className="flex min-w-0 flex-1 flex-col">
+                            <h4 className="mb-2 line-clamp-2 text-xs font-bold leading-snug text-gray-900 transition-colors group-hover:text-emerald-800 sm:text-sm">
+                              {campaign.title}
+                            </h4>
+                            <div className="mt-auto space-y-2">
+                              <div className="h-1 w-full overflow-hidden rounded-full bg-gray-50">
+                                <div
+                                  className="h-full rounded-full bg-emerald-700/60"
+                                  style={{ width: `${progress}%` }}
+                                />
+                              </div>
+                              <div className="flex items-center justify-between text-[10px] font-bold">
+                                <span className="text-emerald-800">{formatCurrency(campaign.current_amount)}</span>
+                                <span className="text-gray-400">{progress}%</span>
+                              </div>
+                            </div>
+                          </div>
+                        </Link>
+                      </motion.div>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          )}
-        </div>
-      </section>
+            )}
+          </div>
+        </section>
+      )}
 
       {/* ═══════ 5 · STATS CTA ═══════ */}
-      <section className="relative overflow-hidden bg-[#1A3C32] py-20 sm:py-24">
-        <div className="relative z-10 mx-auto max-w-7xl px-6 sm:px-8 lg:px-12">
-          <div className="grid items-center gap-16 lg:grid-cols-2">
-            <motion.div
-              initial={{ opacity: 0, x: -20 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.6 }}
-              className="space-y-8"
-            >
-              <div className="space-y-4">
-                <h2 className="text-3xl font-black leading-tight text-white sm:text-4xl lg:text-5xl">
-                  Berdonasi Bersama Kami — Simpel, Efektif, & Berdampak
-                </h2>
-                <p className="max-w-lg text-base font-light leading-relaxed text-emerald-100/70">
-                  Lebih dari 1.000 kampanye telah berhasil disalurkan dan memberikan dampak nyata kepada puluhan ribu penerima manfaat di seluruh pelosok Indonesia.
-                </p>
-              </div>
-              <Link
-                to="/campaigns"
-                className="group inline-flex items-center gap-3 rounded-full bg-white px-8 py-4 text-sm font-bold text-emerald-900 transition-all hover:bg-emerald-50 hover:shadow-xl hover:shadow-black/10"
+      {/* HIDDEN FOR PRESENTATION MODE */}
+      {false && (
+        <section className="relative overflow-hidden bg-[#1A3C32] py-20 sm:py-24">
+          <div className="relative z-10 mx-auto max-w-7xl px-6 sm:px-8 lg:px-12">
+            <div className="grid items-center gap-16 lg:grid-cols-2">
+              <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.6 }}
+                className="space-y-8"
               >
-                Mulai Berdonasi
-                <ArrowRight size={16} className="transition-transform group-hover:translate-x-1" />
-              </Link>
-            </motion.div>
-
-            <motion.div
-              initial={{ opacity: 0, x: 20 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.6, delay: 0.2 }}
-              className="grid grid-cols-2 gap-4 sm:gap-6"
-            >
-              {[
-                { value: 'Rp 250 Juta+', label: 'Donasi Tersalurkan', icon: Heart },
-                { value: '60+', label: 'Pejuang Tanah Air', icon: Users },
-                { value: '5', label: 'Lokasi Provinsi', icon: CheckCircle2 },
-                { value: '9', label: 'Mitra Kolaborasi', icon: HandHeart },
-                { value: '3M+', label: 'Edukasi & Promosi', icon: BarChart3 },
-              ].map((stat, i) => (
-                <div 
-                  key={i} 
-                  className={cn(
-                    "flex flex-col justify-center rounded-2xl bg-white/5 p-6 border border-white/5 transition-colors hover:bg-white/10",
-                    i === 4 ? "col-span-2 sm:col-span-1" : ""
-                  )}
-                >
-                  <stat.icon size={20} className="mb-4 text-emerald-400" />
-                  <div className="space-y-1">
-                    <h3 className="text-2xl font-black text-white sm:text-3xl">{stat.value}</h3>
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-200/50">{stat.label}</p>
-                  </div>
+                <div className="space-y-4">
+                  <h2 className="text-3xl font-black leading-tight text-white sm:text-4xl lg:text-5xl">
+                    Berdonasi Bersama Kami — Simpel, Efektif, & Berdampak
+                  </h2>
+                  <p className="max-w-lg text-base font-light leading-relaxed text-emerald-100/70">
+                    Lebih dari 1.000 kampanye telah berhasil disalurkan dan memberikan dampak nyata kepada puluhan ribu penerima manfaat di seluruh pelosok Indonesia.
+                  </p>
                 </div>
-              ))}
-            </motion.div>
+                <Link
+                  to="/campaigns"
+                  className="group inline-flex items-center gap-3 rounded-full bg-white px-8 py-4 text-sm font-bold text-emerald-900 transition-all hover:bg-emerald-50 hover:shadow-xl hover:shadow-black/10"
+                >
+                  Mulai Berdonasi
+                  <ArrowRight size={16} className="transition-transform group-hover:translate-x-1" />
+                </Link>
+              </motion.div>
+
+              <motion.div
+                initial={{ opacity: 0, x: 20 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.6, delay: 0.2 }}
+                className="grid grid-cols-2 gap-4 sm:gap-6"
+              >
+                {[
+                  { value: 'Rp 250 Juta+', label: 'Donasi Tersalurkan', icon: Heart },
+                  { value: '60+', label: 'Pejuang Tanah Air', icon: Users },
+                  { value: '5', label: 'Lokasi Provinsi', icon: CheckCircle2 },
+                  { value: '9', label: 'Mitra Kolaborasi', icon: HandHeart },
+                  { value: '3M+', label: 'Edukasi & Promosi', icon: BarChart3 },
+                ].map((stat, i) => (
+                  <div
+                    key={i}
+                    className={cn(
+                      "flex flex-col justify-center rounded-2xl bg-white/5 p-6 border border-white/5 transition-colors hover:bg-white/10",
+                      i === 4 ? "col-span-2 sm:col-span-1" : ""
+                    )}
+                  >
+                    <stat.icon size={20} className="mb-4 text-emerald-400" />
+                    <div className="space-y-1">
+                      <h3 className="text-2xl font-black text-white sm:text-3xl">{stat.value}</h3>
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-200/50">{stat.label}</p>
+                    </div>
+                  </div>
+                ))}
+              </motion.div>
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* ═══════ 6 · INITIATIVES (PREMIUM CLEAN - MOBILE OPTIMIZED) ═══════ */}
       <section className="py-20 md:py-24 lg:py-32 bg-[#FAF9F6] overflow-hidden">
@@ -493,8 +476,14 @@ export default function Home() {
                   Setiap kontribusi Anda, sekecil apapun, adalah harapan bagi ribuan saudara kita. Mari bersama membangun Indonesia yang lebih baik.
                 </p>
                 <div className="flex flex-col sm:flex-row gap-3 pt-2">
+                  {/* HIDDEN FOR PRESENTATION MODE
                   <Link to="/campaigns" className="bg-white text-emerald-700 px-6 sm:px-7 py-3 sm:py-3.5 rounded-full font-bold hover:bg-emerald-50 transition-all text-center text-sm shadow-lg">
                     Mulai Berdonasi
+                  </Link>
+                  */}
+                  {/* TEMPORARY CTA */}
+                  <Link to="/laporkan" className="bg-white text-emerald-700 px-6 sm:px-7 py-3 sm:py-3.5 rounded-full font-bold hover:bg-emerald-50 transition-all text-center text-sm shadow-lg">
+                    Laporkan Sekolah
                   </Link>
                   <Link to="/kontak" className="bg-emerald-800/60 text-white px-6 sm:px-7 py-3 sm:py-3.5 rounded-full font-bold hover:bg-emerald-800 transition-all text-center text-sm border border-emerald-600/40">
                     Hubungi Kami

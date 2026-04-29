@@ -17,24 +17,22 @@ interface FormFieldProps {
 
 export function FormField({ label, hint, error, required, children }: FormFieldProps) {
   return (
-    <div className="space-y-2.5">
-      <div className="space-y-1">
-        <div className="space-y-1">
-          <label className="block text-sm font-medium text-gray-800">
-            {label}
-            {required ? <span className="ml-1 text-rose-500">*</span> : null}
-          </label>
-          {hint ? <p className="text-sm leading-relaxed text-gray-500">{hint}</p> : null}
-        </div>
+    <div className="space-y-2">
+      <div className="space-y-0.5">
+        <label className="block text-sm font-semibold text-gray-900 tracking-wide">
+          {label}
+          {required ? <span className="ml-1 text-emerald-600">*</span> : null}
+        </label>
+        {hint ? <p className="text-sm text-gray-500">{hint}</p> : null}
       </div>
       {children}
-      {error ? <p className="text-sm text-rose-600">{error}</p> : null}
+      {error ? <p className="text-sm text-rose-600 font-medium">{error}</p> : null}
     </div>
   );
 }
 
 export const baseInputClassName =
-  'w-full rounded-[1rem] border border-gray-200 bg-white px-3.5 py-3 text-[15px] text-gray-900 placeholder:text-gray-400 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#2C5F4F]/10 focus:border-[#2C5F4F]/30 sm:rounded-[1.1rem] sm:px-4 sm:py-3.5';
+  'w-full rounded-lg border border-gray-200 bg-white px-4 py-3 text-base text-gray-900 placeholder:text-gray-400 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-emerald-600/10 focus:border-emerald-600';
 
 export function TextInput(props: InputHTMLAttributes<HTMLInputElement>) {
   const { className, ...restProps } = props;
@@ -45,7 +43,7 @@ export function TextInput(props: InputHTMLAttributes<HTMLInputElement>) {
 export function TextArea(props: TextareaHTMLAttributes<HTMLTextAreaElement>) {
   const { className, ...restProps } = props;
 
-  return <textarea className={cn(baseInputClassName, 'min-h-[120px] resize-none sm:min-h-[132px]', className)} {...restProps} />;
+  return <textarea className={cn(baseInputClassName, 'min-h-[100px] resize-none', className)} {...restProps} />;
 }
 
 export function SelectInput(props: SelectHTMLAttributes<HTMLSelectElement>) {
@@ -62,7 +60,7 @@ export function SoftPanel({ className, ...props }: HTMLAttributes<HTMLDivElement
   return (
     <div
       className={cn(
-        'rounded-[1.1rem] border border-black/5 bg-[#FCFBF8] p-4 sm:rounded-[1.2rem] sm:p-5',
+        'rounded-lg bg-gray-50 border border-gray-200 p-4',
         className,
       )}
       {...props}

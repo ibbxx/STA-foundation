@@ -2,7 +2,21 @@ import { z } from 'zod';
 import { logError } from './error-logger';
 
 export const REPORT_SCHOOL_STORAGE_KEY = 'sta-report-school-draft-v2';
-export const REPORT_SCHOOL_ADMIN_NUMBER = '6287882799026'; // New WA number
+export const REPORT_SCHOOL_ADMIN_NUMBER = '6281523961519'; // New WA number
+
+/**
+ * Fetch the user's public IP address using ipify API.
+ * Returns 'unknown' if the request fails (to avoid blocking form submission).
+ */
+export async function getUserIP(): Promise<string> {
+  try {
+    const res = await fetch('https://api.ipify.org?format=json');
+    const data = await res.json();
+    return data.ip || 'unknown';
+  } catch {
+    return 'unknown';
+  }
+}
 
 export type ReportSchoolStepKey = 'reporter' | 'school' | 'needs';
 
@@ -84,8 +98,8 @@ export const reportSchoolFormSchema = z.object({
 
   // STEP 3
   buildingCondition: z.string().min(1, 'Kondisi bangunan wajib dipilih'),
-  physicalNeeds: z.array(z.string()).max(3, 'Maksimal pilih 3 kebutuhan fisik'),
-  nonPhysicalNeeds: z.array(z.string()).max(3, 'Maksimal pilih 3 kebutuhan non-fisik'),
+  physicalNeeds: z.array(z.string()).length(3, 'Wajib pilih tepat 3 kebutuhan fisik'),
+  nonPhysicalNeeds: z.array(z.string()).length(3, 'Wajib pilih tepat 3 kebutuhan non-fisik'),
   priorityTimeline: z.string().min(1, 'Jangka prioritas wajib dipilih'),
   priorityReason: z.string().min(10, 'Ceritakan alasan Anda (min 10 karakter)'),
 }).superRefine((values, ctx) => {
@@ -122,6 +136,7 @@ const phoneRegexFn = (v: string) => /^(?:\+62|62|0)8\d{7,13}$/.test((v || '').re
 export function isReportSchoolStepValid(
   stepKey: ReportSchoolStepKey,
   values: ReportSchoolFormValues,
+  assets?: ReportSchoolAssets,
 ) {
   switch (stepKey) {
     case 'reporter': {
@@ -156,12 +171,11 @@ export function isReportSchoolStepValid(
     case 'needs':
       return (
         (values.buildingCondition || '').length >= 1 &&
-        (values.physicalNeeds || []).length >= 1 &&
-        (values.physicalNeeds || []).length <= 3 &&
-        (values.nonPhysicalNeeds || []).length >= 1 &&
-        (values.nonPhysicalNeeds || []).length <= 3 &&
+        (values.physicalNeeds || []).length === 3 &&
+        (values.nonPhysicalNeeds || []).length === 3 &&
         (values.priorityTimeline || '').length >= 1 &&
-        (values.priorityReason || '').length >= 10
+        (values.priorityReason || '').length >= 10 &&
+        (assets ? assets.schoolPhotos.length >= 1 : true)
       );
     default:
       return false;
@@ -309,6 +323,49 @@ export function clearReportSchoolDraft() {
 }
 
 
+/**
+ * Build a structured text description from all form data.
+ * This is stored in the `description` column of `school_reports`.
+ */
+export function buildReportDescription(values: ReportSchoolFormValues): string {
+  const lines: string[] = [
+    '── IDENTITAS PELAPOR ──',
+    `Nama: ${values.reporterName}`,
+    `WhatsApp: ${values.reporterWhatsapp}`,
+    `Email: ${values.reporterEmail}`,
+    `Alamat Pelapor: ${values.reporterAddress}`,
+    `Status: ${values.reporterStatus}`,
+    `Bersedia fasilitator: ${values.isWillingToFacilitate ? 'Ya' : 'Tidak'}`,
+  ];
+
+  if (!values.isWillingToFacilitate) {
+    lines.push(`Memiliki kontak sekolah: ${values.hasSchoolContact ? 'Ya' : 'Tidak'}`);
+    if (values.hasSchoolContact) {
+      lines.push(`Kontak Sekolah: ${values.schoolContactName} (${values.schoolContactWhatsapp})`);
+    }
+  }
+
+  lines.push(
+    '',
+    '── DETAIL SEKOLAH ──',
+    `Nama Sekolah: ${values.schoolName}`,
+    `Jenjang: ${values.schoolLevel} | Status: ${values.schoolStatus}`,
+    `Alamat Sekolah: ${values.schoolAddress}`,
+    `Google Maps: ${values.schoolMapsUrl || '-'}`,
+    `Jumlah Siswa: ${values.studentCount} | Jumlah Guru: ${values.teacherCount}`,
+    '',
+    '── KONDISI & KEBUTUHAN ──',
+    `Kondisi Bangunan: ${values.buildingCondition}`,
+    `Kebutuhan Fisik: ${values.physicalNeeds.join(', ')}`,
+    `Kebutuhan Non-Fisik: ${values.nonPhysicalNeeds.join(', ')}`,
+    `Prioritas: ${values.priorityTimeline}`,
+    `Alasan Prioritas:`,
+    values.priorityReason,
+  );
+
+  return lines.join('\n');
+}
+
 function formatOptionalValue(value: string) {
   return value?.trim() ? value.trim() : '-';
 }
@@ -318,46 +375,59 @@ function formatSelectedFiles(files: File[]) {
   return files.map((file) => file.name).join(', ');
 }
 
-export function buildWhatsAppReportMessage(values: ReportSchoolFormValues, assets: ReportSchoolAssets) {
+export function buildWhatsAppReportMessage(
+  values: ReportSchoolFormValues,
+  assets: ReportSchoolAssets
+) {
+  const physicalNeedsList = (values.physicalNeeds || []).map((need) => `   • ${need}`);
+  const nonPhysicalNeedsList = (values.nonPhysicalNeeds || []).map((need) => `   • ${need}`);
+  const photoCount = assets?.schoolPhotos?.length || 0;
+  const reportId = `STA-${new Date().getFullYear()}${Math.floor(1000 + Math.random() * 9000)}`;
+
   return [
-    '*HALO TIM STA, SAYA INGIN MELAPORKAN SEKOLAH*',
+    'Salam, Tim Sekolah Tanah Air.',
     '',
-    '*1. IDENTITAS PELAPOR*',
-    `Nama: ${values.reporterName}`,
-    `WhatsApp: ${values.reporterWhatsapp}`,
-    `Email: ${values.reporterEmail}`,
-    `Alamat: ${values.reporterAddress}`,
-    `Status: ${values.reporterStatus}`,
-    `Bersedia jadi fasilitator? ${values.isWillingToFacilitate ? 'Ya' : 'Tidak'}`,
-    ...(!values.isWillingToFacilitate 
-        ? [
-            `Ada kontak sekolah? ${values.hasSchoolContact ? 'Ya' : 'Tidak'}`,
-            ...(values.hasSchoolContact ? [`Kontak Sekolah: ${values.schoolContactName} (${values.schoolContactWhatsapp})`] : [])
-          ]
-        : []),
+    'Melalui pesan ini, saya bermaksud menyampaikan laporan mengenai kondisi sekolah yang membutuhkan perhatian, dengan rincian sebagai berikut:',
     '',
-    '*2. IDENTITAS & LOKASI SEKOLAH*',
-    `Nama Sekolah: ${values.schoolName}`,
-    `Jenjang: ${values.schoolLevel}`,
-    `Status: ${values.schoolStatus}`,
-    `Alamat Sekolah: ${values.schoolAddress}`,
-    `Link Maps: ${formatOptionalValue(values.schoolMapsUrl)}`,
-    `Jumlah Siswa: ${values.studentCount}`,
-    `Jumlah Guru: ${values.teacherCount}`,
+    '*(1) INFORMASI PELAPOR*',
+    `• Nama: ${values.reporterName}`,
+    `• Kontak: ${values.reporterWhatsapp}`,
+    `• Email: ${values.reporterEmail}`,
+    `• Status: ${values.reporterStatus}`,
+    `• Peran: ${values.isWillingToFacilitate ? 'Bersedia menjadi fasilitator lokal' : 'Hanya sebagai pemberi informasi'}`,
+    ...(values.hasSchoolContact && !values.isWillingToFacilitate 
+      ? [`• Kontak Sekolah: ${values.schoolContactName} (${values.schoolContactWhatsapp})`] 
+      : []),
     '',
-    '*3. KONDISI & KEBUTUHAN*',
-    `Kondisi Bangunan: ${values.buildingCondition}`,
-    `Kebutuhan Fisik:\n- ${values.physicalNeeds.join('\n- ')}`,
-    `Kebutuhan Non-Fisik:\n- ${values.nonPhysicalNeeds.join('\n- ')}`,
-    `Prioritas: ${values.priorityTimeline}`,
-    `Alasan:\n${values.priorityReason}`,
+    '*(2) IDENTITAS & LOKASI SEKOLAH*',
+    `• Nama Sekolah: ${values.schoolName} (${values.schoolLevel})`,
+    `• Status: ${values.schoolStatus}`,
+    `• Alamat: ${values.schoolAddress}`,
+    `• Maps: ${formatOptionalValue(values.schoolMapsUrl)}`,
+    `• Kapasitas: ${values.studentCount} Siswa & ${values.teacherCount} Guru`,
     '',
-    '*4. FOTO*',
-    `Foto: ${formatSelectedFiles(assets?.schoolPhotos || [])}`
+    '*(3) ANALISIS KONDISI & KEBUTUHAN*',
+    `• Kondisi Fisik: ${values.buildingCondition}`,
+    '• Kebutuhan Prioritas:',
+    ...physicalNeedsList,
+    '• Kebutuhan Pendukung:',
+    ...nonPhysicalNeedsList,
+    `• Estimasi Urgensi: ${values.priorityTimeline}`,
+    `• Dasar Pertimbangan: ${values.priorityReason}`,
+    '',
+    '',
+    'Saya juga sudah mengunggah foto pendukung melalui portal Sekolah Tanah Air untuk membantu proses verifikasi.',
+    '',
+    'Mohon bantuannya untuk ditindaklanjuti. Terima kasih banyak atas perhatian Tim STA.',
+    '',
+    '#' + reportId,
   ].join('\n');
 }
 
-export function createWhatsAppReportUrl(values: ReportSchoolFormValues, assets: ReportSchoolAssets) {
+export function createWhatsAppReportUrl(
+  values: ReportSchoolFormValues,
+  assets: ReportSchoolAssets
+) {
   const message = buildWhatsAppReportMessage(values, assets);
   return `https://wa.me/${REPORT_SCHOOL_ADMIN_NUMBER}?text=${encodeURIComponent(message)}`;
 }

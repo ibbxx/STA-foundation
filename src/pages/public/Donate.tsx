@@ -153,7 +153,7 @@ export default function Donate() {
 
   if (loadingCampaign) {
     return (
-      <div className="min-h-screen bg-gray-50 px-4 py-20 sm:px-6 lg:px-8">
+      <div className="min-h-screen bg-gray-50 px-4 pt-32 pb-20 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-3xl rounded-[2rem] border border-gray-200 bg-white px-6 py-16 text-center text-sm text-gray-500 shadow-sm">
           Memuat halaman donasi...
         </div>
@@ -163,7 +163,7 @@ export default function Donate() {
 
   if (!campaign) {
     return (
-      <div className="min-h-screen bg-gray-50 px-4 py-20 sm:px-6 lg:px-8">
+      <div className="min-h-screen bg-gray-50 px-4 pt-32 pb-20 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-3xl rounded-[2rem] border border-gray-200 bg-white px-6 py-16 text-center shadow-sm">
           <h1 className="text-2xl font-bold text-gray-900">Campaign tidak ditemukan</h1>
           <p className="mt-3 text-sm text-gray-500">{pageError ?? 'Campaign yang Anda cari belum tersedia.'}</p>
@@ -174,7 +174,7 @@ export default function Donate() {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-40 md:pb-24">
-      <div className="border-b border-gray-100 bg-white py-8 sm:py-10">
+      <div className="border-b border-gray-100 bg-white pt-24 pb-8 sm:pt-32 sm:pb-10">
         <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
           <button
             onClick={() => navigate(-1)}

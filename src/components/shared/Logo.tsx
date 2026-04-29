@@ -1,92 +1,99 @@
-import React from 'react';
 import { cn } from '../../lib/utils';
 
-/**
- * Properti pendukung komponen Logo
- */
 interface LogoProps {
-  className?: string; // Gaya CSS tambahan (opsional)
-  size?: number; // Ukuran logo baik lebar maupun tinggi, default 40
-  showText?: boolean; // Label teks di samping lambang (default true)
-  variant?: 'light' | 'dark'; // Variasi warna disesuaikan dengan latar belakang
+  className?: string;
+  size?: number; // Base height of the logo image
+  showText?: boolean;
+  variant?: 'light' | 'dark';
+  withCircle?: boolean;
+  /**
+   * Professional Nudge: Allows fine-tuning the optical center per-usage.
+   * Negative values move the logo up, positive values move it down.
+   */
+  opticalShift?: number; 
 }
 
+const LOGO_SRC = '/cropped-PRIMARY_1@300x-scaled-1.webp';
+const LOGO_ALT = 'Logo Sekolah Tanah Air';
+const LOGO_ASPECT_RATIO = 1600 / 1080;
+
 /**
- * Komponen Logo grafis vektor (SVG) untuk Sekolah Tanah Air.
- * Dirancang skalabel tanpa mengorbankan ketajaman tampilan.
+ * Premium Logo Component
+ * Implements mathematical and optical centering for professional brand consistency.
  */
-export default function Logo({ className, size = 40, showText = true, variant = 'dark' }: LogoProps) {
+export default function Logo({ 
+  className, 
+  size = 40, 
+  showText = false, 
+  variant = 'dark', 
+  withCircle = false,
+  opticalShift = -2 // Default nudge up for better visual balance
+}: LogoProps) {
+  
+  // 1. Calculate dimensions based on professional proportions
+  const logoWidth = Math.round(size * LOGO_ASPECT_RATIO);
+  const maxDimension = Math.max(logoWidth, size);
+  
+  /**
+   * The Golden Padding: Circle diameter is calculated as 1.35x the largest logo dimension.
+   * This ensures a consistent "Safe Zone" (breathing room) around the brand mark.
+   */
+  const circleDiameter = Math.round(maxDimension * 1.35);
+
   return (
-    <div className={cn("flex items-center space-x-3", className)}>
-      {/* SVG Kontainer Logo Utama */}
-      <div
-        className="shrink-0 relative flex items-center justify-center"
-        style={{ width: size, height: size }}
-      >
-        <svg
-          viewBox="0 0 100 100"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-          className="w-full h-full"
+    <div className={cn('inline-flex items-center gap-4 select-none', className)}>
+      {withCircle ? (
+        <div
+          className={cn(
+            'shrink-0 relative flex items-center justify-center bg-white rounded-full transition-all duration-500',
+            // Premium multi-layered shadow for realistic depth and "Apple-style" elevation
+            variant === 'light' 
+              ? 'shadow-[0_8px_30px_rgb(255,255,255,0.12),0_4px_10px_rgb(255,255,255,0.05)]' 
+              : 'shadow-[0_10px_40px_rgba(0,0,0,0.06),0_4px_12px_rgba(0,0,0,0.04)]'
+          )}
+          style={{ width: circleDiameter, height: circleDiameter }}
         >
-          {/* Latar Belakang Oval Utama */}
-          <ellipse cx="50" cy="50" rx="48" ry="40" fill="#002129" />
+          {/* Inner Content Wrapper - Maintains a strict 70% Bounding Box for safety */}
+          <div 
+            className="relative flex items-center justify-center w-[70%] h-[70%]"
+            style={{ transform: `translateY(${opticalShift}px)` }}
+          >
+            <img
+              src={LOGO_SRC}
+              alt={LOGO_ALT}
+              className="h-full w-full object-contain filter brightness-100 contrast-[1.02]"
+              draggable={false}
+            />
+          </div>
+        </div>
+      ) : (
+        <div
+          className="shrink-0 flex items-center justify-center"
+          style={{ width: logoWidth, height: size }}
+        >
+          <img
+            src={LOGO_SRC}
+            alt={LOGO_ALT}
+            className={cn(
+              "h-full w-full object-contain transition-all duration-300",
+              variant === 'light' ? 'drop-shadow-[0_4px_12px_rgba(255,255,255,0.2)]' : ''
+            )}
+            draggable={false}
+          />
+        </div>
+      )}
 
-          {/* Teks Melengkung: SEKOLAH TANAH AIR */}
-          <path id="logoTextPath" d="M 15 50 A 35 30 0 0 1 85 50" fill="none" />
-          <text className="text-[7px] font-black tracking-[0.05em]" fill="white" style={{ fontFamily: 'system-ui, sans-serif' }}>
-            <textPath href="#logoTextPath" startOffset="50%" textAnchor="middle">
-              SEKOLAH TANAH AIR
-            </textPath>
-          </text>
-
-          {/* Ornamen Bintang Delapan Penjuru Mata Angin */}
-          <g transform="translate(50, 45)">
-            {/* Titik utama berwarna merah (U, S, T, B) */}
-            <path d="M 0 -18 L 3 0 L 0 18 L -3 0 Z" fill="#C0392B" />
-            <path d="M -18 0 L 0 -3 L 18 0 L 0 3 Z" fill="#C0392B" />
-
-            {/* Titik sekunder berwarna putih (TL, BD, T, B) */}
-            <path d="M -10 -10 L 0 -1.5 L 10 10 L -1.5 0 Z" fill="white" />
-            <path d="M 10 -10 L 1.5 0 L -10 10 L 0 -1.5 Z" fill="white" />
-
-            {/* Lingkaran pusat kompas */}
-            <circle cx="0" cy="0" r="3" fill="#002129" stroke="white" strokeWidth="1" />
-          </g>
-
-          {/* Pola Sayap atau Gelombang di bagian bawah */}
-          <g transform="translate(50, 70)" stroke="#004D5A" strokeWidth="1.5" fill="none">
-            {/* Sayap Kiri */}
-            <path d="M -5 0 C -15 5, -35 5, -45 -15" />
-            <path d="M -5 5 C -15 10, -35 10, -45 -10" />
-            <path d="M -5 10 C -15 15, -35 15, -45 -5" />
-
-            {/* Sayap Kanan */}
-            <path d="M 5 0 C 15 5, 35 5, 45 -15" />
-            <path d="M 5 5 C 15 10, 35 10, 45 -10" />
-            <path d="M 5 10 C 15 15, 35 15, 45 -5" />
-          </g>
-
-          {/* Garis putih tipis (inner lining) untuk highlight sayap */}
-          <g transform="translate(50, 70)" stroke="white" strokeWidth="0.5" fill="none" opacity="0.6">
-            <path d="M -5 2 C -15 7, -35 7, -45 -13" />
-            <path d="M 5 2 C 15 7, 35 7, 45 -13" />
-          </g>
-        </svg>
-      </div>
-
-      {/* Teks Identitas Merek di samping Logo */}
       {showText && (
         <div className="flex flex-col">
           <span className={cn(
-            "text-lg font-black tracking-tight leading-none",
-            variant === 'dark' ? "text-gray-900" : "text-white"
+            'text-lg font-black tracking-tight leading-none',
+            variant === 'dark' ? 'text-gray-900' : 'text-white'
           )}>
             Sekolah
           </span>
           <span className={cn(
-            "text-sm font-bold tracking-[0.2em] uppercase leading-none mt-0.5",
-            variant === 'dark' ? "text-emerald-600" : "text-emerald-400"
+            'mt-1.5 text-[10px] font-bold uppercase tracking-[0.3em] leading-none',
+            variant === 'dark' ? 'text-emerald-600' : 'text-emerald-400'
           )}>
             Tanah Air
           </span>

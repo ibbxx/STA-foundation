@@ -28,11 +28,10 @@ import {
   defaultCampaignValues,
   defaultUpdateValues,
   formatDateRange,
-  getCampaignImages,
   slugify,
   toExistingImageItems,
-  toQueuedImageItems,
 } from '../../lib/admin-campaign-utils';
+import { getCampaignImages } from '../../lib/public-campaigns';
 import { formatAdminDate } from '../../lib/admin-helpers';
 import {
   deleteCampaign,
@@ -48,6 +47,7 @@ import {
 import { logError } from '../../lib/error-logger';
 import type { ImagePreviewItem } from '../../lib/image-preview';
 import { revokeQueuedItems } from '../../lib/image-preview';
+import { useImagePreviewList } from '../../hooks/useImagePreviewList';
 import { deleteFilesFromStorage, getCampaignAssetsBucketName, uploadFileToStorage } from '../../lib/supabase-storage';
 import {
   CampaignInsert,
@@ -57,7 +57,7 @@ import {
   CategoryRow,
   DonationRow,
 } from '../../lib/supabase';
-import { cn } from '../../lib/utils';
+import { cn, formatCurrency } from '../../lib/utils';
 
 export default function AdminCampaigns() {
   const [campaigns, setCampaigns] = useState<CampaignRow[]>([]);
@@ -65,8 +65,21 @@ export default function AdminCampaigns() {
   const [updates, setUpdates] = useState<CampaignUpdateRow[]>([]);
   const [selectedCampaignId, setSelectedCampaignId] = useState<string | null>(null);
   const [campaignSearch, setCampaignSearch] = useState('');
-  const [campaignImages, setCampaignImages] = useState<ImagePreviewItem[]>([]);
-  const [timelineImages, setTimelineImages] = useState<ImagePreviewItem[]>([]);
+  const campaignImageList = useImagePreviewList();
+  const timelineImageList = useImagePreviewList();
+  
+  const campaignImages = campaignImageList.items;
+  const timelineImages = timelineImageList.items;
+
+  const handleCampaignImageAdd = campaignImageList.addFiles;
+  const handleCampaignImageRemove = campaignImageList.removeItem;
+  const handleCampaignImageReorder = campaignImageList.reorderItems;
+  const handleCampaignImageCropReplace = campaignImageList.cropReplace;
+  const handleTimelineImageAdd = timelineImageList.addFiles;
+  const handleTimelineImageRemove = timelineImageList.removeItem;
+  const handleTimelineImageReorder = timelineImageList.reorderItems;
+  const handleTimelineImageCropReplace = timelineImageList.cropReplace;
+
   const [collabLogos, setCollabLogos] = useState<Record<string, { file?: File; previewUrl: string }>>({});
   const [loading, setLoading] = useState(true);
   const [loadingUpdates, setLoadingUpdates] = useState(false);
@@ -195,22 +208,14 @@ export default function AdminCampaigns() {
       collaborators: campaign?.collaborators ?? [],
     });
 
-    setCampaignImages((current) => {
-      revokeQueuedItems(current);
-      return toExistingImageItems(getCampaignImages(campaign));
-    });
+    campaignImageList.resetItems(toExistingImageItems(getCampaignImages(campaign)));
 
     setCollabLogos({});
   }
 
   function resetTimelineComposer() {
     updateForm.reset(defaultUpdateValues);
-    setTimelineImages((current) => {
-      current.forEach((item) => {
-        if (item.kind === 'queued') URL.revokeObjectURL(item.url);
-      });
-      return [];
-    });
+    timelineImageList.resetItems([]);
   }
 
   function handleNewCampaign() {
@@ -222,44 +227,6 @@ export default function AdminCampaigns() {
     resetCampaignEditor(null);
     resetTimelineComposer();
     setIsModalOpen(true);
-  }
-
-  function handleCampaignImageAdd(files: File[]) {
-    const nextQueuedItems = toQueuedImageItems(files);
-    setCampaignImages((current) => [...current, ...nextQueuedItems]);
-  }
-
-  function handleCampaignImageRemove(id: string) {
-    setCampaignImages((current) => {
-      const target = current.find((item) => item.id === id);
-      if (target?.kind === 'queued') {
-        URL.revokeObjectURL(target.url);
-      }
-      return current.filter((item) => item.id !== id);
-    });
-  }
-
-  function handleCampaignImageReorder(reordered: ImagePreviewItem[]) {
-    setCampaignImages(reordered);
-  }
-
-  function handleCampaignImageCropReplace(id: string, croppedFile: File) {
-    setCampaignImages((current) =>
-      current.map((item) => {
-        if (item.id !== id) return item;
-        // Revoke old objectURL if it was a queued item
-        if (item.kind === 'queued') {
-          URL.revokeObjectURL(item.url);
-        }
-        return {
-          ...item,
-          url: URL.createObjectURL(croppedFile),
-          file: croppedFile,
-          name: croppedFile.name,
-          kind: 'queued' as const,
-        };
-      }),
-    );
   }
 
   function handleCollabLogoChange(index: number, file: File) {
@@ -275,43 +242,6 @@ export default function AdminCampaigns() {
     
     // Tandai bahwa ada perubahan (kita biarkan validator meloloskan string non-url sementara)
     campaignForm.setValue(`collaborators.${index}.avatar`, 'PENDING_UPLOAD', { shouldDirty: true });
-  }
-
-  function handleTimelineImageAdd(files: File[]) {
-    const nextQueuedItems = toQueuedImageItems(files);
-    setTimelineImages((current) => [...current, ...nextQueuedItems]);
-  }
-
-  function handleTimelineImageRemove(id: string) {
-    setTimelineImages((current) => {
-      const target = current.find((item) => item.id === id);
-      if (target?.kind === 'queued') {
-        URL.revokeObjectURL(target.url);
-      }
-      return current.filter((item) => item.id !== id);
-    });
-  }
-
-  function handleTimelineImageReorder(reordered: ImagePreviewItem[]) {
-    setTimelineImages(reordered);
-  }
-
-  function handleTimelineImageCropReplace(id: string, croppedFile: File) {
-    setTimelineImages((current) =>
-      current.map((item) => {
-        if (item.id !== id) return item;
-        if (item.kind === 'queued') {
-          URL.revokeObjectURL(item.url);
-        }
-        return {
-          ...item,
-          url: URL.createObjectURL(croppedFile),
-          file: croppedFile,
-          name: croppedFile.name,
-          kind: 'queued' as const,
-        };
-      }),
-    );
   }
 
   useEffect(() => {
@@ -1202,7 +1132,7 @@ export default function AdminCampaigns() {
                             <p className="mt-2 text-sm italic text-gray-600">"{donation.message}"</p>
                           )}
                         </div>
-                        <span className="font-bold text-emerald-600">Rp {donation.amount.toLocaleString('id-ID')}</span>
+                        <span className="font-bold text-emerald-600">{formatCurrency(donation.amount)}</span>
                       </div>
                     ))}
                   </div>

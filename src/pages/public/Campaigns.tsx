@@ -74,7 +74,7 @@ export default function Campaigns() {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
-      <div className="border-b border-gray-100 bg-white py-10 sm:py-12">
+      <div className="border-b border-gray-100 bg-white pt-24 pb-10 sm:pt-32 sm:pb-12">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="max-w-3xl">
             <h1 className="mb-3 text-3xl font-black text-gray-900 sm:mb-4 sm:text-4xl">Jelajahi Program Kebaikan</h1>

@@ -13,13 +13,12 @@ import type {
   SiteContentRow,
 } from './supabase';
 
-export type RecentTransaction = DonationRow & {
-  campaign_title: string;
-};
-
 export type TransactionView = DonationRow & {
   campaign_title: string;
 };
+
+/** @deprecated Use TransactionView instead */
+export type RecentTransaction = TransactionView;
 
 export type DonorSummary = {
   id: string;

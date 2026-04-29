@@ -17,7 +17,9 @@ function stripHtml(input: string) {
   return input.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
-export function getCampaignImages(row: Pick<CampaignRow, 'images' | 'image_url'>) {
+export function getCampaignImages(row: Pick<CampaignRow, 'images' | 'image_url'> | null) {
+  if (!row) return [];
+
   if (Array.isArray(row.images) && row.images.length > 0) {
     return row.images;
   }

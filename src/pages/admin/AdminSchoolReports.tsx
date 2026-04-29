@@ -1,8 +1,8 @@
-import { AlertCircle, CheckCircle2, Eye, MapPin, Phone, RefreshCw, School, Search, ShieldCheck } from 'lucide-react';
+import { AlertCircle, Ban, CheckCircle2, Eye, MapPin, Phone, RefreshCw, School, Search, ShieldCheck } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import AdminModal from '../../components/admin/AdminModal';
 import { formatAdminDate } from '../../lib/admin-helpers';
-import { fetchSchoolReportRows, updateSchoolReportStatus } from '../../lib/admin-repository';
+import { addToBlacklist, fetchSchoolReportRows, updateSchoolReportStatus } from '../../lib/admin-repository';
 import {
   buildReportSummary,
   filterReports,
@@ -66,6 +66,33 @@ export default function AdminSchoolReports() {
     }
 
     setUpdatingId(null);
+    await loadReports();
+  }
+
+  async function blockSpammer(report: SchoolReportRow) {
+    if (!confirm(`Blokir pelapor "${report.reporter_name}"?\n\nNomor WA dan IP akan dimasukkan ke daftar hitam permanen.`)) return;
+
+    setUpdatingId(report.id);
+
+    // Block WA number
+    await addToBlacklist({
+      identifier: report.reporter_phone,
+      reason: `Spam report: ${report.school_name} (by admin)`,
+    });
+
+    // Block IP if available
+    if (report.reporter_ip) {
+      await addToBlacklist({
+        identifier: report.reporter_ip,
+        reason: `Spam IP from: ${report.reporter_phone} (by admin)`,
+      });
+    }
+
+    // Delete the report
+    await updateSchoolReportStatus(report.id, { status: 'actioned' });
+
+    setUpdatingId(null);
+    setSelectedReport(null);
     await loadReports();
   }
 
@@ -265,6 +292,15 @@ export default function AdminSchoolReports() {
                   Tandai Selesai (Actioned)
                 </button>
               )}
+              <button
+                type="button"
+                onClick={() => blockSpammer(selectedReport)}
+                disabled={updatingId === selectedReport.id}
+                className="px-4 py-2 text-sm font-medium text-rose-700 bg-rose-50 border border-rose-200 rounded-xl hover:bg-rose-100 transition-colors disabled:opacity-50 flex items-center gap-2"
+              >
+                <Ban size={14} />
+                Blokir Spammer
+              </button>
               <button
                 type="button"
                 onClick={() => setSelectedReport(null)}

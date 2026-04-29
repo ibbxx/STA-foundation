@@ -102,7 +102,7 @@ export default function AdminLayout() {
         </button>
         <div className="flex items-center gap-3">
           <Logo size={28} showText={false} />
-          <span className="font-bold text-slate-900 text-sm">STA Admin</span>
+          <span className="font-bold text-slate-900 text-sm">Panel Admin</span>
         </div>
         <div className="w-9" /> {/* Spacer */}
       </header>
@@ -126,7 +126,7 @@ export default function AdminLayout() {
         <div className="flex h-16 items-center justify-between border-b border-slate-100 px-6">
           <Link to="/" className="flex items-center gap-3">
             <Logo size={28} showText={false} />
-            <span className="font-bold text-slate-900 tracking-tight">Sekolah Tanah Air</span>
+            <span className="font-bold text-slate-900 tracking-tight">Panel Admin</span>
           </Link>
           <button
             type="button"

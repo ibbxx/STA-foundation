@@ -6,3 +6,9 @@ coverage/
 *.log
 .env*
 !.env.example
+
+# Local assets & tools
+tmp/
+tools/
+public/mitra/
+public/cropped-*

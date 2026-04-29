@@ -1,35 +1,23 @@
 import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { motion, useScroll, useMotionValueEvent } from "framer-motion";
+import { motion } from "framer-motion";
 import { Menu, X, Trophy } from "lucide-react";
 import { cn } from "../../lib/utils";
 import Logo from "../shared/Logo";
 
 export default function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const location = useLocation();
   const [isScrolled, setIsScrolled] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
-  const { scrollY } = useScroll();
-  const location = useLocation();
-  const isTransparentNavPage = location.pathname === "/" || location.pathname === "/tentang-kami";
-  const isOverlayMode = isTransparentNavPage && !isScrolled && !isHovered;
 
-  // Navbar sekarang selalu menggunakan tema gelap (hitam total) saat tidak transparan,
-  // jadi kita harus memastikan teks selalu terang agar kontras.
-  const isLightText = !isTransparentNavPage || isScrolled || isHovered || isTransparentNavPage;
-  
-  // Catatan: Karena desain kita saat ini menggunakan hero yang gelap di halaman transparan,
-  // maka isLightText akan selalu true. Jika ke depannya ada halaman transparan dengan 
-  // background terang, logika ini perlu disesuaikan.
-
-  const textColorBrand = "text-[#F5F1E8]";
-  const textColorMenu = "text-[#F5F1E8]/80";
-  const hoverColorMenu = "hover:text-[#F5F1E8]";
-  const iconColor = "text-[#F5F1E8]";
-
-  useMotionValueEvent(scrollY, "change", (latest) => {
-    setIsScrolled(latest > 10);
-  });
+  useEffect(() => {
+    const handleScroll = () => setIsScrolled(window.scrollY > 20);
+    window.addEventListener("scroll", handleScroll);
+    // Initial check
+    handleScroll();
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   useEffect(() => {
     if (mobileMenuOpen) {
@@ -49,57 +37,47 @@ export default function Navbar() {
   const navItems = [
     { label: "Beranda", href: "/" },
     { label: "Tentang Kami", href: "/tentang-kami" },
-    { label: "Campaign", href: "/campaigns" },
+    // { label: "Campaign", href: "/campaigns" }, // Hidden for presentation mode
     { label: "Laporkan Sekolah", href: "/laporkan" },
     { label: "Kontak", href: "/kontak" },
   ];
 
+  const isHome = location.pathname === "/";
+  const isSolid = isScrolled || isHovered || mobileMenuOpen;
+  
+  const isDarkText = isSolid || !isHome;
+
+  const textColorMenu = isDarkText ? "text-gray-900/80" : "text-white/90";
+  const hoverColorMenu = isDarkText ? "hover:text-gray-900" : "hover:text-white";
+  const iconColor = isDarkText ? "text-gray-900" : "text-white";
+  const borderColorActive = isDarkText ? "border-black text-gray-900" : "border-white text-white";
+  const borderHover = isDarkText ? "hover:border-black" : "hover:border-white";
+
   return (
     <motion.header
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
       initial={false}
       animate={{
-        backgroundColor: isTransparentNavPage
-          ? (isScrolled || isHovered)
-            ? "#000000"
-            : "rgba(0, 0, 0, 0)"
-          : "#000000",
-        backdropFilter: isOverlayMode ? "blur(0px)" : "blur(0px)",
+        backgroundColor: isSolid ? "rgba(255, 255, 255, 1)" : "rgba(255, 255, 255, 0)",
+        backdropFilter: isSolid ? "blur(12px)" : "blur(0px)",
       }}
       transition={{ duration: 0.3 }}
       className="fixed top-0 left-0 right-0 z-50 border-b"
       style={{
-        borderBottomColor: isTransparentNavPage
-          ? (isScrolled || isHovered)
-            ? "rgba(255, 255, 255, 0.1)"
-            : "rgba(255, 255, 255, 0)"
-          : "rgba(255, 255, 255, 0.1)",
+        borderBottomColor: isSolid ? "rgba(17, 24, 39, 0.08)" : "transparent",
       }}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
     >
       <nav className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-12">
         <div className="flex h-16 items-center justify-between sm:h-20">
           {/* Logo / Brand Name */}
           <Link
             to="/"
-            className={cn(
-              "group flex items-center gap-3 transition-all duration-300",
-              textColorBrand
-            )}
+            className="group flex items-center transition-all duration-300"
+            aria-label="Sekolah Tanah Air"
           >
             <div className="relative flex items-center justify-center transition-transform duration-500 group-hover:scale-105">
-              <Logo size={44} showText={false} className="drop-shadow-sm" />
-            </div>
-            <div className="flex flex-col justify-center">
-              <span className="text-sm md:text-base font-semibold tracking-[0.15em] uppercase leading-none mb-1">
-                Sekolah
-              </span>
-              <span className={cn(
-                "text-xs md:text-sm font-light tracking-[0.1em] uppercase leading-none",
-                isLightText ? "text-[#F5F1E8]/70" : "text-gray-500"
-              )}>
-                Tanah Air
-              </span>
+              <Logo size={44} showText={false} variant={isDarkText ? "dark" : "light"} className="drop-shadow-none" />
             </div>
           </Link>
 
@@ -115,37 +93,58 @@ export default function Navbar() {
                     "text-sm font-light transition-all duration-300 border-b py-1",
                     textColorMenu,
                     hoverColorMenu,
-                    isActive
-                      ? (isLightText ? "border-[#F5F1E8]" : "border-black")
-                      : "border-transparent",
-                    isLightText ? "hover:border-[#F5F1E8]" : "hover:border-black"
+                    isActive ? borderColorActive : "border-transparent",
+                    borderHover
                   )}
                 >
                   {item.label}
                 </Link>
               );
             })}
-            <Link
-              to="/leaderboard"
-              className={cn(
-                "flex items-center gap-2 text-sm font-medium transition-all duration-300 py-1 border-b border-transparent",
-                location.pathname === "/leaderboard" 
-                  ? (isLightText ? "text-yellow-400 border-yellow-400" : "text-yellow-600 border-yellow-600")
-                  : cn(textColorMenu, hoverColorMenu)
-              )}
-            >
-              <Trophy size={16} />
-              Leaderboard
-            </Link>
           </div>
 
           {/* Core CTA */}
-          <div className="hidden md:block">
+          <div className="hidden md:flex items-center gap-6">
+            {/* HIDDEN FOR PRESENTATION MODE */}
+            {false && (
+              <>
+                <Link
+                  to="/leaderboard"
+                  className={cn(
+                    "flex items-center gap-2 text-sm font-medium transition-all duration-300 py-1 border-b border-transparent",
+                    location.pathname === "/leaderboard"
+                      ? "text-yellow-500 border-yellow-500"
+                      : cn(textColorMenu, hoverColorMenu)
+                  )}
+                >
+                  <Trophy size={16} />
+                  Leaderboard
+                </Link>
+                <Link
+                  to="/campaigns"
+                  className={cn(
+                    "inline-block px-6 py-2.5 text-sm font-light rounded-sm transition-colors shadow-none",
+                    isDarkText 
+                      ? "bg-[#2C5F4F] text-[#F5F1E8] hover:bg-[#234A3D]" 
+                      : "bg-white text-[#2C5F4F] hover:bg-white/90"
+                  )}
+                >
+                  Donasi Sekarang
+                </Link>
+              </>
+            )}
+            
+            {/* TEMPORARY CTA */}
             <Link
-              to="/campaigns"
-              className="inline-block px-6 py-2.5 bg-[#2C5F4F] text-[#F5F1E8] text-sm font-light rounded-sm hover:bg-[#234A3D] transition-colors shadow-none"
+              to="/laporkan"
+              className={cn(
+                "inline-block px-6 py-2.5 text-sm font-light rounded-sm transition-colors shadow-none",
+                isDarkText 
+                  ? "bg-[#2C5F4F] text-[#F5F1E8] hover:bg-[#234A3D]" 
+                  : "bg-white text-[#2C5F4F] hover:bg-white/90"
+              )}
             >
-              Donasi Sekarang
+              Laporkan Sekolah
             </Link>
           </div>
 
@@ -167,7 +166,7 @@ export default function Navbar() {
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -20 }}
-          className="md:hidden border-t border-white/10 bg-black/95 backdrop-blur-xl"
+          className="md:hidden border-t border-gray-200 bg-white/95 backdrop-blur-xl"
         >
           <div className="safe-pb mx-auto flex min-h-[calc(100dvh-4rem)] max-w-7xl flex-col px-4 py-6 sm:min-h-[calc(100dvh-5rem)] sm:px-6">
             <div className="flex flex-1 flex-col gap-1">
@@ -175,19 +174,31 @@ export default function Navbar() {
                 <Link
                   key={item.label}
                   to={item.href}
-                  className="rounded-2xl px-4 py-3 text-base font-light text-[#F5F1E8]/80 transition-colors hover:bg-white/5 hover:text-[#F5F1E8]"
+                  className="rounded-2xl px-4 py-3 text-base font-light text-gray-900/80 transition-colors hover:bg-gray-100 hover:text-gray-900"
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   {item.label}
                 </Link>
               ))}
             </div>
+            {/* HIDDEN FOR PRESENTATION MODE */}
+            {false && (
+              <Link
+                to="/campaigns"
+                onClick={() => setMobileMenuOpen(false)}
+                className="inline-flex min-h-12 items-center justify-center rounded-2xl bg-[#2C5F4F] px-6 py-3 text-sm font-light text-[#F5F1E8] transition-colors hover:bg-[#234A3D]"
+              >
+                Donasi Sekarang
+              </Link>
+            )}
+            
+            {/* TEMPORARY CTA */}
             <Link
-              to="/campaigns"
+              to="/laporkan"
               onClick={() => setMobileMenuOpen(false)}
               className="inline-flex min-h-12 items-center justify-center rounded-2xl bg-[#2C5F4F] px-6 py-3 text-sm font-light text-[#F5F1E8] transition-colors hover:bg-[#234A3D]"
             >
-              Donasi Sekarang
+              Laporkan Sekolah
             </Link>
           </div>
         </motion.div>

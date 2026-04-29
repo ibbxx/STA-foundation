@@ -68,7 +68,7 @@ export default function Step3Needs({ assets, onAssetsChange }: Props) {
           {BUILDING_CONDITIONS.map((cond) => (
             <label
               key={cond.value}
-              className="relative flex cursor-pointer rounded-2xl border border-gray-100 bg-white p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-md has-[:checked]:border-emerald-600 has-[:checked]:bg-emerald-50/50 has-[:checked]:ring-1 has-[:checked]:ring-emerald-600"
+              className="relative flex cursor-pointer rounded-lg border border-gray-200 bg-white p-4 transition-all hover:border-emerald-300 has-[:checked]:border-emerald-600 has-[:checked]:bg-emerald-50 has-[:checked]:ring-1 has-[:checked]:ring-emerald-600"
             >
               <input
                 type="radio"
@@ -77,14 +77,14 @@ export default function Step3Needs({ assets, onAssetsChange }: Props) {
                 className="peer sr-only"
               />
               <div className="flex flex-col gap-1.5">
-                <span className="font-bold text-gray-900">{cond.value}</span>
-                <span className="text-[11px] leading-relaxed text-gray-500">{cond.desc}</span>
+                <span className="text-sm font-bold text-gray-900">{cond.value}</span>
+                <span className="text-sm leading-relaxed text-gray-500">{cond.desc}</span>
               </div>
             </label>
           ))}
         </div>
         {errors.buildingCondition && (
-          <p className="text-xs font-medium text-red-500">{errors.buildingCondition.message}</p>
+          <p className="text-sm font-medium text-rose-600">{errors.buildingCondition.message}</p>
         )}
       </div>
 
@@ -93,9 +93,9 @@ export default function Step3Needs({ assets, onAssetsChange }: Props) {
       {/* Kebutuhan Fisik */}
       <div className="space-y-4">
         <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-end">
-          <label className="block text-sm font-semibold text-gray-900">Kebutuhan Fisik Prioritas</label>
-          <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-600">
-            Terpilih {watchedPhysical.length} / 3 Maksimal
+          <label className="block text-sm font-semibold text-gray-900">Kebutuhan Fisik Prioritas (Wajib Pilih 3)</label>
+          <span className={`text-sm font-bold ${watchedPhysical.length === 3 ? 'text-emerald-600' : 'text-rose-500'}`}>
+            {watchedPhysical.length} / 3 terpilih
           </span>
         </div>
         <div className="grid gap-2 sm:grid-cols-2">
@@ -105,7 +105,7 @@ export default function Step3Needs({ assets, onAssetsChange }: Props) {
             return (
               <label
                 key={opt}
-                className={`flex cursor-pointer items-start gap-3 rounded-xl border p-3 transition-colors ${
+                className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors ${
                   isChecked
                     ? 'border-emerald-600 bg-emerald-50'
                     : isDisabled
@@ -120,13 +120,13 @@ export default function Step3Needs({ assets, onAssetsChange }: Props) {
                   onChange={() => handleCheckboxChange('physicalNeeds', opt, watchedPhysical)}
                   className="mt-0.5 h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-600"
                 />
-                <span className={`text-xs ${isChecked ? 'font-medium text-emerald-900' : 'text-gray-700'}`}>{opt}</span>
+                <span className={`text-sm ${isChecked ? 'font-medium text-emerald-900' : 'text-gray-700'}`}>{opt}</span>
               </label>
             );
           })}
         </div>
         {errors.physicalNeeds && (
-          <p className="text-xs font-medium text-red-500">{errors.physicalNeeds.message}</p>
+          <p className="text-sm font-medium text-rose-600">{errors.physicalNeeds.message}</p>
         )}
       </div>
 
@@ -135,9 +135,9 @@ export default function Step3Needs({ assets, onAssetsChange }: Props) {
       {/* Kebutuhan Non-Fisik */}
       <div className="space-y-4">
         <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-end">
-          <label className="block text-sm font-semibold text-gray-900">Kebutuhan Non-Fisik Prioritas</label>
-          <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-600">
-            Terpilih {watchedNonPhysical.length} / 3 Maksimal
+          <label className="block text-sm font-semibold text-gray-900">Kebutuhan Non-Fisik Prioritas (Wajib Pilih 3)</label>
+          <span className={`text-sm font-bold ${watchedNonPhysical.length === 3 ? 'text-emerald-600' : 'text-rose-500'}`}>
+            {watchedNonPhysical.length} / 3 terpilih
           </span>
         </div>
         <div className="grid gap-2 sm:grid-cols-2">
@@ -147,7 +147,7 @@ export default function Step3Needs({ assets, onAssetsChange }: Props) {
             return (
               <label
                 key={opt}
-                className={`flex cursor-pointer items-start gap-3 rounded-xl border p-3 transition-colors ${
+                className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors ${
                   isChecked
                     ? 'border-emerald-600 bg-emerald-50'
                     : isDisabled
@@ -162,13 +162,13 @@ export default function Step3Needs({ assets, onAssetsChange }: Props) {
                   onChange={() => handleCheckboxChange('nonPhysicalNeeds', opt, watchedNonPhysical)}
                   className="mt-0.5 h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-600"
                 />
-                <span className={`text-xs ${isChecked ? 'font-medium text-emerald-900' : 'text-gray-700'}`}>{opt}</span>
+                <span className={`text-sm ${isChecked ? 'font-medium text-emerald-900' : 'text-gray-700'}`}>{opt}</span>
               </label>
             );
           })}
         </div>
         {errors.nonPhysicalNeeds && (
-          <p className="text-xs font-medium text-red-500">{errors.nonPhysicalNeeds.message}</p>
+          <p className="text-sm font-medium text-rose-600">{errors.nonPhysicalNeeds.message}</p>
         )}
       </div>
 
@@ -182,15 +182,15 @@ export default function Step3Needs({ assets, onAssetsChange }: Props) {
             {TIMELINE_OPTIONS.map((opt) => (
               <label
                 key={opt}
-                className="relative flex cursor-pointer justify-center rounded-xl border border-gray-200 bg-white p-3 text-center transition-all hover:border-emerald-300 has-[:checked]:border-none has-[:checked]:bg-[#2C5F4F] has-[:checked]:text-white"
+                className="relative flex cursor-pointer justify-center rounded-lg border border-gray-200 bg-white p-3 text-center transition-all hover:border-emerald-300 has-[:checked]:border-none has-[:checked]:bg-emerald-600 has-[:checked]:text-white"
               >
                 <input type="radio" value={opt} {...register('priorityTimeline')} className="peer sr-only" />
-                <span className="text-xs font-medium">{opt}</span>
+                <span className="text-sm font-medium">{opt}</span>
               </label>
             ))}
           </div>
           {errors.priorityTimeline && (
-            <p className="text-xs font-medium text-red-500">{errors.priorityTimeline.message}</p>
+            <p className="text-sm font-medium text-rose-600">{errors.priorityTimeline.message}</p>
           )}
         </div>
 
@@ -199,24 +199,24 @@ export default function Step3Needs({ assets, onAssetsChange }: Props) {
             {...register('priorityReason')}
             rows={4}
             placeholder="Jelaskan dalam 1 paragraf singkat mengapa pilihan-pilihan di atas menjadi urgensi bagi sekolah ini."
-            className={`w-full rounded-[1rem] border bg-white px-4 py-3 text-sm transition-colors focus:outline-none focus:ring-2 ${
+            className={`w-full rounded-lg border bg-white px-4 py-3 text-base transition-colors focus:outline-none focus:ring-2 ${
               errors.priorityReason
-                ? 'border-red-300 focus:border-red-500 focus:ring-red-500/20'
-                : 'border-black/10 focus:border-[#2C5F4F] focus:ring-[#2C5F4F]/20'
+                ? 'border-red-300 focus:border-red-500 focus:ring-red-500/10'
+                : 'border-gray-200 focus:border-emerald-600 focus:ring-emerald-600/10'
             }`}
           />
         </FormField>
       </div>
 
       {/* Upload Foto */}
-      <div className="rounded-2xl border border-dashed border-emerald-300 bg-emerald-50/50 p-6 sm:p-8">
+      <div className="rounded-xl border-2 border-dashed border-gray-300 bg-gray-50 p-6 sm:p-8">
         <div className="flex flex-col items-center justify-center space-y-4 text-center">
           <div className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
             <Camera size={24} />
           </div>
           <div>
             <h4 className="text-sm font-bold text-gray-900">Unggah 1–3 Foto Lapangan</h4>
-            <p className="mx-auto mt-1 max-w-xs text-xs text-gray-500">
+            <p className="mx-auto mt-1 max-w-xs text-sm text-gray-500">
               Ruang belajar, bangunan luar, atau fasilitas utama yang ingin disorot.
             </p>
           </div>
@@ -230,10 +230,10 @@ export default function Step3Needs({ assets, onAssetsChange }: Props) {
               className="absolute inset-0 h-full w-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
             />
             <div
-              className={`inline-flex items-center justify-center rounded-full px-6 py-2.5 text-sm font-medium transition-colors ${
+              className={`inline-flex items-center justify-center rounded-lg px-6 py-3 text-sm font-semibold transition-all active:scale-[0.98] ${
                 assets.schoolPhotos.length >= 3
                   ? 'bg-gray-200 text-gray-500'
-                  : 'bg-[#2C5F4F] text-white hover:bg-[#234A3D]'
+                  : 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm'
               }`}
             >
               {assets.schoolPhotos.length >= 3 ? 'Batas Foto Tercapai' : 'Pilih Foto'}
@@ -244,17 +244,17 @@ export default function Step3Needs({ assets, onAssetsChange }: Props) {
         {assets.schoolPhotos.length > 0 && (
           <div className="mt-6 grid gap-3 sm:grid-cols-3">
             {assets.schoolPhotos.map((file, idx) => (
-              <div key={idx} className="group relative overflow-hidden rounded-xl border border-black/5 bg-white p-2">
+              <div key={idx} className="group relative overflow-hidden rounded-lg border border-gray-200 bg-white p-3">
                 <div className="flex items-center gap-3">
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gray-50 text-emerald-600">
                     <Paperclip size={16} />
                   </div>
-                  <p className="truncate pr-8 text-xs font-medium text-gray-700">{file.name}</p>
+                  <p className="truncate pr-8 text-sm font-medium text-gray-700">{file.name}</p>
                 </div>
                 <button
                   type="button"
                   onClick={() => removePhoto(idx)}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1.5 text-gray-400 transition-colors hover:bg-red-50 hover:text-red-500"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1.5 text-gray-400 transition-colors hover:bg-rose-50 hover:text-rose-500"
                 >
                   <X size={14} />
                 </button>
@@ -263,6 +263,13 @@ export default function Step3Needs({ assets, onAssetsChange }: Props) {
           </div>
         )}
       </div>
+
+      {/* Pesan validasi foto wajib */}
+      {assets.schoolPhotos.length === 0 && (
+        <p className="text-sm text-rose-600 font-medium flex items-center gap-2">
+          <span>⚠</span> Wajib unggah minimal 1 foto sebelum mengirim laporan.
+        </p>
+      )}
     </div>
   );
 }

@@ -9,7 +9,7 @@ export default function Contact() {
   return (
     <div className="bg-white">
       {/* Bagian Pahlawan (Hero Section) Pengenalan Halaman */}
-      <section className="bg-emerald-50/50 py-16 sm:py-24">
+      <section className="bg-emerald-50/50 pt-24 pb-16 sm:pt-32 sm:pb-24">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-6">
           <h1 className="text-3xl font-black text-gray-900 sm:text-4xl md:text-6xl">Hubungi Kami</h1>
           <p className="mx-auto max-w-3xl text-base leading-relaxed text-gray-600 sm:text-xl">

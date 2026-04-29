@@ -1,6 +1,5 @@
 import type { CampaignManagerValues, CampaignUpdateValues } from './admin-schemas';
 import type { ImagePreviewItem } from './image-preview';
-import type { CampaignRow } from './supabase';
 
 export const defaultCampaignValues: CampaignManagerValues = {
   title: '',
@@ -30,12 +29,7 @@ export function slugify(value: string) {
     .slice(0, 80);
 }
 
-export function getCampaignImages(campaign: CampaignRow | null) {
-  if (!campaign) return [];
-  if (Array.isArray(campaign.images) && campaign.images.length > 0) return campaign.images;
-  if (campaign.image_url) return [campaign.image_url];
-  return [];
-}
+
 
 export function toExistingImageItems(urls: string[]): ImagePreviewItem[] {
   return urls.map((url, index) => ({

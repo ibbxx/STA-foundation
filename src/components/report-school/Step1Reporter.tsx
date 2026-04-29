@@ -29,10 +29,10 @@ export default function Step1Reporter() {
           {...register('reporterAddress')}
           rows={3}
           placeholder="Masukkan alamat lengkap domisili Anda"
-          className={`w-full rounded-[1rem] border bg-white px-4 py-3 text-sm transition-colors focus:outline-none focus:ring-2 ${
+          className={`w-full rounded-lg border bg-white px-4 py-3 text-base transition-colors focus:outline-none focus:ring-2 ${
             errors.reporterAddress
-              ? 'border-red-300 focus:border-red-500 focus:ring-red-500/20'
-              : 'border-black/10 focus:border-[#2C5F4F] focus:ring-[#2C5F4F]/20'
+              ? 'border-red-300 focus:border-red-500 focus:ring-red-500/10'
+              : 'border-gray-200 focus:border-emerald-600 focus:ring-emerald-600/10'
           }`}
         />
       </FormField>
@@ -47,12 +47,12 @@ export default function Step1Reporter() {
       </FormField>
 
       {/* ── Fasilitator Section ── */}
-      <div className="rounded-2xl border border-gray-100 bg-gray-50 p-5 space-y-0">
+      <div className="rounded-lg bg-gray-50 border border-gray-200 p-5 space-y-0">
         {/* State 1: isFasilitator */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <p className="text-sm font-semibold text-gray-900">Bersedia menjadi fasilitator lokal?</p>
-            <p className="text-xs text-gray-500 mt-1 max-w-sm">Apakah Anda bersedia menjadi narahubung langsung untuk sekolah yang kamu informasikan?</p>
+            <p className="text-sm text-gray-500 mt-1 max-w-sm">Apakah Anda bersedia menjadi narahubung langsung untuk sekolah yang Anda informasikan?</p>
           </div>
           <div className="flex items-center gap-2">
             <button
@@ -63,7 +63,7 @@ export default function Step1Reporter() {
                 setValue('schoolContactName', '');
                 setValue('schoolContactWhatsapp', '');
               }}
-              className={`px-5 py-2 rounded-full text-sm font-semibold transition-all ${
+              className={`px-5 py-2 rounded-lg text-sm font-semibold transition-all active:scale-[0.98] ${
                 isWillingToFacilitate === true
                   ? 'bg-emerald-600 text-white shadow-sm ring-2 ring-emerald-600/20'
                   : 'bg-white text-gray-500 border border-gray-200 hover:border-emerald-300 hover:text-emerald-700'
@@ -74,10 +74,10 @@ export default function Step1Reporter() {
             <button
               type="button"
               onClick={() => setValue('isWillingToFacilitate', false, { shouldValidate: true })}
-              className={`px-5 py-2 rounded-full text-sm font-semibold transition-all ${
+              className={`px-5 py-2 rounded-lg text-sm font-semibold transition-all active:scale-[0.98] ${
                 isWillingToFacilitate === false
-                  ? 'bg-red-500 text-white shadow-sm ring-2 ring-red-500/20'
-                  : 'bg-white text-gray-500 border border-gray-200 hover:border-red-300 hover:text-red-600'
+                  ? 'bg-rose-500 text-white shadow-sm ring-2 ring-rose-500/20'
+                  : 'bg-white text-gray-500 border border-gray-200 hover:border-rose-300 hover:text-rose-600'
               }`}
             >
               Tidak
@@ -96,13 +96,13 @@ export default function Step1Reporter() {
               className="overflow-hidden"
             >
               <div className="mt-5 space-y-4 border-t border-gray-200 pt-5">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <p className="text-sm font-medium text-gray-900">Apakah kamu memiliki kontak / informasi penanggungjawab sekolah?</p>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <p className="text-sm font-semibold text-gray-900">Memiliki kontak penanggungjawab sekolah?</p>
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
                       onClick={() => setValue('hasSchoolContact', true, { shouldValidate: true })}
-                      className={`px-5 py-2 rounded-full text-sm font-semibold transition-all ${
+                      className={`px-5 py-2 rounded-lg text-sm font-semibold transition-all active:scale-[0.98] ${
                         hasSchoolContact === true
                           ? 'bg-emerald-600 text-white shadow-sm ring-2 ring-emerald-600/20'
                           : 'bg-white text-gray-500 border border-gray-200 hover:border-emerald-300'
@@ -117,10 +117,10 @@ export default function Step1Reporter() {
                         setValue('schoolContactName', '');
                         setValue('schoolContactWhatsapp', '');
                       }}
-                      className={`px-5 py-2 rounded-full text-sm font-semibold transition-all ${
+                      className={`px-5 py-2 rounded-lg text-sm font-semibold transition-all active:scale-[0.98] ${
                         hasSchoolContact === false
-                          ? 'bg-red-500 text-white shadow-sm ring-2 ring-red-500/20'
-                          : 'bg-white text-gray-500 border border-gray-200 hover:border-red-300'
+                          ? 'bg-rose-500 text-white shadow-sm ring-2 ring-rose-500/20'
+                          : 'bg-white text-gray-500 border border-gray-200 hover:border-rose-300'
                       }`}
                     >
                       Tidak
@@ -167,9 +167,9 @@ export default function Step1Reporter() {
                       transition={{ duration: 0.2 }}
                       className="overflow-hidden"
                     >
-                      <div className="mt-1 flex items-start gap-3 rounded-xl bg-yellow-50 border border-yellow-200 px-4 py-3">
+                      <div className="mt-1 flex items-start gap-3 rounded-lg bg-amber-50 border border-amber-200 px-4 py-3">
                         <span className="text-lg leading-none mt-0.5">⚠️</span>
-                        <p className="text-sm text-yellow-800 leading-relaxed">
+                        <p className="text-sm text-amber-800 leading-relaxed">
                           Laporan tanpa kontak lokal akan memakan waktu lebih lama untuk diverifikasi oleh tim STA.
                         </p>
                       </div>

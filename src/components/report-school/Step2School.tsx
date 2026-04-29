@@ -36,10 +36,10 @@ export default function Step2School() {
           {...register('schoolAddress')}
           rows={3}
           placeholder="Tuliskan alamat lengkap beserta rute jika ada"
-          className={`w-full rounded-[1rem] border bg-white px-4 py-3 text-sm transition-colors focus:outline-none focus:ring-2 ${
+          className={`w-full rounded-lg border bg-white px-4 py-3 text-base transition-colors focus:outline-none focus:ring-2 ${
             errors.schoolAddress
-              ? 'border-red-300 focus:border-red-500 focus:ring-red-500/20'
-              : 'border-black/10 focus:border-[#2C5F4F] focus:ring-[#2C5F4F]/20'
+              ? 'border-red-300 focus:border-red-500 focus:ring-red-500/10'
+              : 'border-gray-200 focus:border-emerald-600 focus:ring-emerald-600/10'
           }`}
         />
       </FormField>

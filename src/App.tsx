@@ -14,7 +14,7 @@ const Donate = lazy(() => import('./pages/public/Donate'));
 const PaymentSuccess = lazy(() => import('./pages/public/PaymentSuccess'));
 const About = lazy(() => import('./pages/public/About'));
 const Faq = lazy(() => import('./pages/public/Faq'));
-const Reports = lazy(() => import('./pages/public/Reports'));
+
 const LaporkanSekolah = lazy(() => import('./pages/public/LaporkanSekolah'));
 const Contact = lazy(() => import('./pages/public/Contact'));
 const Leaderboard = lazy(() => import('./pages/public/Leaderboard'));
@@ -44,18 +44,13 @@ function renderWithSuspense(children: React.ReactNode) {
 
 /**
  * Komponen pembungkus (wrapper) untuk halaman-halaman publik.
- * Pada halaman beranda, navbar menimpa hero (tidak ada spacer).
- * Pada halaman lain, ditambahkan spacer agar konten tidak tertutup navbar fixed.
+ * Navbar publik bersifat fixed, jadi seluruh halaman publik memakai spacer
+ * agar konten tidak tertutup header.
  */
 function PublicLayout({ children }: { children: React.ReactNode }) {
-  const location = useLocation();
-  const isTransparentNavPage = location.pathname === '/' || location.pathname === '/tentang-kami';
-
   return (
     <div className="flex flex-col min-h-screen">
       <Navbar />
-      {/* Spacer untuk halaman selain beranda (navbar fixed butuh ruang) */}
-      {!isTransparentNavPage && <div className="h-16 sm:h-20" />}
       <main className="flex-grow">
         {children}
       </main>
@@ -80,7 +75,7 @@ export default function App() {
         <Route path="/payment/success" element={renderWithSuspense(<PublicLayout><PaymentSuccess /></PublicLayout>)} />
         <Route path="/tentang-kami" element={renderWithSuspense(<PublicLayout><About /></PublicLayout>)} />
         <Route path="/faq" element={renderWithSuspense(<PublicLayout><Faq /></PublicLayout>)} />
-        <Route path="/laporan" element={renderWithSuspense(<PublicLayout><Reports /></PublicLayout>)} />
+
         <Route path="/laporkan" element={renderWithSuspense(<PublicLayout><LaporkanSekolah /></PublicLayout>)} />
         <Route path="/kontak" element={renderWithSuspense(<PublicLayout><Contact /></PublicLayout>)} />
         <Route path="/leaderboard" element={renderWithSuspense(<PublicLayout><Leaderboard /></PublicLayout>)} />

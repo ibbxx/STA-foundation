@@ -35,7 +35,7 @@ export default function Faq() {
 
   return (
     <div className="bg-white">
-      <section className="bg-emerald-50/50 py-16 sm:py-24">
+      <section className="bg-emerald-50/50 pt-24 pb-16 sm:pt-32 sm:pb-24">
         <div className="mx-auto max-w-4xl px-4 text-center sm:px-6 lg:px-8">
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-emerald-600">Bantuan</p>
           <h1 className="mt-4 text-3xl font-black text-gray-900 sm:text-4xl md:text-5xl">Pertanyaan yang Sering Ditanyakan</h1>

@@ -10,13 +10,13 @@ export default function Footer() {
   return (
     <footer className="bg-gray-900 pb-8 pt-16 text-gray-300 sm:pb-10 sm:pt-20">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="mb-12 grid grid-cols-1 gap-8 sm:gap-10 md:grid-cols-2 lg:grid-cols-4 lg:gap-12 lg:mb-16">
+        <div className="mb-12 grid grid-cols-1 gap-12 md:grid-cols-3 lg:gap-24 lg:mb-16">
           {/* Kolom Informasi Merek & Sosial Media */}
-          <div className="space-y-6">
+          <div className="flex flex-col items-center text-center md:items-start md:text-left space-y-6">
             <Link to="/">
-              <Logo variant="light" size={48} />
+              <Logo variant="light" size={40} showText={false} withCircle={true} opticalShift={0} />
             </Link>
-            <p className="text-sm leading-relaxed">
+            <p className="text-sm leading-relaxed max-w-xs">
               Platform kolaboratif penggalangan dana dan aksi nyata untuk membangkitkan fasilitas pendidikan Indonesia yang berakar pada kearifan lokal.
             </p>
             <div className="flex space-x-4">
@@ -25,25 +25,13 @@ export default function Footer() {
             </div>
           </div>
 
-          {/* Kolom Tautan Cepat */}
-          <div>
+          {/* Kolom Tautan Cepat - Digeser ke kanan dengan md:pl-20 */}
+          <div className="md:pl-20">
             <h3 className="text-white font-bold mb-6">Tautan Cepat</h3>
             <ul className="space-y-4 text-sm">
-              <li><Link to="/campaigns" className="hover:text-white transition-colors">Semua Campaign</Link></li>
               <li><Link to="/tentang-kami" className="hover:text-white transition-colors">Tentang Kami</Link></li>
               <li><Link to="/faq" className="hover:text-white transition-colors">FAQ</Link></li>
               <li><Link to="/kontak" className="hover:text-white transition-colors">Kontak</Link></li>
-            </ul>
-          </div>
-
-          {/* Kolom Kategori Donasi */}
-          <div>
-            <h3 className="text-white font-bold mb-6">Kategori</h3>
-            <ul className="space-y-4 text-sm">
-              <li><Link to="/campaigns?cat=pendidikan" className="hover:text-white transition-colors">Pendidikan</Link></li>
-              <li><Link to="/campaigns?cat=kesehatan" className="hover:text-white transition-colors">Kesehatan</Link></li>
-              <li><Link to="/campaigns?cat=lingkungan" className="hover:text-white transition-colors">Lingkungan</Link></li>
-              <li><Link to="/campaigns?cat=bencana" className="hover:text-white transition-colors">Bencana Alam</Link></li>
             </ul>
           </div>
 

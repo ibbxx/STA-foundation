@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
+import { Turnstile } from '@marsidev/react-turnstile';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { AnimatePresence, motion } from 'framer-motion';
-import { CheckCircle2, ShieldCheck, HeartHandshake, Search } from 'lucide-react';
+import { CheckCircle2, ShieldCheck, HeartHandshake, Search, ShieldCheck as ShieldIcon, Wand2, ArrowRight, X } from 'lucide-react';
 import { FormProvider, useForm } from 'react-hook-form';
 import { z } from 'zod';
 
@@ -12,10 +13,11 @@ import StepNavigation from '../../components/report-school/StepNavigation';
 import StepProgress from '../../components/report-school/StepProgress';
 
 import {
-  REPORT_SCHOOL_DEFAULT_VALUES,
   REPORT_SCHOOL_STEPS,
+  buildReportDescription,
   clearReportSchoolDraft,
   createWhatsAppReportUrl,
+  getUserIP,
   isReportSchoolStepValid,
   loadReportSchoolDraft,
   persistReportSchoolDraft,
@@ -23,6 +25,8 @@ import {
   type ReportSchoolAssets,
   type ReportSchoolFormValues,
 } from '../../lib/report-school';
+import { checkIPRateLimit, checkIsBlacklisted, insertSchoolReport, uploadSchoolReportPhotos } from '../../lib/admin-repository';
+import { logError } from '../../lib/error-logger';
 
 // Derive type from Zod schema to keep resolver and form in sync
 type FormValues = z.infer<typeof reportSchoolFormSchema>;
@@ -56,7 +60,26 @@ export default function LaporkanSekolah() {
   const [assets, setAssets] = useState<ReportSchoolAssets>(createEmptyAssets);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
-  const [lastWhatsAppUrl, setLastWhatsAppUrl] = useState('');
+  const [userIP, setUserIP] = useState('unknown');
+  const [spamError, setSpamError] = useState<string | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+
+  // Close modal on Escape key press
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isModalOpen && !isSuccess && !isSubmitting) {
+        setIsModalOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleEsc);
+    return () => window.removeEventListener('keydown', handleEsc);
+  }, [isModalOpen, isSuccess, isSubmitting]);
+
+  // Fetch user's IP on mount
+  useEffect(() => {
+    getUserIP().then(setUserIP);
+  }, []);
 
   const methods = useForm<FormValues>({
     resolver: zodResolver(reportSchoolFormSchema),
@@ -70,6 +93,7 @@ export default function LaporkanSekolah() {
   const isCurrentStepValid = isReportSchoolStepValid(
     currentStepConfig.key,
     formValues as ReportSchoolFormValues,
+    assets,
   );
 
   useEffect(() => {
@@ -87,135 +111,363 @@ export default function LaporkanSekolah() {
 
   const handleBack = () => setCurrentStep((prev) => Math.max(prev - 1, 0));
 
-  const handleRestart = () => {
-    reset(REPORT_SCHOOL_DEFAULT_VALUES as FormValues);
-    setAssets(createEmptyAssets());
+  const handleInjectDummy = () => {
+    // 1. Fill all text data
+    reset({
+      reporterName: 'Budi Santoso',
+      reporterWhatsapp: '081234567890',
+      reporterEmail: 'budi.tester@gmail.com',
+      reporterAddress: 'Jl. Merdeka No. 123, Jakarta Selatan',
+      reporterStatus: 'Guru Sekolah',
+      isWillingToFacilitate: false,
+      hasSchoolContact: true,
+      schoolContactName: 'Bapak Kepala Sekolah',
+      schoolContactWhatsapp: '089876543210',
+
+      schoolName: 'SDN 01 Harapan Bangsa',
+      schoolLevel: 'SD',
+      schoolStatus: 'Negeri',
+      schoolAddress: 'Jl. Pendidikan No. 45, Desa Suka Maju, Bandung',
+      schoolMapsUrl: 'https://maps.app.goo.gl/testing123',
+      studentCount: '150',
+      teacherCount: '10',
+
+      buildingCondition: 'Rusak Ringan',
+      physicalNeeds: ['Perbaikan Ruang Kelas', 'Renovasi Toilet dan Sanitasi', 'Perbaikan Atap, Dinding, dan Lantai'],
+      nonPhysicalNeeds: ['Pelatihan Pengembangan Guru', 'Pelatihan Pengembangan Siswa (Literasi dan Perpustakaan)', 'Pelatihan Pengembangan Siswa (Program Kesehatan Sekolah)'],
+      priorityTimeline: '3 Bulan',
+      priorityReason: 'Kondisi atap sangat memprihatinkan dan rawan bocor saat hujan, mengganggu proses belajar 150 siswa setiap harinya.',
+    } as FormValues);
+
+    // 2. Create a dummy photo file so validation passes and WA gets a photo count
+    const dummyBlob = new Blob(['dummy image content'], { type: 'image/jpeg' });
+    const dummyFile = new File([dummyBlob], 'dummy-photo.jpg', { type: 'image/jpeg' });
+    
+    setAssets(prev => ({
+      ...prev,
+      schoolPhotos: [dummyFile]
+    }));
+
     setCurrentStep(0);
-    setIsSuccess(false);
-    clearReportSchoolDraft();
   };
 
-  const onSubmit = handleSubmit((values) => {
+  const onSubmit = handleSubmit(async (values) => {
+    if (!turnstileToken) {
+      setSpamError('Mohon selesaikan verifikasi keamanan (Turnstile).');
+      return;
+    }
+
     setIsSubmitting(true);
+    setSpamError(null);
+
+    const typedValues = values as ReportSchoolFormValues;
+
+    try {
+      // ── Anti-Spam Layer 1: Blacklist Check ──
+      const isBlacklisted = await checkIsBlacklisted(userIP, typedValues.reporterWhatsapp);
+      if (isBlacklisted) {
+        setSpamError('Akses Anda telah dibatasi oleh sistem keamanan kami. Jika ini kesalahan, hubungi admin STA.');
+        setIsSubmitting(false);
+        return;
+      }
+
+      // ── Anti-Spam Layer 2: IP Rate Limit ──
+      if (userIP !== 'unknown') {
+        const isRateLimited = await checkIPRateLimit(userIP);
+        if (isRateLimited) {
+          setSpamError('Terlalu banyak laporan dari perangkat ini. Silakan coba lagi dalam 1 jam.');
+          setIsSubmitting(false);
+          return;
+        }
+      }
+
+      // 1. Upload foto ke Supabase Storage (wajib min 1)
+      const photoUrls = await uploadSchoolReportPhotos(assets.schoolPhotos);
+
+      // 2. Build description terstruktur dari seluruh data form
+      const description = buildReportDescription(typedValues);
+      const location = typedValues.schoolMapsUrl
+        ? `${typedValues.schoolAddress} | Maps: ${typedValues.schoolMapsUrl}`
+        : typedValues.schoolAddress;
+
+      // 3. INSERT ke tabel school_reports (dengan IP)
+      const { error: insertError } = await insertSchoolReport({
+        reporter_name: typedValues.reporterName,
+        reporter_phone: typedValues.reporterWhatsapp,
+        reporter_ip: userIP,
+        school_name: typedValues.schoolName,
+        location,
+        description,
+        image_urls: photoUrls,
+        status: 'pending',
+      });
+
+      if (insertError) {
+        logError('LaporkanSekolah.insertSchoolReport', insertError);
+      }
+    } catch (err) {
+      // Jika INSERT gagal, tetap lanjut ke WhatsApp agar data tidak hilang
+      logError('LaporkanSekolah.onSubmit', err);
+    }
+
+    // 4. Show success state first to play animation
     const whatsappUrl = createWhatsAppReportUrl(values as ReportSchoolFormValues, assets);
-    window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
-    setLastWhatsAppUrl(whatsappUrl);
     setIsSuccess(true);
     setIsSubmitting(false);
     clearReportSchoolDraft();
+
+    // 5. Delay WhatsApp redirect so user can see the "WOW" animation
+    setTimeout(() => {
+      window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
+    }, 2500);
   });
 
   return (
-    <div className="overflow-x-hidden bg-[#FBFAF8] py-8 sm:py-12 lg:py-16">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <motion.div
-          initial={{ opacity: 0, y: 24 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.7 }}
-          className="max-w-[42rem]"
-        >
-          <div className="inline-flex items-center gap-2 rounded-full border border-[#2C5F4F]/10 bg-white/80 px-3.5 py-2 backdrop-blur-sm sm:px-4">
-            <span className="h-1.5 w-1.5 rounded-full bg-[#2C5F4F]" />
-            <span className="text-[11px] font-semibold uppercase tracking-[0.24em] text-gray-500">Platform Transparansi</span>
-          </div>
-          <h1 className="mt-5 text-[2rem] font-light leading-[1.08] tracking-tight text-gray-900 sm:mt-6 sm:text-5xl lg:text-6xl">
-            Laporkan Sekolah
-          </h1>
-          <p className="mt-5 max-w-2xl text-base font-light leading-relaxed text-gray-600 sm:mt-6 sm:text-lg">
-            Kami ubah alurnya menjadi 3 langkah ringkas. Lengkapi form di bawah lalu otomatis dikirim ke WhatsApp resmi admin STA.
-          </p>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.7, delay: 0.1 }}
-          className="mt-8 grid max-w-5xl gap-3 sm:grid-cols-3"
-        >
-          {trustHighlights.map((highlight) => (
-            <div key={highlight.title} className="rounded-[1rem] border border-black/5 bg-white/70 px-4 py-4">
-              <div className="flex items-center gap-2.5">
-                <span className="rounded-full bg-[#F4F8F6] p-2 text-[#2C5F4F]"><highlight.icon size={16} /></span>
-                <p className="text-sm font-medium text-gray-900">{highlight.title}</p>
-              </div>
-              <p className="mt-3 text-xs leading-relaxed text-gray-500">{highlight.description}</p>
+    <div className="min-h-screen bg-[#FAF9F7] text-gray-900 font-sans">
+      
+      {/* ═══════════════ PAGE CONTENT (INTRO) ═══════════════ */}
+      <main className="pt-32 pb-20 md:pt-40 md:pb-32 px-6">
+        <div className="max-w-4xl mx-auto">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="text-center space-y-8"
+          >
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-emerald-100 text-emerald-700 mb-2 shadow-sm">
+              <ShieldCheck size={32} strokeWidth={1.5} />
             </div>
-          ))}
-        </motion.div>
+            
+            <h1 className="text-4xl md:text-5xl lg:text-6xl font-black text-gray-900 leading-tight tracking-tight">
+              Bantu kami menemukan sekolah yang butuh bantuan.
+            </h1>
+            
+            <p className="text-lg md:text-xl text-gray-600 leading-relaxed font-light max-w-2xl mx-auto">
+              Setiap laporan Anda adalah langkah pertama untuk mengonversi kerusakan fisik menjadi kampanye penggalangan dana yang nyata dan transparan.
+            </p>
 
-        <motion.div
-          initial={{ opacity: 0, y: 26 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.7, delay: 0.2 }}
-          className="mx-auto mt-8 max-w-4xl"
-        >
-          <div className="rounded-[1.3rem] border border-black/5 bg-white p-4 shadow-xl shadow-emerald-900/5 sm:rounded-[1.6rem] sm:p-6 lg:p-7">
-            {isSuccess ? (
-              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-8">
-                <div className="space-y-4 border-b border-black/5 pb-6">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#2C5F4F] text-white">
-                    <CheckCircle2 size={22} />
+            <div className="pt-6">
+              <button
+                onClick={() => setIsModalOpen(true)}
+                className="w-full sm:w-auto px-10 py-4 bg-emerald-700 text-white font-bold rounded-full hover:bg-emerald-800 transition-transform active:scale-95 shadow-lg shadow-emerald-900/10 flex items-center justify-center gap-3 group mx-auto"
+              >
+                Mulai Laporkan Sekarang 
+                <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
+              </button>
+            </div>
+          </motion.div>
+
+          {/* Trust Highlights */}
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2, duration: 0.5 }}
+            className="mt-20 grid md:grid-cols-3 gap-8"
+          >
+            {trustHighlights.map((highlight) => (
+              <div key={highlight.title} className="bg-white rounded-2xl border border-gray-100 p-8 shadow-sm text-center hover:shadow-md transition-shadow">
+                <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 mx-auto mb-6">
+                  <highlight.icon size={28} strokeWidth={1.5} />
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 mb-3">{highlight.title}</h3>
+                <p className="text-sm text-gray-500 leading-relaxed">{highlight.description}</p>
+              </div>
+            ))}
+          </motion.div>
+        </div>
+      </main>
+
+      {/* ═══════════════ MODAL WIZARD ═══════════════ */}
+      <AnimatePresence>
+        {isModalOpen && (
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 sm:p-6">
+            
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => {
+                if (!isSuccess && !isSubmitting) setIsModalOpen(false);
+              }}
+              className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm"
+            />
+
+            {/* Modal Container */}
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 20 }}
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white w-full max-w-5xl h-[95vh] max-h-[800px] rounded-3xl overflow-hidden shadow-2xl flex flex-col md:flex-row relative z-10"
+            >
+              {/* Close Button */}
+              <button 
+                onClick={() => {
+                  if (!isSuccess && !isSubmitting) setIsModalOpen(false);
+                }}
+                className="absolute top-6 right-6 z-50 w-10 h-10 bg-gray-100/80 hover:bg-gray-200 text-gray-600 rounded-full flex items-center justify-center transition-colors"
+                aria-label="Tutup Modal"
+              >
+                <X size={20} />
+              </button>
+
+              {/* Left Panel (Branding) */}
+              <div className="hidden md:block w-1/3 relative bg-[#0A2E1F] overflow-hidden shrink-0">
+                <img 
+                  src="https://images.unsplash.com/photo-1497633762265-9d179a990aa6?auto=format&fit=crop&q=80&w=800" 
+                  alt="Sekolah"
+                  className="absolute inset-0 w-full h-full object-cover opacity-20 mix-blend-overlay"
+                />
+                <div className="absolute inset-0 p-10 flex flex-col justify-between">
+                  <div className="flex items-center gap-3 font-bold text-lg text-white">
+                    <div className="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center border border-emerald-500/30">
+                      <ShieldCheck size={22} className="text-emerald-400" />
+                    </div>
+                    Lapor Sekolah
                   </div>
+
                   <div>
-                    <h2 className="mt-2 text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">
-                      Laporan Dalam Perjalanan!
+                    <h2 className="text-3xl font-black text-white leading-tight mb-4">
+                      Bersama <br/>Membangun <br/><span className="text-emerald-400">Pendidikan.</span>
                     </h2>
-                    <p className="mt-2 max-w-2xl text-sm leading-relaxed text-gray-600">
-                      Terima kasih atas kepedulian Anda. Jika WhatsApp tidak otomatis terbuka, klik tombol di bawah.
+                    <p className="text-emerald-100/70 text-sm leading-relaxed">
+                      Laporan Anda adalah data berharga. Tim relawan kami akan menggunakan informasi ini untuk melakukan verifikasi faktual di lapangan.
                     </p>
                   </div>
                 </div>
-                <div className="flex flex-col gap-3 sm:flex-row">
-                  <a
-                    href={lastWhatsAppUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex min-h-11 w-full items-center justify-center rounded-full bg-[#2C5F4F] px-5 py-3 text-sm font-bold text-white transition-colors hover:bg-[#234A3D]"
-                  >
-                    Buka WA Admin STA
-                  </a>
-                  <button
-                    onClick={handleRestart}
-                    className="inline-flex min-h-11 w-full items-center justify-center rounded-full border border-black/10 bg-white px-5 py-3 text-sm font-bold text-gray-700 transition-colors hover:border-[#2C5F4F]/30 hover:text-[#2C5F4F]"
-                  >
-                    Buat Laporan Baru
-                  </button>
+              </div>
+
+              {/* Right Panel (Form Content) */}
+              <div className="flex-1 flex flex-col bg-white h-full min-h-0 min-w-0 relative">
+                
+                {/* Mobile Header */}
+                <div className="md:hidden px-6 py-4 border-b border-gray-100 flex items-center gap-2 font-bold text-sm text-gray-900 shrink-0">
+                  <ShieldCheck size={16} className="text-emerald-600" />
+                  Lapor Sekolah
                 </div>
-              </motion.div>
-            ) : (
-              <FormProvider {...methods}>
-                <form onSubmit={onSubmit}>
-                  <StepProgress steps={REPORT_SCHOOL_STEPS} currentStep={currentStep} />
-                  <p className="mt-4 text-xs leading-relaxed text-gray-400">
-                    Progress Anda tersimpan sementara di browser.
-                  </p>
+
+                <div className="flex-1 overflow-y-auto min-h-0 min-w-0 px-6 py-8 md:px-12 md:py-10">
                   <AnimatePresence mode="wait">
-                    <motion.div
-                      key={currentStepConfig.key}
-                      initial={{ opacity: 0, y: 18 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -18 }}
-                      transition={{ duration: 0.24, ease: 'easeOut' }}
-                      className="mt-8"
-                    >
-                      {renderStepContent(currentStepConfig.key, assets, setAssets)}
-                    </motion.div>
+                    {isSuccess ? (
+                      /* ═══════════════ SUCCESS OVERLAY ═══════════════ */
+                      <motion.div
+                        key="success-state"
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="h-full flex flex-col items-center justify-center text-center pb-10"
+                      >
+                        <div className="relative mb-8">
+                          <motion.div 
+                            initial={{ scale: 0.5, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                            className="w-28 h-28 bg-emerald-50 rounded-full flex items-center justify-center relative z-10 ring-8 ring-emerald-50/50"
+                          >
+                            <motion.div
+                              initial={{ scale: 0 }}
+                              animate={{ scale: 1 }}
+                              transition={{ delay: 0.25, type: "spring", stiffness: 400, damping: 25 }}
+                            >
+                              <CheckCircle2 size={64} strokeWidth={2.5} className="text-emerald-600" />
+                            </motion.div>
+                          </motion.div>
+                        </div>
+                        <h2 className="text-3xl font-black text-gray-900 tracking-tight mb-2">Berhasil!</h2>
+                        <p className="text-gray-500 font-medium max-w-sm">Laporan Anda telah diterima dan diteruskan ke sistem keamanan kami.</p>
+                      </motion.div>
+                    ) : (
+                      /* ═══════════════ FORM WIZARD ═══════════════ */
+                      <motion.div
+                        key="form-state"
+                        initial={{ opacity: 0, x: 20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: -20 }}
+                        transition={{ duration: 0.3 }}
+                      >
+                        <FormProvider {...methods}>
+                          <form onSubmit={onSubmit}>
+                            
+                            {/* Step Progress directly in the white panel so it reads clearly */}
+                            <div className="mb-10">
+                              <StepProgress steps={REPORT_SCHOOL_STEPS} currentStep={currentStep} />
+                              
+                              {import.meta.env.DEV && (
+                                <button
+                                  type="button"
+                                  onClick={handleInjectDummy}
+                                  className="mt-4 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-purple-600 bg-purple-50 px-3 py-1.5 rounded-full border border-purple-100 hover:bg-purple-100 transition-colors w-max"
+                                >
+                                  <Wand2 size={12} /> Inject Data
+                                </button>
+                              )}
+                            </div>
+
+                            <AnimatePresence mode="wait">
+                              <motion.div
+                                key={currentStepConfig.key}
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -10 }}
+                                transition={{ duration: 0.2 }}
+                              >
+                                {renderStepContent(currentStepConfig.key, assets, setAssets)}
+                              </motion.div>
+                            </AnimatePresence>
+
+                            {/* Spam Error Banner */}
+                            {spamError && (
+                              <div className="mt-8 rounded-xl bg-rose-50 border border-rose-100 p-4 flex items-start gap-3">
+                                <span className="text-lg leading-none mt-0.5">🚫</span>
+                                <div>
+                                  <p className="text-sm font-bold text-rose-900">Pengiriman Diblokir</p>
+                                  <p className="text-sm text-rose-700 mt-0.5">{spamError}</p>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Turnstile */}
+                            {currentStep === REPORT_SCHOOL_STEPS.length - 1 && (
+                              <div className="mt-8 flex justify-center">
+                                <Turnstile
+                                  siteKey={import.meta.env.VITE_TURNSTILE_SITE_KEY || '0x4AAAAAADDxv-_d95-X9IVJ'}
+                                  onSuccess={(token) => {
+                                    setTurnstileToken(token);
+                                    setSpamError(null);
+                                  }}
+                                  onError={() => setSpamError('Gagal memuat verifikasi keamanan. Coba refresh halaman.')}
+                                />
+                              </div>
+                            )}
+
+                          </form>
+                        </FormProvider>
+                      </motion.div>
+                    )}
                   </AnimatePresence>
-                  <StepNavigation
-                    currentStep={currentStep}
-                    totalSteps={REPORT_SCHOOL_STEPS.length}
-                    isCurrentStepValid={isCurrentStepValid}
-                    isSubmitting={isSubmitting}
-                    nextLabel={currentStep === 0 ? 'Lanjut ke Step 2' : 'Lanjut'}
-                    onBack={handleBack}
-                    onNext={handleNext}
-                  />
-                </form>
-              </FormProvider>
-            )}
+                </div>
+                
+                {/* Fixed Bottom Navigation */}
+                {!isSuccess && (
+                  <div className="px-6 pb-6 pt-2 md:px-12 md:pb-8 bg-white shrink-0">
+                    <StepNavigation
+                      currentStep={currentStep}
+                      totalSteps={REPORT_SCHOOL_STEPS.length}
+                      isCurrentStepValid={isCurrentStepValid}
+                      isSubmitting={isSubmitting}
+                      nextLabel={currentStep === 0 ? 'Selanjutnya' : 'Selanjutnya'}
+                      onBack={handleBack}
+                      onNext={handleNext}
+                    />
+                  </div>
+                )}
+              </div>
+            </motion.div>
           </div>
-        </motion.div>
-      </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

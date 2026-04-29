@@ -31,3 +31,14 @@ export function calculateProgress(current: number, target: number) {
 
   return Math.min(Math.round((current / target) * 100), 100);
 }
+
+/**
+ * Memformat string tanggal menjadi format panjang Indonesia (contoh: "25 April 2026").
+ */
+export function formatLongDate(value: string) {
+  return new Intl.DateTimeFormat('id-ID', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  }).format(new Date(value));
+}

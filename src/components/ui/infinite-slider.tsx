@@ -9,6 +9,8 @@ type InfiniteSliderProps = {
   gap?: number;
   duration?: number;
   durationOnHover?: number;
+  stopOnHover?: boolean;
+  draggable?: boolean;
   direction?: 'horizontal' | 'vertical';
   reverse?: boolean;
   className?: string;
@@ -23,6 +25,8 @@ export function InfiniteSlider({
   gap = 16,
   duration,
   durationOnHover,
+  stopOnHover = false,
+  draggable = false,
   direction = 'horizontal',
   reverse = false,
   className,
@@ -34,12 +38,15 @@ export function InfiniteSlider({
   const effectiveDurationOnHover = durationOnHover ?? speedOnHover;
 
   const [currentDuration, setCurrentDuration] = useState(effectiveDuration);
+  const [isPaused, setIsPaused] = useState(false);
   const [ref, { width, height }] = useMeasure();
   const translation = useMotionValue(0);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [key, setKey] = useState(0);
 
   useEffect(() => {
+    if (isPaused) return;
+
     let controls: ReturnType<typeof animate> | undefined;
     const size = direction === 'horizontal' ? width : height;
     const contentSize = size + gap;
@@ -80,9 +87,15 @@ export function InfiniteSlider({
     isTransitioning,
     direction,
     reverse,
+    isPaused,
   ]);
 
-  const hoverProps = effectiveDurationOnHover
+  const hoverProps = stopOnHover
+    ? {
+        onHoverStart: () => setIsPaused(true),
+        onHoverEnd: () => setIsPaused(false),
+      }
+    : effectiveDurationOnHover
     ? {
         onHoverStart: () => {
           setIsTransitioning(true);
@@ -98,7 +111,17 @@ export function InfiniteSlider({
   return (
     <div className={cn('overflow-hidden', className)}>
       <motion.div
-        className="flex w-max"
+        className="flex w-max cursor-grab active:cursor-grabbing"
+        drag={draggable ? (direction === 'horizontal' ? 'x' : 'y') : false}
+        dragConstraints={
+          draggable
+            ? direction === 'horizontal'
+              ? { left: -(width + gap) / 2, right: 0 }
+              : { top: -(height + gap) / 2, bottom: 0 }
+            : undefined
+        }
+        onDragStart={() => setIsPaused(true)}
+        onDragEnd={() => !stopOnHover && setIsPaused(false)}
         style={{
           ...(direction === 'horizontal'
             ? { x: translation }

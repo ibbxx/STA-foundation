@@ -1,244 +1,197 @@
+import React from 'react';
 import { motion } from 'framer-motion';
-import { Target, Users, Globe, ArrowRight, Camera } from 'lucide-react';
-import TeamShowcase, { type TeamMember } from '../../components/ui/team-showcase';
+import { Shield, Users, Heart, Target, Lightbulb, CheckCircle2, ArrowRight } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
-const TEAM_MEMBERS: TeamMember[] = [
-  {
-    id: '1',
-    name: 'Ibnu Fajar',
-    role: 'FOUNDER & CEO',
-    image: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=400',
-    social: { linkedin: '#', instagram: '#' },
-  },
-  {
-    id: '2',
-    name: 'Sarah Chen',
-    role: 'CO-FOUNDER & COO',
-    image: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=400',
-    social: { linkedin: '#', instagram: '#' },
-  },
-  {
-    id: '3',
-    name: 'Dimas Anggara',
-    role: 'HEAD OF FIELD OPS',
-    image: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&q=80&w=400',
-    social: { linkedin: '#' },
-  },
-  {
-    id: '4',
-    name: 'Nadia Putri',
-    role: 'DIRECTOR OF PARTNERSHIPS',
-    image: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&q=80&w=400',
-    social: { linkedin: '#', instagram: '#' },
-  },
-  {
-    id: '5',
-    name: 'Andi Prasetyo',
-    role: 'CTO - TECH LEAD',
-    image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=400',
-    social: { linkedin: '#', twitter: '#' },
-  },
-  {
-    id: '6',
-    name: 'Rina Maharani',
-    role: 'HEAD OF COMMUNITY',
-    image: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&q=80&w=400',
-    social: { instagram: '#' },
-  },
-];
+const fadeUp = {
+  initial: { opacity: 0, y: 20 },
+  whileInView: { opacity: 1, y: 0 },
+  viewport: { once: true },
+  transition: { duration: 0.5 }
+};
 
-const GALLERY_IMAGES = [
-  {
-    url: 'https://images.unsplash.com/photo-1488521787991-ed7bbaae773c?auto=format&fit=crop&q=80&w=800',
-    title: 'Penyaluran Buku',
-    size: 'col-span-2 row-span-2'
-  },
-  {
-    url: 'https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&q=80&w=800',
-    title: 'Kelas Inspirasi',
-    size: 'col-span-1 row-span-1'
-  },
-  {
-    url: 'https://images.unsplash.com/photo-1524178232363-1fb2b075b655?auto=format&fit=crop&q=80&w=800',
-    title: 'Relawan di Lapangan',
-    size: 'col-span-1 row-span-2'
-  },
-  {
-    url: 'https://images.unsplash.com/photo-1497633762265-9d179a990aa6?auto=format&fit=crop&q=80&w=800',
-    title: 'Pembangunan Sekolah',
-    size: 'col-span-1 row-span-1'
-  }
+const PARTNERS = [
+  { name: 'Admedika', src: '/mitra/assets/admedika.png', href: 'https://www.instagram.com/admedika_ig?igsh=MW04d3hhMmYxa3pvMQ==', sizeClass: 'h-10 md:h-14 scale-110' },
+  { name: 'Bali Nggih', src: '/mitra/assets/balinggih.png', href: 'https://www.instagram.com/balinggih?igsh=MTg5MDBsZ3JvdzJqZw==', sizeClass: 'h-6 md:h-10' },
+  { name: 'Distrik Berisik', src: '/mitra/assets/blue-db.png', href: 'https://www.instagram.com/distrik_berisik?igsh=Mmk3bTN6eG5maHZ3', sizeClass: 'h-6 md:h-10' },
+  { name: 'PIS Movement', src: '/mitra/assets/peacemaker.png', href: 'https://www.instagram.com/pismovement?igsh=c25kNWZtNDJkcWI1', sizeClass: 'h-10 md:h-14' },
+  { name: 'Kawan Cendekia', src: '/mitra/assets/img-0338.png', href: 'https://www.instagram.com/kawancendekia?igsh=ZTlzNHhqem13MHlo', sizeClass: 'h-10 md:h-14' },
+  { name: 'Perempuan Lestari', src: '/mitra/assets/wa-image.jpg', href: 'https://www.instagram.com/perempuan.lestari?igsh=MW5uMW9tcHltYWZ5OA==', sizeClass: 'h-10 md:h-14' },
 ];
 
 export default function About() {
   return (
     <div className="bg-white text-gray-900 font-sans selection:bg-emerald-600 selection:text-white">
-      {/* ── Visual Hero ── */}
-      <section className="relative h-screen w-full overflow-hidden bg-zinc-900">
-        <img 
-          src="https://images.unsplash.com/photo-1516627145497-ae6968895b74?auto=format&fit=crop&q=80&w=2000" 
-          alt="Dunia Anak"
-          className="h-full w-full object-cover opacity-60 scale-105"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-zinc-900 via-transparent to-transparent" />
-        
-        <div className="absolute inset-0 flex flex-col items-center justify-center px-6 text-center">
+      
+      {/* 1. HERO SECTION */}
+      <section className="relative pt-32 pb-20 md:pt-40 md:pb-28 bg-[#F8FBF9] overflow-hidden">
+        <div className="max-w-4xl mx-auto px-6 text-center relative z-10">
           <motion.div
-            initial={{ opacity: 0, y: 30 }}
+            initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-            className="max-w-4xl"
+            transition={{ duration: 0.5 }}
           >
-            <h1 className="text-5xl md:text-8xl font-bold tracking-tight text-white leading-none mb-8">
-              Masa Depan <br />
-              Dimulai Dari <span className="text-emerald-500 italic">Sini.</span>
+            <p className="text-emerald-600 font-bold tracking-[0.2em] uppercase text-xs md:text-sm mb-6 inline-flex items-center gap-2 bg-emerald-50 px-4 py-2 rounded-full">
+              #PendidikanUntukSemua
+            </p>
+            <h1 className="text-3xl md:text-5xl lg:text-6xl font-black text-gray-900 leading-[1.15] mb-8">
+              Membangun Masa Depan Pendidikan Indonesia Lewat Data dan Aksi Nyata
             </h1>
-            <div className="flex items-center justify-center gap-4 text-emerald-400 text-sm font-bold tracking-[0.2em] uppercase">
-              <span className="h-px w-8 bg-emerald-400" />
-              Sekolah Tanah Air
-              <span className="h-px w-8 bg-emerald-400" />
-            </div>
+            <p className="text-base md:text-xl text-gray-600 leading-relaxed max-w-3xl mx-auto mb-10 font-light">
+              Pendidikan yang layak adalah hak setiap anak bangsa. Kami hadir untuk menjembatani niat baik dengan aksi nyata, memastikan tidak ada lagi mimpi yang runtuh hanya karena atap ruang kelas yang rapuh.
+            </p>
+            <Link 
+              to="/kontak" 
+              className="inline-flex items-center gap-2 bg-emerald-700 text-white px-8 py-4 rounded-full font-bold hover:bg-emerald-800 transition-colors shadow-lg shadow-emerald-900/10 hover:shadow-xl hover:shadow-emerald-900/20"
+            >
+              Mari Berkolaborasi Bersama Kami <ArrowRight size={18} />
+            </Link>
           </motion.div>
         </div>
       </section>
 
-      {/* ── Impact Stats (Visual) ── */}
-      <section className="py-20 border-b border-gray-100">
+      {/* 2. STATS STRIP */}
+      <section className="bg-white py-12 md:py-16 border-y border-gray-100">
         <div className="max-w-7xl mx-auto px-6">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-12 text-center">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-12 text-center divide-x divide-gray-100">
             {[
-              { label: 'Sekolah Dibangun', value: '12', suffix: '+' },
-              { label: 'Relawan Aktif', value: '500', suffix: '+' },
-              { label: 'Anak Terbantu', value: '2.5', suffix: 'k' },
-              { label: 'Desa Binaan', value: '8', suffix: '' }
+              { value: '115 Jt', suffix: '+', label: 'Donasi Terkumpul' },
+              { value: '52', suffix: '+', label: 'Pejuang Tanah Air' },
+              { value: '3', suffix: '+', label: 'Lokasi di 3 Pulau Berbeda' },
+              { value: '7', suffix: '+', label: 'Mitra Kolabolator' }
             ].map((stat, i) => (
-              <div key={i} className="space-y-2">
-                <p className="text-4xl md:text-6xl font-bold tracking-tighter text-gray-900">
-                  {stat.value}<span className="text-emerald-600">{stat.suffix}</span>
-                </p>
-                <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">{stat.label}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── The Narrative (Visual Split) ── */}
-      <section className="py-24">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="grid lg:grid-cols-2 gap-16 items-center">
-            <div className="relative group">
-              <div className="aspect-square bg-gray-100 overflow-hidden rounded-sm border border-gray-100">
-                <img 
-                  src="https://images.unsplash.com/photo-1542810634-71277d95dcbb?auto=format&fit=crop&q=80&w=1000" 
-                  alt="Inspirasi"
-                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                />
-              </div>
-              <div className="absolute -bottom-6 -right-6 bg-emerald-600 text-white p-8 md:p-12 max-w-xs rounded-sm shadow-xl">
-                <p className="text-xl font-medium leading-snug">
-                  "Kami tidak hanya membangun atap, kami membangun mimpi yang kokoh."
-                </p>
-              </div>
-            </div>
-            <div className="lg:pl-12 space-y-8">
-              <div>
-                <h2 className="text-sm font-bold uppercase tracking-widest text-emerald-600 mb-4">Filosofi Gerakan</h2>
-                <h3 className="text-4xl font-bold tracking-tight leading-tight mb-6">Setiap anak adalah aset bangsa yang tak ternilai.</h3>
-                <p className="text-gray-500 font-light leading-relaxed text-lg">
-                  Sekolah Tanah Air hadir di tengah keterbatasan untuk memastikan pendidikan berkualitas bukan lagi kemewahan, melainkan hak yang bisa diakses oleh siapa pun, di mana pun.
-                </p>
-              </div>
-              <div className="grid grid-cols-2 gap-8">
-                <div className="space-y-3">
-                  <div className="w-10 h-10 bg-emerald-50 rounded-sm flex items-center justify-center text-emerald-600">
-                    <Users size={20} />
-                  </div>
-                  <h4 className="font-bold text-sm uppercase">Komunitas</h4>
-                  <p className="text-xs text-gray-400 font-light">Melibatkan warga lokal secara utuh.</p>
-                </div>
-                <div className="space-y-3">
-                  <div className="w-10 h-10 bg-emerald-50 rounded-sm flex items-center justify-center text-emerald-600">
-                    <Target size={20} />
-                  </div>
-                  <h4 className="font-bold text-sm uppercase">Terukur</h4>
-                  <p className="text-xs text-gray-400 font-light">Dampak nyata yang bisa dievaluasi.</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ── Impact Gallery (The Core) ── */}
-      <section className="py-24 bg-zinc-50 border-y border-gray-100">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-6">
-            <div className="max-w-xl">
-              <div className="flex items-center gap-2 text-emerald-600 mb-4">
-                <Camera size={16} />
-                <span className="text-[10px] font-bold uppercase tracking-[0.3em]">Field Documentation</span>
-              </div>
-              <h3 className="text-4xl font-bold tracking-tight">Realita di Lapangan.</h3>
-            </div>
-            <p className="text-gray-400 text-sm max-w-xs font-light">Potret kegiatan relawan dan senyum anak-anak yang menjadi energi kami setiap hari.</p>
-          </div>
-
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-            {GALLERY_IMAGES.map((img, i) => (
-              <motion.div
+              <motion.div 
                 key={i}
-                whileHover={{ y: -5 }}
-                className={`${img.size} relative group overflow-hidden rounded-sm bg-gray-200 border border-gray-100 shadow-sm`}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.1, duration: 0.5 }}
+                className="px-2 md:px-4"
               >
-                <img 
-                  src={img.url} 
-                  alt={img.title}
-                  className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-6">
-                  <p className="text-white text-xs font-bold uppercase tracking-widest">{img.title}</p>
-                </div>
+                <h3 className="text-3xl md:text-5xl font-black text-gray-900 mb-2 tracking-tight">
+                  {stat.value}<span className="text-emerald-600">{stat.suffix}</span>
+                </h3>
+                <p className="text-[10px] md:text-xs text-gray-500 uppercase font-bold tracking-widest">{stat.label}</p>
               </motion.div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ── Team Section ── */}
-      <section className="py-24">
+      {/* 3. THE CORE VALUES */}
+      <section className="py-20 md:py-32 bg-[#F8FBF9]">
         <div className="max-w-7xl mx-auto px-6">
-          <div className="mb-16 text-center">
-            <span className="text-[10px] font-bold tracking-[0.3em] uppercase text-emerald-600 mb-4 block">Our Team</span>
-            <h3 className="text-4xl font-bold tracking-tight">Di Balik Layar Sekolah Tanah Air.</h3>
+          <motion.div {...fadeUp} className="text-center max-w-3xl mx-auto mb-16 md:mb-20">
+            <h2 className="text-3xl md:text-5xl font-black text-gray-900 mb-6 tracking-tight">The Core Values</h2>
+            <p className="text-gray-600 text-base md:text-xl font-light leading-relaxed">
+              Sekolah Tanah Air memiliki nilai keyakinan bersama dengan harapan membangun masa depan pendidikan Indonesia.
+            </p>
+          </motion.div>
+
+          <div className="grid md:grid-cols-3 gap-8 md:gap-10">
+            {[
+              { icon: Shield, title: 'Transparan & Terukur', desc: 'Setiap rupiah yang didonasikan dan setiap progres pembangunan dapat dipantau langsung melalui dasbor data statistik kami.' },
+              { icon: Users, title: 'Community Driven', desc: 'Kekuatan kami terletak pada laporan warga. Kami percaya masyarakat adalah narasumber terbaik untuk kondisi lapangan.' },
+              { icon: Heart, title: 'Impact Oriented', desc: 'Kami tidak hanya berhenti pada pembangunan gedung, tapi memastikan ekosistem pendidikan di dalamnya hidup kembali.' }
+            ].map((val, i) => (
+              <motion.div 
+                key={val.title}
+                {...fadeUp}
+                transition={{ delay: i * 0.1 }}
+                className="bg-white p-8 md:p-10 rounded-2xl shadow-sm border border-gray-100 flex flex-col items-center text-center hover:border-emerald-100 transition-colors"
+              >
+                <div className="w-16 h-16 bg-emerald-50 rounded-full flex items-center justify-center text-emerald-700 mb-6">
+                  <val.icon size={28} strokeWidth={1.5} />
+                </div>
+                <h3 className="text-xl md:text-2xl font-bold text-gray-900 mb-4">{val.title}</h3>
+                <p className="text-gray-600 leading-relaxed font-light">{val.desc}</p>
+              </motion.div>
+            ))}
           </div>
-          <TeamShowcase members={TEAM_MEMBERS} />
         </div>
       </section>
 
-      {/* ── Simple Visual CTA ── */}
-      <section className="py-24 border-t border-gray-100">
-        <div className="max-w-4xl mx-auto px-6 text-center space-y-10">
-          <div className="inline-flex items-center justify-center w-20 h-20 rounded-full border border-gray-100 bg-gray-50 text-emerald-600">
-            <Globe size={32} />
-          </div>
-          <h2 className="text-4xl md:text-5xl font-bold tracking-tight">Siap untuk membuat perubahan bersama?</h2>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-6 pt-4">
-            <a 
-              href="/kontak"
-              className="w-full sm:w-auto px-10 py-4 bg-gray-900 text-white font-bold text-sm hover:bg-emerald-600 transition-all rounded-sm flex items-center justify-center gap-3"
-            >
-              Hubungi Kami <ArrowRight size={18} />
-            </a>
-            <a 
-              href="/campaigns"
-              className="text-sm font-bold border-b-2 border-emerald-600 pb-1 text-emerald-600 hover:text-emerald-700"
-            >
-              Lihat Campaign
-            </a>
+      {/* 4. VISI KAMI + MISI KAMI */}
+      <section className="py-20 md:py-32 bg-white">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="grid lg:grid-cols-12 gap-16 lg:gap-24 items-start">
+            
+            {/* Visi */}
+            <motion.div {...fadeUp} className="lg:col-span-5 lg:sticky lg:top-32">
+              <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-emerald-50 text-emerald-700 mb-6">
+                <Target size={28} strokeWidth={1.5} />
+              </div>
+              <h2 className="text-sm font-bold uppercase tracking-[0.2em] text-emerald-600 mb-4">Visi Kami</h2>
+              <h3 className="text-3xl md:text-4xl lg:text-5xl font-black leading-tight text-gray-900 tracking-tight">
+                Menjadi pusat data dan penggerak utama dalam mewujudkan kesetaraan fasilitas pendidikan di seluruh pelosok Indonesia melalui inovasi teknologi dan semangat kolaborasi.
+              </h3>
+            </motion.div>
+
+            {/* Misi */}
+            <motion.div {...fadeUp} transition={{ delay: 0.2 }} className="lg:col-span-7 space-y-8 md:space-y-12">
+              <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-teal-50 text-teal-700 mb-2">
+                <Lightbulb size={28} strokeWidth={1.5} />
+              </div>
+              <h2 className="text-sm font-bold uppercase tracking-[0.2em] text-teal-600 mb-6">Misi Kami</h2>
+              
+              <div className="grid gap-6 md:gap-8">
+                {[
+                  { title: "Memetakan Kesenjangan", desc: "Mengumpulkan data faktual secara partisipatif dari masyarakat mengenai kondisi sekolah yang kritis." },
+                  { title: "Menggalang Kolaborasi", desc: "Menjadi jembatan yang menghubungkan donatur, relawan, komunitas, dan pemerintah dalam semangat gotong royong." },
+                  { title: "Membangun Fisik & Manusia", desc: "Melakukan renovasi infrastruktur sekolah sekaligus menjalankan program pemberdayaan guru, siswa, dan ekonomi sirkular desa." },
+                  { title: "Menjunjung Transparansi", desc: "Menyajikan pelaporan dana dan progres pembangunan secara real-time yang dapat diakses oleh publik." }
+                ].map((misi, i) => (
+                  <div key={i} className="flex gap-5 md:gap-6 bg-[#F8FBF9] p-6 md:p-8 rounded-2xl border border-gray-50">
+                    <div className="flex-shrink-0 w-10 h-10 bg-emerald-100/50 rounded-full flex items-center justify-center text-emerald-700 font-bold text-sm">
+                      {i + 1}
+                    </div>
+                    <div>
+                      <h4 className="text-lg md:text-xl font-bold mb-2 text-gray-900">{misi.title}</h4>
+                      <p className="text-gray-600 font-light leading-relaxed text-sm md:text-base">{misi.desc}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+
           </div>
         </div>
       </section>
+
+      {/* 5. MITRA KOLABORATOR */}
+      <section className="py-20 md:py-32 bg-[#F8FBF9] border-t border-gray-100">
+        <div className="max-w-7xl mx-auto px-6 text-center">
+          <motion.div {...fadeUp} className="max-w-2xl mx-auto mb-16">
+            <h2 className="text-3xl md:text-5xl font-black text-gray-900 mb-6 tracking-tight">Mitra Kolaborator</h2>
+            <p className="text-gray-600 text-base md:text-xl font-light leading-relaxed">
+              Langkah besar ini terwujud berkat sinergi dari mitra dan kolaborator strategis kami.
+            </p>
+          </motion.div>
+
+          <motion.div 
+            {...fadeUp} 
+            transition={{ delay: 0.2 }}
+            className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-8 md:gap-12 items-center justify-items-center"
+          >
+            {PARTNERS.map((partner) => (
+              <a 
+                key={partner.name} 
+                href={partner.href}
+                target="_blank"
+                rel="noreferrer"
+                className="flex items-center justify-center w-full h-20 hover:scale-110 transition-all duration-300"
+              >
+                <img 
+                  src={partner.src} 
+                  alt={`Logo ${partner.name}`} 
+                  className={`w-auto object-contain mix-blend-multiply ${partner.sizeClass}`}
+                />
+              </a>
+            ))}
+          </motion.div>
+        </div>
+      </section>
+
     </div>
   );
 }

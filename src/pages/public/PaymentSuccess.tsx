@@ -16,7 +16,7 @@ export default function PaymentSuccess() {
   } | null;
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 py-12 sm:py-20">
+    <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 pt-24 pb-12 sm:pt-32 sm:pb-20">
       <div className="relative w-full max-w-xl overflow-hidden rounded-[2rem] border border-gray-100 bg-white p-6 text-center shadow-xl shadow-emerald-100 sm:rounded-[3rem] sm:p-10 md:p-16 md:shadow-2xl">
         {/* Dekorasi Latar Belakang Geometris */}
         <div className="absolute top-0 left-0 w-full h-2 bg-emerald-500" />
