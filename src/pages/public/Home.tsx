@@ -108,11 +108,24 @@ export default function Home() {
             transition={{ duration: 1.2, ease: 'easeInOut' }}
             className="absolute inset-0 overflow-hidden"
           >
-            <img
-              src={currentSlide.imageUrl}
-              alt={currentSlide.title}
-              className="size-full object-cover"
-            />
+            {currentSlide.videoUrl ? (
+              <video
+                src={currentSlide.videoUrl}
+                autoPlay
+                muted
+                loop
+                playsInline
+                className="size-full object-cover"
+              />
+            ) : currentSlide.imageUrl ? (
+              <img
+                src={currentSlide.imageUrl}
+                alt={currentSlide.title}
+                className="size-full object-cover"
+              />
+            ) : (
+              <div className="size-full bg-emerald-950" />
+            )}
             <div className="absolute inset-0 bg-gradient-to-t from-gray-950 via-gray-950/60 to-gray-950/20" />
           </motion.div>
         </AnimatePresence>
@@ -557,7 +570,7 @@ export default function Home() {
             {/* Image */}
             <div className="relative aspect-[16/10] lg:aspect-auto order-1 lg:order-2">
               <img
-                src="https://jfzvlzxslmgnssxekcme.supabase.co/storage/v1/object/public/campaign-assets/updates-demo/fundraising_milestone_1777146436734.png"
+                src=""
                 alt="Kebersamaan"
                 className="w-full h-full object-cover"
                 loading="lazy"

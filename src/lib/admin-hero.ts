@@ -8,6 +8,7 @@ export interface HeroSlide {
   title: string;
   subtitle: string;
   imageUrl: string;
+  videoUrl?: string;
 }
 
 export interface HeroContent {
@@ -23,7 +24,7 @@ export const DEFAULT_HERO_SLIDES: HeroSlide[] = [
     id: 'default-1',
     title: 'GOTONG ROYONG BENERIN 1000 SEKOLAH',
     subtitle: 'Membangun harapan dan masa depan anak Indonesia melalui ruang belajar yang aman dan layak.',
-    imageUrl: 'https://jfzvlzxslmgnssxekcme.supabase.co/storage/v1/object/public/campaign-assets/updates-demo/school_construction_1777146387719.png',
+    imageUrl: '',
   },
 ];
 

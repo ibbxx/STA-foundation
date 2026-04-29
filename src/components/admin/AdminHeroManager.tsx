@@ -125,6 +125,18 @@ function SlideCard({
             className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-600 outline-none placeholder:text-slate-300 focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900"
           />
         </div>
+        <div>
+          <label className="mb-1 block text-[11px] font-bold uppercase tracking-wider text-slate-400">
+            Video URL (Supabase/External)
+          </label>
+          <input
+            type="text"
+            value={slide.videoUrl || ''}
+            onChange={(e) => onUpdate(slide.id, 'videoUrl', e.target.value)}
+            placeholder="Contoh: https://.../hero.mp4"
+            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-900 outline-none placeholder:text-slate-300 placeholder:font-normal focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900"
+          />
+        </div>
       </div>
     </div>
   );
@@ -194,9 +206,9 @@ export default function AdminHeroManager() {
     setError(null);
 
     // Validasi
-    const invalid = slides.find((s) => !s.title.trim() || !s.imageUrl.trim());
+    const invalid = slides.find((s) => !s.title.trim() || (!s.imageUrl.trim() && !s.videoUrl?.trim()));
     if (invalid) {
-      setError('Setiap slide harus punya judul dan gambar. Lengkapi dulu.');
+      setError('Setiap slide harus punya judul dan setidaknya satu media (gambar atau video).');
       return;
     }
 
