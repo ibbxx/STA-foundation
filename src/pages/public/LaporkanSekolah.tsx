@@ -432,7 +432,7 @@ export default function LaporkanSekolah() {
                             {currentStep === REPORT_SCHOOL_STEPS.length - 1 && (
                               <div className="mt-8 flex justify-center">
                                 <Turnstile
-                                  siteKey={import.meta.env.VITE_TURNSTILE_SITE_KEY || '0x4AAAAAADDxv-_d95-X9IVJ'}
+                                  siteKey={import.meta.env.VITE_TURNSTILE_SITE_KEY || '1x00000000000000000000AA'}
                                   onSuccess={(token) => {
                                     setTurnstileToken(token);
                                     setSpamError(null);
