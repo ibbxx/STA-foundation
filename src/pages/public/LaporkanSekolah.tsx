@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Turnstile } from '@marsidev/react-turnstile';
+import { SecureTurnstile } from '../../components/shared/SecureTurnstile';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { AnimatePresence, motion } from 'framer-motion';
 import { CheckCircle2, ShieldCheck, HeartHandshake, Search, ShieldCheck as ShieldIcon, Wand2, ArrowRight, X } from 'lucide-react';
@@ -428,16 +428,19 @@ export default function LaporkanSekolah() {
                               </div>
                             )}
 
-                            {/* Turnstile */}
+                            {/* Turnstile Kustom yang Resilient */}
                             {currentStep === REPORT_SCHOOL_STEPS.length - 1 && (
                               <div className="mt-8 flex justify-center">
-                                <Turnstile
-                                  siteKey={import.meta.env.VITE_TURNSTILE_SITE_KEY || '1x00000000000000000000AA'}
+                                <SecureTurnstile
+                                  siteKey={import.meta.env.VITE_TURNSTILE_SITE_KEY}
                                   onSuccess={(token) => {
                                     setTurnstileToken(token);
                                     setSpamError(null);
                                   }}
-                                  onError={() => setSpamError('Gagal memuat verifikasi keamanan. Coba refresh halaman.')}
+                                  onError={(err) => {
+                                    console.error("Turnstile failed", err);
+                                    setSpamError('Verifikasi keamanan terganggu. Anda dapat mencoba klik "Gunakan Jalur Cadangan" di atas.');
+                                  }}
                                 />
                               </div>
                             )}
