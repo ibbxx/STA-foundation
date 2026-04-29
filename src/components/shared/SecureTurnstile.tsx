@@ -14,6 +14,7 @@ interface SecureTurnstileProps {
  * agar flow pelaporan tidak terblokir permanen bagi pengguna.
  */
 const CLOUDFLARE_DUMMY_KEY = '1x00000000000000000000AA';
+const USER_SITE_KEY = '0x4AAAAAADDxv-_d95-X9IVJ';
 
 declare global {
   interface Window {
@@ -34,11 +35,11 @@ export function SecureTurnstile({ onSuccess, onError, siteKey, theme = 'light' }
   const [status, setStatus] = useState<'loading' | 'ready' | 'error' | 'fallback'>('loading');
   const [debugMsg, setDebugMsg] = useState<string>('');
 
-  // 1. Dapatkan kunci utama (Prioritas: Prop > Env > Dummy)
+  // 1. Dapatkan kunci utama (Prioritas: Prop > Env > User Key > Dummy)
   const envKey = import.meta.env.VITE_TURNSTILE_SITE_KEY;
-  const primaryKey = siteKey || envKey || CLOUDFLARE_DUMMY_KEY;
+  const primaryKey = siteKey || envKey || USER_SITE_KEY || CLOUDFLARE_DUMMY_KEY;
   
-  // Gunakan state untuk melacak kunci mana yang sedang dicoba (bisa berubah ke fallback)
+  // Gunakan state untuk melacak kunci mana yang sedang dicoba
   const [activeSiteKey, setActiveSiteKey] = useState<string>(primaryKey);
 
   // 2. Injeksi Script Cloudflare dengan aman
