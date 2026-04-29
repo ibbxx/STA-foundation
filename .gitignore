@@ -10,5 +10,4 @@ coverage/
 # Local assets & tools
 tmp/
 tools/
-public/mitra/
 public/cropped-*
