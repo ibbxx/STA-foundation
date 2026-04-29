@@ -6,7 +6,8 @@ const defaultBucket = (import.meta as any).env?.VITE_SUPABASE_STORAGE_BUCKET || 
 const campaignAssetsBucket = (import.meta as any).env?.VITE_SUPABASE_CAMPAIGN_ASSETS_BUCKET || 'campaign-assets';
 
 // --- Konstanta Validasi ---
-const ALLOWED_TYPES = ['image/jpeg', 'image/webp'];
+const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+const ALLOWED_VIDEO_TYPES = ['video/mp4', 'video/quicktime'];
 const MAX_RAW_SIZE_MB = 5;
 const COMPRESS_TARGET_MB = 0.4;
 const MAX_DIMENSION = 1920;
@@ -17,22 +18,26 @@ type UploadOptions = {
   skipCompression?: boolean;
 };
 
-/**
- * Kompres gambar sebelum upload.
- * Konversi otomatis ke webp, target ~400KB, resolusi maks 1920px.
- */
+function validateFile(file: File, skipCompression: boolean): void {
+  const isImage = ALLOWED_IMAGE_TYPES.includes(file.type);
+  const isVideo = ALLOWED_VIDEO_TYPES.includes(file.type);
+
+  if (!isImage && !isVideo) {
+    throw new Error(`Format file "${file.type}" tidak didukung. Gunakan JPG, PNG, atau MP4.`);
+  }
+
+  if (isVideo && !skipCompression) {
+    // Video tidak dikompres oleh library ini, jadi harus skipCompression
+    throw new Error('Video harus diunggah dengan opsi skipCompression.');
+  }
+
+  const sizeMB = file.size / (1024 * 1024);
+  if (sizeMB > MAX_RAW_SIZE_MB) {
+    throw new Error(`Ukuran file ${sizeMB.toFixed(1)}MB melebihi batas ${MAX_RAW_SIZE_MB}MB.`);
+  }
+}
+
 async function compressImage(file: File): Promise<File> {
-  // Validasi tipe file
-  if (!ALLOWED_TYPES.includes(file.type) && !file.type.startsWith('image/')) {
-    throw new Error(`Format file "${file.type}" tidak didukung. Gunakan JPEG atau WebP.`);
-  }
-
-  // Validasi ukuran mentah
-  const rawSizeMB = file.size / (1024 * 1024);
-  if (rawSizeMB > MAX_RAW_SIZE_MB) {
-    throw new Error(`Ukuran file ${rawSizeMB.toFixed(1)}MB melebihi batas ${MAX_RAW_SIZE_MB}MB. Perkecil gambar terlebih dahulu.`);
-  }
-
   // Kompres
   const compressed = await imageCompression(file, {
     maxSizeMB: COMPRESS_TARGET_MB,
@@ -47,9 +52,13 @@ async function compressImage(file: File): Promise<File> {
 export async function uploadFileToStorage(file: File, options: UploadOptions = {}) {
   const bucket = options.bucket || defaultBucket;
   const folder = options.folder || 'campaigns';
+  const skipCompression = options.skipCompression || false;
+
+  // Validasi tipe dan ukuran
+  validateFile(file, skipCompression);
 
   // Kompres kecuali di-skip
-  const finalFile = options.skipCompression ? file : await compressImage(file);
+  const finalFile = skipCompression ? file : await compressImage(file);
 
   const fileExtension = options.skipCompression
     ? (file.name.split('.').pop() || 'jpg')
@@ -81,7 +90,9 @@ export async function uploadFileToStorage(file: File, options: UploadOptions = {
 }
 
 export async function uploadAdminImage(file: File, folder: 'campaigns' | 'hero' | 'programs' = 'campaigns') {
-  return uploadFileToStorage(file, { bucket: defaultBucket, folder });
+  // Khusus hero, kita jangan kompres untuk menjaga branding/kualitas asli
+  const skipCompression = folder === 'hero';
+  return uploadFileToStorage(file, { bucket: defaultBucket, folder, skipCompression });
 }
 
 export function getStorageBucketName() {

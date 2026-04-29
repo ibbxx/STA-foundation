@@ -89,7 +89,7 @@ function SlideCard({
         <input
           ref={fileRef}
           type="file"
-          accept="image/*"
+          accept="image/*,video/mp4,video/quicktime"
           className="hidden"
           onChange={(e) => {
             const f = e.target.files?.[0];
