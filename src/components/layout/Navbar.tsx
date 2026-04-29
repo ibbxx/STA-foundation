@@ -37,6 +37,7 @@ export default function Navbar() {
   const navItems = [
     { label: "Beranda", href: "/" },
     { label: "Tentang Kami", href: "/tentang-kami" },
+    { label: "Event", href: "/events" },
     // { label: "Campaign", href: "/campaigns" }, // Hidden for presentation mode
     { label: "Laporkan Sekolah", href: "/laporkan" },
     { label: "Kontak", href: "/kontak" },

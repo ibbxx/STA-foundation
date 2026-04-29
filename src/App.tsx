@@ -14,6 +14,7 @@ const Donate = lazy(() => import('./pages/public/Donate'));
 const PaymentSuccess = lazy(() => import('./pages/public/PaymentSuccess'));
 const About = lazy(() => import('./pages/public/About'));
 const Faq = lazy(() => import('./pages/public/Faq'));
+const Events = lazy(() => import('./pages/public/Events'));
 
 const LaporkanSekolah = lazy(() => import('./pages/public/LaporkanSekolah'));
 const Contact = lazy(() => import('./pages/public/Contact'));
@@ -74,6 +75,7 @@ export default function App() {
         <Route path="/donate/:slug" element={renderWithSuspense(<PublicLayout><Donate /></PublicLayout>)} />
         <Route path="/payment/success" element={renderWithSuspense(<PublicLayout><PaymentSuccess /></PublicLayout>)} />
         <Route path="/tentang-kami" element={renderWithSuspense(<PublicLayout><About /></PublicLayout>)} />
+        <Route path="/events" element={renderWithSuspense(<PublicLayout><Events /></PublicLayout>)} />
         <Route path="/faq" element={renderWithSuspense(<PublicLayout><Faq /></PublicLayout>)} />
 
         <Route path="/laporkan" element={renderWithSuspense(<PublicLayout><LaporkanSekolah /></PublicLayout>)} />

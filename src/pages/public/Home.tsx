@@ -18,7 +18,7 @@ import { fetchPublicCampaigns } from '../../lib/public-campaigns';
 import { getProgramIcon } from '../../lib/program-icons';
 import { PROGRAMS } from '../../lib/programs';
 import { formatCurrency, calculateProgress, cn } from '../../lib/utils';
-
+import InteractiveMap from '../../components/shared/InteractiveMap';
 /* ─────────── Animation Variants ─────────── */
 
 const fadeUp = {
@@ -456,6 +456,44 @@ export default function Home() {
               );
             })}
           </div>
+        </div>
+      </section>
+
+      {/* ═══════ 8.5 · PETA DAMPAK ═══════ */}
+      <section className="py-16 md:py-24 bg-white relative overflow-hidden">
+        <div className="absolute inset-0 bg-gray-50/50 pointer-events-none" />
+        <div className="max-w-7xl mx-auto px-5 sm:px-6 lg:px-8 relative z-10">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: '-50px' }}
+            transition={{ duration: 0.6 }}
+            className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12"
+          >
+            <div className="max-w-2xl">
+              <p className="text-emerald-700 font-bold tracking-widest text-sm uppercase mb-3 flex items-center gap-3">
+                <span className="w-8 md:w-10 h-[2px] bg-emerald-600"></span>
+                Peta Sebaran
+              </p>
+              <h2 className="text-3xl md:text-4xl lg:text-5xl font-black text-gray-900 leading-tight tracking-tight">
+                Jejak Kebaikan di Pelosok Negeri
+              </h2>
+            </div>
+            <p className="max-w-md text-gray-600 text-[15px] md:text-lg leading-relaxed font-light">
+              Lihat bagaimana kontribusi Anda telah menciptakan senyum dan ruang belajar yang lebih baik bagi anak-anak Indonesia dari Sabang sampai Merauke.
+            </p>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, scale: 0.98 }}
+            whileInView={{ opacity: 1, scale: 1 }}
+            viewport={{ once: true, margin: '-50px' }}
+            transition={{ duration: 0.7, delay: 0.2 }}
+            className="w-full relative rounded-2xl overflow-hidden shadow-2xl shadow-gray-200/50"
+          >
+            {/* InteractiveMap component is loaded here */}
+            <InteractiveMap height="600px" />
+          </motion.div>
         </div>
       </section>
 
