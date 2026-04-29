@@ -34,13 +34,18 @@ export function SecureTurnstile({ onSuccess, onError, siteKey, theme = 'light' }
   const [isScriptLoaded, setIsScriptLoaded] = useState(!!window.turnstile);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error' | 'fallback'>('loading');
   const [debugMsg, setDebugMsg] = useState<string>('');
-
-  // 1. Dapatkan kunci utama (Prioritas: Prop > Env > User Key > Dummy)
+  // 1. Dapatkan kunci utama (Prioritas: User Key > Env > Prop > Dummy)
+  // Kita utamakan USER_SITE_KEY yang sudah pasti benar dari Cloudflare Dashboard Anda
   const envKey = import.meta.env.VITE_TURNSTILE_SITE_KEY;
-  const primaryKey = siteKey || envKey || USER_SITE_KEY || CLOUDFLARE_DUMMY_KEY;
+  const primaryKey = USER_SITE_KEY || siteKey || envKey || CLOUDFLARE_DUMMY_KEY;
   
   // Gunakan state untuk melacak kunci mana yang sedang dicoba
   const [activeSiteKey, setActiveSiteKey] = useState<string>(primaryKey);
+  const [hostname, setHostname] = useState<string>('');
+
+  useEffect(() => {
+    setHostname(window.location.hostname);
+  }, []);
 
   // 2. Injeksi Script Cloudflare dengan aman
   useEffect(() => {
@@ -104,7 +109,7 @@ export function SecureTurnstile({ onSuccess, onError, siteKey, theme = 'light' }
           logError('Turnstile.errorCallback', new Error(err));
           
           setStatus('error');
-          setDebugMsg(`Kunci Site Key Anda ditolak oleh Cloudflare (Error: ${err || 'Invalid Domain/Key'}). Pastikan domain sta-foundation.vercel.app sudah didaftarkan.`);
+          setDebugMsg(`Cloudflare menolak akses di domain: ${window.location.hostname}. Pastikan domain ini sudah terdaftar di dashboard Cloudflare Anda.`);
           if (onError) onError(err);
         },
         'timeout-callback': () => {
