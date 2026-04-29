@@ -102,18 +102,9 @@ export function SecureTurnstile({ onSuccess, onError, siteKey, theme = 'light' }
           console.error('[Turnstile] Error:', err);
           logError('Turnstile.errorCallback', new Error(err));
           
-          // JIKA GAGAL KARENA DOMAIN MISMATCH (Error 600010 biasanya mereturn code)
-          // Kita otomatis fallback ke Dummy Key agar user tetap bisa submit form
-          if (activeSiteKey !== CLOUDFLARE_DUMMY_KEY) {
-            console.warn('[Turnstile] Gagal memverifikasi kunci utama. Jatuh kembali (fallback) ke Dummy Key.');
-            setDebugMsg('Domain belum di-whitelist di Cloudflare. Menggunakan koneksi cadangan...');
-            setStatus('fallback');
-            setActiveSiteKey(CLOUDFLARE_DUMMY_KEY);
-          } else {
-            setStatus('error');
-            setDebugMsg(`Verifikasi gagal: ${err || 'Unable to connect'}`);
-            if (onError) onError(err);
-          }
+          setStatus('error');
+          setDebugMsg(`Kunci Site Key Anda ditolak oleh Cloudflare (Error: ${err || 'Invalid Domain/Key'}). Pastikan domain sta-foundation.vercel.app sudah didaftarkan.`);
+          if (onError) onError(err);
         },
         'timeout-callback': () => {
           console.warn('[Turnstile] Timeout');
