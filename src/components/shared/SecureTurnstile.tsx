@@ -80,16 +80,22 @@ export function SecureTurnstile({ onSuccess, onError, siteKey, theme = 'light' }
     };
   }, [onError]);
 
+  // Gunakan ref untuk callback agar tidak memicu re-render widget jika fungsi berubah
+  const onSuccessRef = useRef(onSuccess);
+  const onErrorRef = useRef(onError);
+
+  useEffect(() => {
+    onSuccessRef.current = onSuccess;
+    onErrorRef.current = onError;
+  }, [onSuccess, onError]);
+
   // 3. Render Widget
   useEffect(() => {
     if (!isScriptLoaded || !containerRef.current || !window.turnstile) return;
 
     try {
-      // Bersihkan widget sebelumnya jika ada
-      if (widgetIdRef.current) {
-        window.turnstile.remove(widgetIdRef.current);
-        widgetIdRef.current = null;
-      }
+      // JANGAN hapus widget jika siteKey tidak berubah untuk mencegah looping
+      if (widgetIdRef.current) return;
 
       setStatus('loading');
       
@@ -102,7 +108,7 @@ export function SecureTurnstile({ onSuccess, onError, siteKey, theme = 'light' }
         'retry-interval': 3000,
         callback: (token: string) => {
           setStatus('ready');
-          onSuccess(token);
+          onSuccessRef.current(token);
         },
         'error-callback': (err: string) => {
           console.error('[Turnstile] Error:', err);
@@ -110,13 +116,13 @@ export function SecureTurnstile({ onSuccess, onError, siteKey, theme = 'light' }
           
           setStatus('error');
           setDebugMsg(`Cloudflare menolak akses di domain: ${window.location.hostname}. Pastikan domain ini sudah terdaftar di dashboard Cloudflare Anda.`);
-          if (onError) onError(err);
+          if (onErrorRef.current) onErrorRef.current(err);
         },
         'timeout-callback': () => {
           console.warn('[Turnstile] Timeout');
           setStatus('error');
           setDebugMsg('Koneksi timeout. Silakan cek internet Anda.');
-          if (onError) onError(new Error('Timeout'));
+          if (onErrorRef.current) onErrorRef.current(new Error('Timeout'));
         }
       });
 
@@ -124,16 +130,13 @@ export function SecureTurnstile({ onSuccess, onError, siteKey, theme = 'light' }
       console.error('[Turnstile] Catch Error:', e);
       setStatus('error');
       setDebugMsg('Terjadi kesalahan internal pada widget keamanan.');
-      if (onError) onError(e);
+      if (onErrorRef.current) onErrorRef.current(e);
     }
 
     return () => {
-      if (widgetIdRef.current && window.turnstile) {
-        window.turnstile.remove(widgetIdRef.current);
-        widgetIdRef.current = null;
-      }
+      // Hanya cleanup saat benar-benar unmount atau siteKey berubah
     };
-  }, [isScriptLoaded, activeSiteKey, onSuccess, onError, theme]);
+  }, [isScriptLoaded, activeSiteKey, theme]); // Hapus onSuccess dan onError dari dependency
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[65px] w-full">
