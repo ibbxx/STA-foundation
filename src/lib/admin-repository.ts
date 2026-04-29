@@ -46,6 +46,13 @@ export function updateSchoolReportStatus(reportId: string, update: SchoolReportU
     .eq('id', reportId);
 }
 
+export function deleteSchoolReport(reportId: string) {
+  return supabase
+    .from('school_reports')
+    .delete()
+    .eq('id', reportId);
+}
+
 export function fetchProgramRows() {
   return supabase
     .from('programs')

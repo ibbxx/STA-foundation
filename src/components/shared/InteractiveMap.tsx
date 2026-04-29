@@ -1,38 +1,61 @@
-import React, { useMemo } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
-import { ArrowRight, MapPinned } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import Map, { Marker, Popup } from 'react-map-gl/maplibre';
+import type { MapRef } from '@vis.gl/react-maplibre';
+import type { LngLatBoundsLike } from 'maplibre-gl';
+import 'maplibre-gl/dist/maplibre-gl.css';
+import { ArrowRight, MapPinned, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import type { EventMapLocation } from '../../lib/public-events';
+import { cn } from '../../lib/utils';
 
-// Custom Map Marker using HTML/Tailwind
-const createCustomIcon = () => {
-  return L.divIcon({
-    className: 'custom-map-icon',
-    html: `
-      <div class="relative flex h-8 w-8 items-center justify-center">
-        <div class="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-40"></div>
-        <div class="relative flex h-6 w-6 items-center justify-center rounded-full bg-emerald-600 shadow-lg border-2 border-white text-white">
-          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
-        </div>
-      </div>
-    `,
-    iconSize: [32, 32],
-    iconAnchor: [16, 32],
-    popupAnchor: [0, -32],
-  });
-};
+// MapStyle menggunakan Esri World Imagery (Satelit Resolusi Tinggi, Gratis tanpa API Key)
+const ESRI_SATELLITE_STYLE = {
+  version: 8,
+  sources: {
+    'esri-satellite': {
+      type: 'raster',
+      tiles: [
+        'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+      ],
+      tileSize: 256,
+      attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community',
+    },
+  },
+  layers: [
+    {
+      id: 'satellite-layer',
+      type: 'raster',
+      source: 'esri-satellite',
+      minzoom: 0,
+      maxzoom: 19,
+    },
+  ],
+} as const;
 
 interface InteractiveMapProps {
   locations?: EventMapLocation[];
   height?: string;
+  className?: string;
   emptyTitle?: string;
   emptyDescription?: string;
   scrollWheelZoom?: boolean;
   onLocationSelect?: (location: EventMapLocation) => void;
   useFallbackLocations?: boolean;
+  viewportMode?: 'default' | 'fit-indonesia';
 }
+
+const DESKTOP_VIEW_STATE = {
+  longitude: 118.0,
+  latitude: -2.5,
+  zoom: 4,
+} as const;
+
+const INDONESIA_BOUNDS: LngLatBoundsLike = [
+  [94.0, -11.0],
+  [142.0, 6.5],
+];
+
+
 
 // Default Mock Data for Indonesia
 const DEFAULT_LOCATIONS: EventMapLocation[] = [
@@ -86,19 +109,6 @@ const DEFAULT_LOCATIONS: EventMapLocation[] = [
   },
 ];
 
-function MapBoundsController({ locations }: { locations: EventMapLocation[] }) {
-  const map = useMap();
-
-  React.useEffect(() => {
-    if (locations.length === 0) return;
-
-    const bounds = L.latLngBounds(locations.map((loc) => [loc.latitude, loc.longitude] as [number, number]));
-    map.fitBounds(bounds, { padding: [48, 48], maxZoom: locations.length === 1 ? 8 : 6 });
-  }, [locations, map]);
-
-  return null;
-}
-
 function MapActionButton({ location }: { location: EventMapLocation }) {
   if (!location.actionHref) return null;
 
@@ -108,7 +118,7 @@ function MapActionButton({ location }: { location: EventMapLocation }) {
         href={location.actionHref}
         target="_blank"
         rel="noreferrer"
-        className="flex w-full items-center justify-center gap-1 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-emerald-700"
+        className="flex w-full items-center justify-center gap-1 rounded-lg bg-emerald-500 px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-emerald-600 shadow-sm"
       >
         {location.actionLabel ?? 'Lihat Detail'}
         <ArrowRight className="h-3 w-3" />
@@ -119,7 +129,7 @@ function MapActionButton({ location }: { location: EventMapLocation }) {
   return (
     <Link
       to={location.actionHref}
-      className="flex w-full items-center justify-center gap-1 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-emerald-700"
+      className="flex w-full items-center justify-center gap-1 rounded-lg bg-emerald-500 px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-emerald-600 shadow-sm"
     >
       {location.actionLabel ?? 'Lihat Detail'}
       <ArrowRight className="h-3 w-3" />
@@ -129,95 +139,164 @@ function MapActionButton({ location }: { location: EventMapLocation }) {
 
 export default function InteractiveMap({
   locations,
-  height = '500px',
+  height,
+  className,
   emptyTitle = 'Belum ada event dipublikasikan',
   emptyDescription = 'Lokasi kegiatan akan muncul di sini setelah data peta dampak tersedia.',
   scrollWheelZoom = false,
   onLocationSelect,
   useFallbackLocations = true,
+  viewportMode = 'default',
 }: InteractiveMapProps) {
-  const customIcon = useMemo(() => createCustomIcon(), []);
+  const [popupInfo, setPopupInfo] = useState<EventMapLocation | null>(null);
+  const [mapReady, setMapReady] = useState(false);
+  const mapRef = useRef<MapRef | null>(null);
+
   const hasLocations = Boolean(locations && locations.length > 0);
   const normalizedLocations = hasLocations ? locations! : (useFallbackLocations ? DEFAULT_LOCATIONS : []);
   const shouldShowEmptyOverlay = !hasLocations && !useFallbackLocations;
 
-  // Center on Indonesia
-  const center: [number, number] = [-0.7893, 113.9213]; 
-  const zoom = 5;
+  const mapInitialViewState = DESKTOP_VIEW_STATE;
+
+  const handleMapLoad = (e: any) => {
+    setMapReady(true);
+    if (viewportMode === 'fit-indonesia') {
+      e.target.fitBounds(INDONESIA_BOUNDS, {
+        padding: 16,
+        duration: 0,
+      });
+    }
+  };
+
+  useEffect(() => {
+    if (!mapReady || viewportMode !== 'fit-indonesia') return;
+
+    const map = mapRef.current;
+    if (!map) return;
+
+    map.fitBounds(INDONESIA_BOUNDS, {
+      padding: 16,
+      duration: 300,
+    });
+  }, [mapReady, viewportMode]);
+
+  useEffect(() => {
+    if (!mapReady || viewportMode !== 'fit-indonesia') return;
+
+    const handleResize = () => {
+      mapRef.current?.fitBounds(INDONESIA_BOUNDS, {
+        padding: 16,
+        duration: 0,
+      });
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+    };
+  }, [mapReady, viewportMode]);
 
   return (
-    <div className="relative w-full overflow-hidden rounded-2xl border border-gray-200 bg-gray-50 shadow-sm" style={{ height }}>
+    <div className={cn("relative w-full overflow-hidden rounded-2xl border border-gray-800 bg-[#0a1118] shadow-2xl", className)} style={height ? { height } : undefined}>
       {shouldShowEmptyOverlay && (
-        <div className="pointer-events-none absolute inset-x-4 top-4 z-[500] rounded-2xl border border-amber-200 bg-white/95 px-4 py-3 shadow-sm backdrop-blur-sm">
+        <div className="pointer-events-none absolute inset-x-4 top-4 z-10 rounded-2xl border border-amber-500/30 bg-black/60 px-4 py-3 shadow-sm backdrop-blur-md">
           <div className="flex items-start gap-3">
-            <div className="mt-0.5 rounded-full bg-amber-100 p-2 text-amber-700">
+            <div className="mt-0.5 rounded-full bg-amber-500/20 p-2 text-amber-400">
               <MapPinned className="h-4 w-4" />
             </div>
             <div>
-              <p className="text-sm font-bold text-gray-900">{emptyTitle}</p>
-              <p className="mt-1 text-xs leading-relaxed text-gray-600">{emptyDescription}</p>
+              <p className="text-sm font-bold text-white">{emptyTitle}</p>
+              <p className="mt-1 text-xs leading-relaxed text-gray-300">{emptyDescription}</p>
             </div>
           </div>
         </div>
       )}
-      {/* 
-        Menghilangkan z-index default leaflet yang sering bentrok dengan navbar/modal 
-        dengan mengatur z-index root map container.
-      */}
-      <MapContainer 
-        center={center} 
-        zoom={zoom} 
-        scrollWheelZoom={scrollWheelZoom}
-        className="z-0 h-full w-full"
+
+      {/* MapLibre GL JS Wrapper */}
+      <Map
+        ref={mapRef}
+        initialViewState={mapInitialViewState}
+        maxBounds={INDONESIA_BOUNDS}
+        style={{ width: '100%', height: '100%' }}
+        mapStyle={ESRI_SATELLITE_STYLE as any}
+        scrollZoom={scrollWheelZoom}
+        dragRotate={false}
+        touchPitch={false}
+        onLoad={handleMapLoad}
       >
-        {/* Menggunakan CartoDB Positron untuk tampilan peta yang bersih dan terang */}
-        <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
-          url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
-        />
-
-        <MapBoundsController locations={normalizedLocations} />
-
         {normalizedLocations.map((loc) => (
-          <Marker 
-            key={loc.id} 
-            position={[loc.latitude, loc.longitude]} 
-            icon={customIcon}
-            eventHandlers={{
-              click: () => onLocationSelect?.(loc),
+          <Marker
+            key={loc.id}
+            longitude={loc.longitude}
+            latitude={loc.latitude}
+            anchor="bottom"
+            onClick={e => {
+              e.originalEvent.stopPropagation();
+              setPopupInfo(loc);
+              onLocationSelect?.(loc);
             }}
           >
-            <Popup className="custom-leaflet-popup">
-              <div className="flex w-64 flex-col overflow-hidden rounded-xl border-0">
-                <div className="relative h-32 w-full overflow-hidden">
-                  <img 
-                    src={loc.imageUrl} 
-                    alt={loc.title} 
-                    className="h-full w-full object-cover"
-                  />
-                  <div className="absolute left-2 top-2 rounded-md bg-white/90 px-2 py-1 text-[10px] font-bold tracking-wider text-emerald-700 backdrop-blur-sm uppercase">
-                    {loc.status}
-                  </div>
-                </div>
-                <div className="p-4">
-                  <h3 className="mb-1 text-sm font-bold text-gray-900 leading-tight line-clamp-2">
-                    {loc.title}
-                  </h3>
-                  {loc.locationLabel ? (
-                    <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.15em] text-emerald-700">
-                      {loc.locationLabel}
-                    </p>
-                  ) : null}
-                  <p className="mb-3 text-xs text-gray-600 line-clamp-2">
-                    {loc.description}
-                  </p>
-                  <MapActionButton location={loc} />
-                </div>
+            {/* Premium Animated Map Marker */}
+            <div className="relative flex h-8 w-8 cursor-pointer items-center justify-center">
+              <div className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-70"></div>
+              <div className="relative flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.8)] border-2 border-white text-white transition-transform duration-300 hover:scale-125 hover:bg-emerald-400">
               </div>
-            </Popup>
+            </div>
           </Marker>
         ))}
-      </MapContainer>
+
+        {popupInfo && (
+          <Popup
+            anchor="bottom"
+            longitude={popupInfo.longitude}
+            latitude={popupInfo.latitude}
+            onClose={() => setPopupInfo(null)}
+            closeButton={false} // Kita custom close button sendiri
+            offset={20}
+            className="maplibre-satellite-popup"
+            maxWidth="300px"
+          >
+            <div className="relative flex w-56 sm:w-64 flex-col overflow-hidden rounded-xl bg-gray-900/90 backdrop-blur-xl border border-white/10 shadow-2xl">
+              {/* Custom Close Button */}
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setPopupInfo(null);
+                }}
+                className="absolute top-2 right-2 z-10 rounded-full bg-black/40 p-1.5 text-white/80 hover:bg-black/80 hover:text-white transition-colors backdrop-blur-md"
+              >
+                <X className="h-3 w-3" />
+              </button>
+
+              <div className="relative h-36 w-full overflow-hidden bg-gray-800">
+                <img 
+                  src={popupInfo.imageUrl} 
+                  alt={popupInfo.title} 
+                  className="h-full w-full object-cover opacity-90 transition-opacity hover:opacity-100"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-gray-900/90 to-transparent"></div>
+                <div className="absolute left-3 bottom-3 rounded-md bg-emerald-500/90 px-2 py-1 text-[10px] font-bold tracking-wider text-white backdrop-blur-sm uppercase shadow-sm">
+                  {popupInfo.status}
+                </div>
+              </div>
+              <div className="p-4 pt-3">
+                <h3 className="mb-1 text-sm font-bold text-white leading-tight line-clamp-2">
+                  {popupInfo.title}
+                </h3>
+                {popupInfo.locationLabel && (
+                  <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.15em] text-emerald-400">
+                    {popupInfo.locationLabel}
+                  </p>
+                )}
+                <p className="mb-4 text-xs text-gray-300 line-clamp-2 leading-relaxed">
+                  {popupInfo.description}
+                </p>
+                <MapActionButton location={popupInfo} />
+              </div>
+            </div>
+          </Popup>
+        )}
+      </Map>
     </div>
   );
 }

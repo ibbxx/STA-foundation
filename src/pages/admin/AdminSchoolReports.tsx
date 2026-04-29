@@ -1,8 +1,8 @@
-import { AlertCircle, Ban, CheckCircle2, Eye, MapPin, Phone, RefreshCw, School, Search, ShieldCheck } from 'lucide-react';
+import { AlertCircle, Ban, CheckCircle2, Eye, MapPin, Phone, RefreshCw, School, Search, ShieldCheck, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import AdminModal from '../../components/admin/AdminModal';
 import { formatAdminDate } from '../../lib/admin-helpers';
-import { addToBlacklist, fetchSchoolReportRows, updateSchoolReportStatus } from '../../lib/admin-repository';
+import { addToBlacklist, deleteSchoolReport, fetchSchoolReportRows, updateSchoolReportStatus } from '../../lib/admin-repository';
 import {
   buildReportSummary,
   filterReports,
@@ -10,6 +10,7 @@ import {
   type ReportStatus,
 } from '../../lib/admin-view-models';
 import { logError } from '../../lib/error-logger';
+import { deleteFilesFromStorage } from '../../lib/supabase-storage';
 import { SchoolReportRow } from '../../lib/supabase';
 import { cn } from '../../lib/utils';
 
@@ -17,10 +18,13 @@ export default function AdminSchoolReports() {
   const [reports, setReports] = useState<SchoolReportRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | ReportStatus>('all');
   const [selectedReport, setSelectedReport] = useState<SchoolReportRow | null>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [bulkUpdating, setBulkUpdating] = useState(false);
 
   async function loadReports() {
     setLoading(true);
@@ -50,8 +54,25 @@ export default function AdminSchoolReports() {
   );
 
   const summary = useMemo(() => buildReportSummary(reports), [reports]);
+  const selectedIdSet = useMemo(() => new Set(selectedIds), [selectedIds]);
+  const visibleReportIds = useMemo(() => filteredReports.map((report) => report.id), [filteredReports]);
+  const selectedReports = useMemo(
+    () => reports.filter((report) => selectedIdSet.has(report.id)),
+    [reports, selectedIdSet],
+  );
+  const selectedVisibleCount = useMemo(
+    () => filteredReports.filter((report) => selectedIdSet.has(report.id)).length,
+    [filteredReports, selectedIdSet],
+  );
+  const allVisibleSelected = filteredReports.length > 0 && selectedVisibleCount === filteredReports.length;
+
+  useEffect(() => {
+    setSelectedIds((current) => current.filter((id) => reports.some((report) => report.id === id)));
+  }, [reports]);
 
   async function updateStatus(report: SchoolReportRow, nextStatus: ReportStatus) {
+    setError(null);
+    setNotice(null);
     setUpdatingId(report.id);
     const { error: updateError } = await updateSchoolReportStatus(report.id, { status: nextStatus });
 
@@ -69,9 +90,120 @@ export default function AdminSchoolReports() {
     await loadReports();
   }
 
+  function toggleReportSelection(reportId: string) {
+    setSelectedIds((current) => (
+      current.includes(reportId)
+        ? current.filter((id) => id !== reportId)
+        : [...current, reportId]
+    ));
+  }
+
+  function toggleSelectAllVisible() {
+    setSelectedIds((current) => {
+      if (allVisibleSelected) {
+        return current.filter((id) => !visibleReportIds.includes(id));
+      }
+
+      const next = new Set(current);
+      visibleReportIds.forEach((id) => next.add(id));
+      return Array.from(next);
+    });
+  }
+
+  async function deleteReports(reportsToDelete: SchoolReportRow[]) {
+    const deletedIds: string[] = [];
+    const failedNames: string[] = [];
+
+    setError(null);
+    setNotice(null);
+
+    if (reportsToDelete.length === 1) {
+      setUpdatingId(reportsToDelete[0].id);
+    } else {
+      setBulkUpdating(true);
+    }
+
+    for (const report of reportsToDelete) {
+      const imageUrls = getReportImageUrls(report.image_urls);
+      const { error: deleteError } = await deleteSchoolReport(report.id);
+
+      if (deleteError) {
+        logError('AdminSchoolReports.deleteReport', deleteError, {
+          reportId: report.id,
+        });
+        failedNames.push(report.school_name);
+        continue;
+      }
+
+      deletedIds.push(report.id);
+
+      if (imageUrls.length > 0) {
+        const result = await deleteFilesFromStorage(imageUrls);
+        if (result.failed > 0) {
+          logError('AdminSchoolReports.storageCleanupAfterDelete', new Error('Sebagian file storage gagal dihapus.'), {
+            reportId: report.id,
+            deleted: result.deleted,
+            failed: result.failed,
+          });
+        }
+      }
+    }
+
+    setUpdatingId(null);
+    setBulkUpdating(false);
+
+    if (deletedIds.length > 0) {
+      setSelectedIds((current) => current.filter((id) => !deletedIds.includes(id)));
+      if (selectedReport && deletedIds.includes(selectedReport.id)) {
+        setSelectedReport(null);
+      }
+    }
+
+    if (deletedIds.length > 0 && failedNames.length === 0) {
+      setNotice(
+        reportsToDelete.length === 1
+          ? `Laporan "${reportsToDelete[0].school_name}" berhasil dihapus.`
+          : `${deletedIds.length} laporan berhasil dihapus.`
+      );
+    }
+
+    if (deletedIds.length > 0 && failedNames.length > 0) {
+      setNotice(`${deletedIds.length} laporan berhasil dihapus.`);
+      setError(`Sebagian laporan gagal dihapus: ${failedNames.join(', ')}`);
+    }
+
+    if (deletedIds.length === 0 && failedNames.length > 0) {
+      setError(`Gagal menghapus laporan: ${failedNames.join(', ')}`);
+    }
+
+    await loadReports();
+  }
+
+  async function handleDeleteReport(report: SchoolReportRow) {
+    const confirmed = window.confirm(
+      `Apakah Anda yakin ingin menghapus laporan "${report.school_name}"?\n\nTindakan ini tidak dapat dibatalkan dan data laporan akan hilang permanen.`
+    );
+    if (!confirmed) return;
+
+    await deleteReports([report]);
+  }
+
+  async function handleBulkDelete() {
+    if (selectedReports.length === 0) return;
+
+    const confirmed = window.confirm(
+      `Apakah Anda yakin ingin menghapus ${selectedReports.length} laporan terpilih?\n\nTindakan ini tidak dapat dibatalkan dan semua data terpilih akan hilang permanen.`
+    );
+    if (!confirmed) return;
+
+    await deleteReports(selectedReports);
+  }
+
   async function blockSpammer(report: SchoolReportRow) {
     if (!confirm(`Blokir pelapor "${report.reporter_name}"?\n\nNomor WA dan IP akan dimasukkan ke daftar hitam permanen.`)) return;
 
+    setError(null);
+    setNotice(null);
     setUpdatingId(report.id);
 
     // Block WA number
@@ -165,12 +297,57 @@ export default function AdminSchoolReports() {
           </div>
         </div>
 
+        {selectedIds.length > 0 && (
+          <div className="mx-4 mt-4 rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm font-medium text-slate-700">
+              {selectedIds.length} laporan dipilih.
+            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={toggleSelectAllVisible}
+                disabled={bulkUpdating}
+                className="px-3 py-2 text-xs font-semibold uppercase tracking-wider text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors disabled:opacity-50"
+              >
+                {allVisibleSelected ? 'Batal pilih halaman ini' : 'Pilih semua hasil filter'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedIds([])}
+                disabled={bulkUpdating}
+                className="px-3 py-2 text-xs font-semibold uppercase tracking-wider text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors disabled:opacity-50"
+              >
+                Reset Pilihan
+              </button>
+              <button
+                type="button"
+                onClick={handleBulkDelete}
+                disabled={bulkUpdating}
+                className="px-3 py-2 text-xs font-semibold uppercase tracking-wider text-rose-700 bg-rose-50 border border-rose-200 rounded-xl hover:bg-rose-100 transition-colors disabled:opacity-50 flex items-center gap-2"
+              >
+                <Trash2 size={14} />
+                Hapus Terpilih
+              </button>
+            </div>
+          </div>
+        )}
+
         {error && (
           <div className="m-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 flex items-start gap-3">
             <AlertCircle size={18} className="mt-0.5 shrink-0" />
             <div>
               <p className="font-semibold">Gagal memuat laporan.</p>
               <p className="mt-1">{error}</p>
+            </div>
+          </div>
+        )}
+
+        {notice && (
+          <div className="m-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 flex items-start gap-3">
+            <CheckCircle2 size={18} className="mt-0.5 shrink-0" />
+            <div>
+              <p className="font-semibold">Perubahan berhasil disimpan.</p>
+              <p className="mt-1">{notice}</p>
             </div>
           </div>
         )}
@@ -184,6 +361,16 @@ export default function AdminSchoolReports() {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-slate-50/50 border-b border-slate-100 text-xs font-semibold tracking-wider text-slate-500 uppercase">
+                  <th className="px-6 py-4 w-12">
+                    <input
+                      type="checkbox"
+                      checked={allVisibleSelected}
+                      onChange={toggleSelectAllVisible}
+                      disabled={filteredReports.length === 0 || bulkUpdating}
+                      aria-label="Pilih semua laporan yang sedang tampil"
+                      className="h-4 w-4 rounded border-slate-300 text-zinc-900 focus:ring-zinc-900"
+                    />
+                  </th>
                   <th className="px-6 py-4">Sekolah</th>
                   <th className="px-6 py-4">Pelapor</th>
                   <th className="px-6 py-4">Lokasi</th>
@@ -195,6 +382,16 @@ export default function AdminSchoolReports() {
               <tbody className="divide-y divide-slate-100">
                 {filteredReports.map((report) => (
                   <tr key={report.id} className="group transition-colors hover:bg-slate-50/50">
+                    <td className="px-6 py-4 align-top">
+                      <input
+                        type="checkbox"
+                        checked={selectedIdSet.has(report.id)}
+                        onChange={() => toggleReportSelection(report.id)}
+                        disabled={bulkUpdating}
+                        aria-label={`Pilih laporan ${report.school_name}`}
+                        className="mt-0.5 h-4 w-4 rounded border-slate-300 text-zinc-900 focus:ring-zinc-900"
+                      />
+                    </td>
                     <td className="px-6 py-4">
                       <p className="text-sm font-semibold text-slate-900 truncate max-w-[200px]" title={report.school_name}>{report.school_name}</p>
                       <p className="mt-1 max-w-[200px] text-xs text-slate-500 truncate" title={report.description}>{report.description}</p>
@@ -235,7 +432,7 @@ export default function AdminSchoolReports() {
                           <button
                             type="button"
                             onClick={() => updateStatus(report, 'verified')}
-                            disabled={updatingId === report.id}
+                            disabled={bulkUpdating || updatingId === report.id}
                             className="p-2 text-slate-400 hover:text-sky-600 hover:bg-sky-50 rounded-lg transition-colors disabled:opacity-50"
                             title="Tandai verified"
                           >
@@ -246,13 +443,22 @@ export default function AdminSchoolReports() {
                           <button
                             type="button"
                             onClick={() => updateStatus(report, 'actioned')}
-                            disabled={updatingId === report.id}
+                            disabled={bulkUpdating || updatingId === report.id}
                             className="p-2 text-slate-400 hover:text-zinc-900 hover:bg-zinc-100 rounded-lg transition-colors disabled:opacity-50"
                             title="Tandai actioned"
                           >
                             <CheckCircle2 size={16} />
                           </button>
                         )}
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteReport(report)}
+                          disabled={bulkUpdating || updatingId === report.id}
+                          className="p-2 text-slate-400 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-colors disabled:opacity-50"
+                          title="Hapus laporan"
+                        >
+                          <Trash2 size={16} />
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -276,7 +482,7 @@ export default function AdminSchoolReports() {
                 <button
                   type="button"
                   onClick={() => updateStatus(selectedReport, 'verified')}
-                  disabled={updatingId === selectedReport.id}
+                  disabled={bulkUpdating || updatingId === selectedReport.id}
                   className="px-4 py-2 text-sm font-medium text-sky-700 bg-sky-50 border border-sky-200 rounded-xl hover:bg-sky-100 transition-colors disabled:opacity-50"
                 >
                   Verifikasi Laporan
@@ -286,7 +492,7 @@ export default function AdminSchoolReports() {
                 <button
                   type="button"
                   onClick={() => updateStatus(selectedReport, 'actioned')}
-                  disabled={updatingId === selectedReport.id}
+                  disabled={bulkUpdating || updatingId === selectedReport.id}
                   className="px-4 py-2 text-sm font-medium text-white bg-zinc-900 rounded-xl hover:bg-zinc-950 transition-colors disabled:opacity-50"
                 >
                   Tandai Selesai (Actioned)
@@ -295,11 +501,20 @@ export default function AdminSchoolReports() {
               <button
                 type="button"
                 onClick={() => blockSpammer(selectedReport)}
-                disabled={updatingId === selectedReport.id}
+                disabled={bulkUpdating || updatingId === selectedReport.id}
                 className="px-4 py-2 text-sm font-medium text-rose-700 bg-rose-50 border border-rose-200 rounded-xl hover:bg-rose-100 transition-colors disabled:opacity-50 flex items-center gap-2"
               >
                 <Ban size={14} />
                 Blokir Spammer
+              </button>
+              <button
+                type="button"
+                onClick={() => handleDeleteReport(selectedReport)}
+                disabled={bulkUpdating || updatingId === selectedReport.id}
+                className="px-4 py-2 text-sm font-medium text-rose-700 bg-rose-50 border border-rose-200 rounded-xl hover:bg-rose-100 transition-colors disabled:opacity-50 flex items-center gap-2"
+              >
+                <Trash2 size={14} />
+                Hapus Laporan
               </button>
               <button
                 type="button"

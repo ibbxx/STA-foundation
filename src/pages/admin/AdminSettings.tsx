@@ -10,17 +10,15 @@ import {
   Plus,
   RefreshCw,
   Save,
-  Settings2,
   ShieldAlert,
   Trash2,
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import AdminModal from '../../components/admin/AdminModal';
+import AdminHeroManager from '../../components/admin/AdminHeroManager';
 import {
-  AdminHeroSettingsValues,
   AdminSiteContentValues,
-  adminHeroSettingsSchema,
   adminSiteContentSchema,
 } from '../../lib/admin-schemas';
 import { formatAdminDate, previewJson } from '../../lib/admin-helpers';
@@ -30,18 +28,14 @@ import {
   insertSiteContent,
   listStorageBuckets,
   updateSiteContent,
-  upsertSiteContent,
 } from '../../lib/admin-repository';
 import {
-  buildHeroValues,
   defaultContentValues,
-  defaultHeroValues,
   heroKeys,
   stringifySiteContentValue,
 } from '../../lib/admin-view-models';
 import { logError } from '../../lib/error-logger';
 import { SiteContentInsert, SiteContentRow } from '../../lib/supabase';
-import { cn } from '../../lib/utils';
 
 export default function AdminSettings() {
   const [entries, setEntries] = useState<SiteContentRow[]>([]);
@@ -51,17 +45,11 @@ export default function AdminSettings() {
   const [mode, setMode] = useState<'create' | 'edit' | null>(null);
   const [editingEntry, setEditingEntry] = useState<SiteContentRow | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [heroSaving, setHeroSaving] = useState(false);
   const [storageStatus, setStorageStatus] = useState<{
     siteMedia: boolean;
     campaignAssets: boolean;
     checking: boolean;
   }>({ siteMedia: false, campaignAssets: false, checking: false });
-
-  const heroForm = useForm<AdminHeroSettingsValues>({
-    resolver: zodResolver(adminHeroSettingsSchema),
-    defaultValues: defaultHeroValues,
-  });
 
   const contentForm = useForm<AdminSiteContentValues>({
     resolver: zodResolver(adminSiteContentSchema),
@@ -84,7 +72,6 @@ export default function AdminSettings() {
 
     const nextEntries = data ?? [];
     setEntries(nextEntries);
-    heroForm.reset(buildHeroValues(nextEntries));
     setLoading(false);
     checkStorageBuckets();
   }
@@ -127,41 +114,6 @@ export default function AdminSettings() {
     if (entries.length === 0) return '-';
     return formatAdminDate(entries[0].updated_at, true);
   }, [entries]);
-
-  const heroConfiguredCount = useMemo(
-    () => entries.filter((entry) => heroKeys.includes(entry.key as (typeof heroKeys)[number])).length,
-    [entries],
-  );
-
-  async function handleHeroSubmit(values: AdminHeroSettingsValues) {
-    setNotice(null);
-    setError(null);
-    setHeroSaving(true);
-
-    const payload: SiteContentInsert[] = [
-      { key: 'hero_title', value: values.hero_title.trim() },
-      { key: 'hero_description', value: values.hero_description.trim() },
-      { key: 'hero_primary_label', value: values.hero_primary_label.trim() },
-      { key: 'hero_primary_link', value: values.hero_primary_link.trim() },
-      { key: 'hero_secondary_label', value: values.hero_secondary_label.trim() || null },
-      { key: 'hero_secondary_link', value: values.hero_secondary_link.trim() || null },
-    ];
-
-    const { error: submitError } = await upsertSiteContent(payload);
-
-    if (submitError) {
-      logError('AdminSettings.handleHeroSubmit', submitError, {
-        keys: payload.map((entry) => entry.key),
-      });
-      setError(submitError.message);
-      setHeroSaving(false);
-      return;
-    }
-
-    setHeroSaving(false);
-    setNotice('Konten hero berhasil diperbarui.');
-    await loadSettings();
-  }
 
   function closeModal(force = false) {
     if (contentForm.formState.isSubmitting && !force) return;
@@ -250,7 +202,6 @@ export default function AdminSettings() {
     await loadSettings();
   }
 
-  const heroPreview = heroForm.watch();
 
   return (
     <div className="space-y-6">
@@ -297,159 +248,50 @@ export default function AdminSettings() {
         </div>
       )}
 
-      <div className="grid gap-6 xl:grid-cols-3">
-        <div className="xl:col-span-2">
-          <form
-            onSubmit={heroForm.handleSubmit(handleHeroSubmit)}
-            className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6"
-          >
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-5">
-              <div>
-                <h3 className="text-base font-semibold text-slate-900">Hero Section Manager</h3>
-                <p className="text-sm text-slate-500 mt-1">Ubah judul dan teks ajakan (CTA) yang muncul paling atas di halaman utama.</p>
-              </div>
-              <button
-                type="submit"
-                disabled={heroSaving}
-                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-zinc-900 rounded-xl hover:bg-zinc-950 transition-colors disabled:opacity-50"
-              >
-                {heroSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-                {heroSaving ? 'Menyimpan...' : 'Simpan Hero'}
-              </button>
-            </div>
+      {/* ═══════ HERO SLIDESHOW MANAGER ═══════ */}
+      <AdminHeroManager />
 
-            <div className="mt-6 space-y-4">
-              <label className="block space-y-1.5">
-                <span className="text-sm font-medium text-slate-700">Judul Utama</span>
-                <input
-                  type="text"
-                  {...heroForm.register('hero_title')}
-                  className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 outline-none transition-all placeholder:text-slate-400"
-                />
-                {heroForm.formState.errors.hero_title && <p className="text-xs text-rose-500">{heroForm.formState.errors.hero_title.message}</p>}
-              </label>
-
-              <label className="block space-y-1.5">
-                <span className="text-sm font-medium text-slate-700">Deskripsi</span>
-                <textarea
-                  rows={3}
-                  {...heroForm.register('hero_description')}
-                  className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 outline-none transition-all placeholder:text-slate-400"
-                />
-                {heroForm.formState.errors.hero_description && <p className="text-xs text-rose-500">{heroForm.formState.errors.hero_description.message}</p>}
-              </label>
-
-              <div className="grid gap-4 md:grid-cols-2">
-                <label className="block space-y-1.5">
-                  <span className="text-sm font-medium text-slate-700">Label CTA Utama</span>
-                  <input
-                    type="text"
-                    {...heroForm.register('hero_primary_label')}
-                    className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 outline-none transition-all placeholder:text-slate-400"
-                  />
-                  {heroForm.formState.errors.hero_primary_label && <p className="text-xs text-rose-500">{heroForm.formState.errors.hero_primary_label.message}</p>}
-                </label>
-
-                <label className="block space-y-1.5">
-                  <span className="text-sm font-medium text-slate-700">Link CTA Utama</span>
-                  <input
-                    type="text"
-                    {...heroForm.register('hero_primary_link')}
-                    className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 outline-none transition-all placeholder:text-slate-400"
-                  />
-                  {heroForm.formState.errors.hero_primary_link && <p className="text-xs text-rose-500">{heroForm.formState.errors.hero_primary_link.message}</p>}
-                </label>
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-2">
-                <label className="block space-y-1.5">
-                  <span className="text-sm font-medium text-slate-700">Label CTA Sekunder</span>
-                  <input
-                    type="text"
-                    {...heroForm.register('hero_secondary_label')}
-                    className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 outline-none transition-all placeholder:text-slate-400"
-                  />
-                  {heroForm.formState.errors.hero_secondary_label && <p className="text-xs text-rose-500">{heroForm.formState.errors.hero_secondary_label.message}</p>}
-                </label>
-
-                <label className="block space-y-1.5">
-                  <span className="text-sm font-medium text-slate-700">Link CTA Sekunder</span>
-                  <input
-                    type="text"
-                    {...heroForm.register('hero_secondary_link')}
-                    className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 outline-none transition-all placeholder:text-slate-400"
-                  />
-                  {heroForm.formState.errors.hero_secondary_link && <p className="text-xs text-rose-500">{heroForm.formState.errors.hero_secondary_link.message}</p>}
-                </label>
-              </div>
-            </div>
-          </form>
+      {/* Storage Status */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+        <div className="flex items-center gap-2 text-slate-900 mb-4">
+          <HardDrive size={18} className="text-amber-500" />
+          <h3 className="text-base font-semibold">Storage & Media Status</h3>
         </div>
-
-        <div className="space-y-6">
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-            <div className="flex items-center gap-2 text-slate-900 mb-4">
-              <Globe size={18} className="text-zinc-900" />
-              <h3 className="text-base font-semibold">Preview Ringkas</h3>
+        <div className="space-y-4">
+          <div className="flex justify-between items-center">
+            <div className="flex items-center gap-2">
+              <Database size={14} className="text-slate-400" />
+              <span className="text-sm text-slate-500">site-media</span>
             </div>
-            <div className="p-4 bg-slate-50 border border-slate-100 rounded-xl">
-              <h4 className="text-lg font-bold text-slate-900 leading-tight">{heroPreview.hero_title || 'Judul hero'}</h4>
-              <p className="mt-2 text-xs text-slate-500 leading-relaxed">{heroPreview.hero_description || 'Deskripsi hero.'}</p>
-              <div className="mt-4 flex flex-wrap gap-2">
-                <span className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-white bg-zinc-900 rounded-lg">
-                  {heroPreview.hero_primary_label || 'CTA Utama'}
-                </span>
-                {heroPreview.hero_secondary_label && (
-                  <span className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-slate-600 bg-white border border-slate-200 rounded-lg">
-                    {heroPreview.hero_secondary_label}
-                  </span>
-                )}
-              </div>
-            </div>
+            {storageStatus.checking ? (
+              <Loader2 size={14} className="animate-spin text-slate-400" />
+            ) : storageStatus.siteMedia ? (
+              <span className="px-2 py-0.5 text-[10px] font-bold text-zinc-900 bg-zinc-100 rounded uppercase">Active</span>
+            ) : (
+              <span className="px-2 py-0.5 text-[10px] font-bold text-rose-600 bg-rose-50 rounded uppercase">Missing</span>
+            )}
           </div>
-
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-            <div className="flex items-center gap-2 text-slate-900 mb-4">
-              <HardDrive size={18} className="text-amber-500" />
-              <h3 className="text-base font-semibold">Storage & Media Status</h3>
+          <div className="flex justify-between items-center">
+            <div className="flex items-center gap-2">
+              <Database size={14} className="text-slate-400" />
+              <span className="text-sm text-slate-500">campaign-assets</span>
             </div>
-            <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <div className="flex items-center gap-2">
-                  <Database size={14} className="text-slate-400" />
-                  <span className="text-sm text-slate-500">site-media</span>
-                </div>
-                {storageStatus.checking ? (
-                  <Loader2 size={14} className="animate-spin text-slate-400" />
-                ) : storageStatus.siteMedia ? (
-                  <span className="px-2 py-0.5 text-[10px] font-bold text-zinc-900 bg-zinc-100 rounded uppercase">Active</span>
-                ) : (
-                  <span className="px-2 py-0.5 text-[10px] font-bold text-rose-600 bg-rose-50 rounded uppercase">Missing</span>
-                )}
-              </div>
-              <div className="flex justify-between items-center">
-                <div className="flex items-center gap-2">
-                  <Database size={14} className="text-slate-400" />
-                  <span className="text-sm text-slate-500">campaign-assets</span>
-                </div>
-                {storageStatus.checking ? (
-                  <Loader2 size={14} className="animate-spin text-slate-400" />
-                ) : storageStatus.campaignAssets ? (
-                  <span className="px-2 py-0.5 text-[10px] font-bold text-zinc-900 bg-zinc-100 rounded uppercase">Active</span>
-                ) : (
-                  <span className="px-2 py-0.5 text-[10px] font-bold text-rose-600 bg-rose-50 rounded uppercase">Missing</span>
-                )}
-              </div>
-              {!storageStatus.checking && (!storageStatus.siteMedia || !storageStatus.campaignAssets) && (
-                <div className="mt-2 p-3 bg-rose-50 border border-rose-100 rounded-lg">
-                  <p className="text-[11px] text-rose-700 leading-relaxed">
-                    <ShieldAlert size={12} className="inline mr-1 -mt-0.5" />
-                    Beberapa bucket belum terdeteksi. Pastikan bucket dibuat di Supabase Dashboard dengan akses <strong>Public</strong> agar media tampil.
-                  </p>
-                </div>
-              )}
-            </div>
+            {storageStatus.checking ? (
+              <Loader2 size={14} className="animate-spin text-slate-400" />
+            ) : storageStatus.campaignAssets ? (
+              <span className="px-2 py-0.5 text-[10px] font-bold text-zinc-900 bg-zinc-100 rounded uppercase">Active</span>
+            ) : (
+              <span className="px-2 py-0.5 text-[10px] font-bold text-rose-600 bg-rose-50 rounded uppercase">Missing</span>
+            )}
           </div>
+          {!storageStatus.checking && (!storageStatus.siteMedia || !storageStatus.campaignAssets) && (
+            <div className="mt-2 p-3 bg-rose-50 border border-rose-100 rounded-lg">
+              <p className="text-[11px] text-rose-700 leading-relaxed">
+                <ShieldAlert size={12} className="inline mr-1 -mt-0.5" />
+                Beberapa bucket belum terdeteksi. Pastikan bucket dibuat di Supabase Dashboard dengan akses <strong>Public</strong> agar media tampil.
+              </p>
+            </div>
+          )}
         </div>
       </div>
 

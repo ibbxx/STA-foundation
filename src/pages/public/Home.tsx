@@ -1,5 +1,5 @@
 import React from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { InfiniteSlider } from '../../components/ui/infinite-slider';
 import { ProgressiveBlur } from '../../components/ui/progressive-blur';
 import {
@@ -18,7 +18,7 @@ import { fetchPublicCampaigns } from '../../lib/public-campaigns';
 import { getProgramIcon } from '../../lib/program-icons';
 import { PROGRAMS } from '../../lib/programs';
 import { formatCurrency, calculateProgress, cn } from '../../lib/utils';
-import InteractiveMap from '../../components/shared/InteractiveMap';
+import { fetchHeroContent, DEFAULT_HERO_SLIDES, type HeroSlide } from '../../lib/admin-hero';
 /* ─────────── Animation Variants ─────────── */
 
 const fadeUp = {
@@ -34,6 +34,10 @@ export default function Home() {
   const [featuredCampaigns, setFeaturedCampaigns] = React.useState<Campaign[]>([]);
   const [loadingFeaturedCampaigns, setLoadingFeaturedCampaigns] = React.useState(true);
   const [featuredCampaignError, setFeaturedCampaignError] = React.useState<string | null>(null);
+
+  // Hero Slideshow State
+  const [heroSlides, setHeroSlides] = React.useState<HeroSlide[]>(DEFAULT_HERO_SLIDES);
+  const [currentSlideIndex, setCurrentSlideIndex] = React.useState(0);
 
   React.useEffect(() => {
     let ignore = false;
@@ -65,66 +69,124 @@ export default function Home() {
     };
   }, []);
 
+  // Fetch hero slides from Supabase
+  React.useEffect(() => {
+    fetchHeroContent()
+      .then((content) => {
+        if (content.slides.length > 0) {
+          setHeroSlides(content.slides);
+        }
+      })
+      .catch((err) => logError('Home.fetchHeroContent', err));
+  }, []);
+
+  // Auto-advance slideshow (every 6 seconds)
+  React.useEffect(() => {
+    if (heroSlides.length <= 1) return;
+
+    const interval = setInterval(() => {
+      setCurrentSlideIndex((prev) => (prev + 1) % heroSlides.length);
+    }, 6000);
+
+    return () => clearInterval(interval);
+  }, [heroSlides.length]);
+
+  const currentSlide = heroSlides[currentSlideIndex] ?? heroSlides[0];
+
   return (
     <div className="overflow-hidden bg-white">
 
-      {/* ═══════ 1 · HERO ═══════ */}
+      {/* ═══════ 1 · HERO SLIDESHOW ═══════ */}
       <section className="relative min-h-screen">
-        {/* Background image — fills entire section */}
-        <div className="absolute inset-0 overflow-hidden">
-          <img
-            src="https://jfzvlzxslmgnssxekcme.supabase.co/storage/v1/object/public/campaign-assets/updates-demo/school_construction_1777146387719.png"
-            alt="Humanitarian background"
-            className="size-full object-cover"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-gray-950 via-gray-950/60 to-gray-950/20" />
-        </div>
+        {/* Background image with crossfade transition */}
+        <AnimatePresence mode="popLayout">
+          <motion.div
+            key={currentSlide.id}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 1.2, ease: 'easeInOut' }}
+            className="absolute inset-0 overflow-hidden"
+          >
+            <img
+              src={currentSlide.imageUrl}
+              alt={currentSlide.title}
+              className="size-full object-cover"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-gray-950 via-gray-950/60 to-gray-950/20" />
+          </motion.div>
+        </AnimatePresence>
 
         {/* Content overlay — bottom-left, flush left on all screens */}
         <div className="relative z-10 flex min-h-screen items-end pb-24 sm:pb-32 pt-32">
           <div className="flex flex-col px-5 sm:px-8 lg:px-12">
             <div className="max-w-2xl text-left">
-              <motion.div
-                initial={{ opacity: 0, y: 30 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.8, delay: 0.2 }}
-              >
-                <h1 className="mt-4 max-w-2xl text-balance text-3xl font-black uppercase leading-[1.1] tracking-tight text-[#F5F1E8] sm:mt-8 sm:text-4xl md:text-5xl lg:mt-16 xl:text-6xl">
-                  GOTONG ROYONG BENERIN 1000 SEKOLAH
-                </h1>
-                <p className="mt-4 max-w-xl text-balance text-sm font-light leading-relaxed text-[#F5F1E8]/85 sm:mt-6 sm:text-base">
-                  Membangun harapan dan masa depan anak Indonesia melalui ruang belajar yang aman dan layak.
-                </p>
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={currentSlide.id + '-text'}
+                  initial={{ opacity: 0, y: 30 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  transition={{ duration: 0.8, delay: 0.2 }}
+                >
+                  <h1 className="mt-4 max-w-2xl text-balance text-3xl font-black uppercase leading-[1.1] tracking-tight text-[#F5F1E8] sm:mt-8 sm:text-4xl md:text-5xl lg:mt-16 xl:text-6xl">
+                    {currentSlide.title}
+                  </h1>
+                  {currentSlide.subtitle && (
+                    <p className="mt-4 max-w-xl text-balance text-sm font-light leading-relaxed text-[#F5F1E8]/85 sm:mt-6 sm:text-base">
+                      {currentSlide.subtitle}
+                    </p>
+                  )}
 
-                <div className="mt-8 flex flex-col items-start gap-3 sm:mt-12 sm:flex-row">
-                  {/* HIDDEN FOR PRESENTATION MODE 
-                  <Link
-                    to="/campaigns"
-                    className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-[#2C5F4F] pl-6 pr-4 text-sm font-bold text-[#F5F1E8] transition-all duration-300 hover:bg-[#234A3D] md:h-12 md:text-base"
-                  >
-                    <span className="whitespace-nowrap">Donasi Sekarang</span>
-                    <ArrowRight className="ml-1 h-4 w-4" />
-                  </Link>
-                  */}
-                  {/* TEMPORARY CTA */}
-                  <Link
-                    to="/tentang-kami"
-                    className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-[#2C5F4F] pl-6 pr-4 text-sm font-bold text-[#F5F1E8] transition-all duration-300 hover:bg-[#234A3D] md:h-12 md:text-base"
-                  >
-                    <span className="whitespace-nowrap">Pelajari Lebih Lanjut</span>
-                    <ArrowRight className="ml-1 h-4 w-4" />
-                  </Link>
-                  <a
-                    href="https://wa.me/6287882799026"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex h-11 items-center justify-center rounded-full border border-[#F5F1E8]/25 px-6 text-sm font-medium text-[#F5F1E8] transition-all duration-300 hover:bg-[#F5F1E8]/10 md:h-12 md:text-base"
-                  >
-                    <span className="whitespace-nowrap">Jadi Mitra Kolaborator</span>
-                  </a>
-                </div>
-              </motion.div>
+                  <div className="mt-8 flex flex-col items-start gap-3 sm:mt-12 sm:flex-row">
+                    {/* HIDDEN FOR PRESENTATION MODE 
+                    <Link
+                      to="/campaigns"
+                      className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-[#2C5F4F] pl-6 pr-4 text-sm font-bold text-[#F5F1E8] transition-all duration-300 hover:bg-[#234A3D] md:h-12 md:text-base"
+                    >
+                      <span className="whitespace-nowrap">Donasi Sekarang</span>
+                      <ArrowRight className="ml-1 h-4 w-4" />
+                    </Link>
+                    */}
+                    {/* TEMPORARY CTA */}
+                    <Link
+                      to="/tentang-kami"
+                      className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-[#2C5F4F] pl-6 pr-4 text-sm font-bold text-[#F5F1E8] transition-all duration-300 hover:bg-[#234A3D] md:h-12 md:text-base"
+                    >
+                      <span className="whitespace-nowrap">Pelajari Lebih Lanjut</span>
+                      <ArrowRight className="ml-1 h-4 w-4" />
+                    </Link>
+                    <a
+                      href="https://wa.me/6287882799026"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex h-11 items-center justify-center rounded-full border border-[#F5F1E8]/25 px-6 text-sm font-medium text-[#F5F1E8] transition-all duration-300 hover:bg-[#F5F1E8]/10 md:h-12 md:text-base"
+                    >
+                      <span className="whitespace-nowrap">Jadi Mitra Kolaborator</span>
+                    </a>
+                  </div>
+                </motion.div>
+              </AnimatePresence>
             </div>
+
+            {/* Slide Indicators */}
+            {heroSlides.length > 1 && (
+              <div className="mt-8 flex items-center gap-2">
+                {heroSlides.map((slide, i) => (
+                  <button
+                    key={slide.id}
+                    onClick={() => setCurrentSlideIndex(i)}
+                    className={cn(
+                      'h-1.5 rounded-full transition-all duration-500',
+                      i === currentSlideIndex
+                        ? 'w-8 bg-white'
+                        : 'w-3 bg-white/40 hover:bg-white/60'
+                    )}
+                    aria-label={`Slide ${i + 1}`}
+                  />
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </section>
@@ -456,44 +518,6 @@ export default function Home() {
               );
             })}
           </div>
-        </div>
-      </section>
-
-      {/* ═══════ 8.5 · PETA DAMPAK ═══════ */}
-      <section className="py-16 md:py-24 bg-white relative overflow-hidden">
-        <div className="absolute inset-0 bg-gray-50/50 pointer-events-none" />
-        <div className="max-w-7xl mx-auto px-5 sm:px-6 lg:px-8 relative z-10">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: '-50px' }}
-            transition={{ duration: 0.6 }}
-            className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12"
-          >
-            <div className="max-w-2xl">
-              <p className="text-emerald-700 font-bold tracking-widest text-sm uppercase mb-3 flex items-center gap-3">
-                <span className="w-8 md:w-10 h-[2px] bg-emerald-600"></span>
-                Peta Sebaran
-              </p>
-              <h2 className="text-3xl md:text-4xl lg:text-5xl font-black text-gray-900 leading-tight tracking-tight">
-                Jejak Kebaikan di Pelosok Negeri
-              </h2>
-            </div>
-            <p className="max-w-md text-gray-600 text-[15px] md:text-lg leading-relaxed font-light">
-              Lihat bagaimana kontribusi Anda telah menciptakan senyum dan ruang belajar yang lebih baik bagi anak-anak Indonesia dari Sabang sampai Merauke.
-            </p>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, scale: 0.98 }}
-            whileInView={{ opacity: 1, scale: 1 }}
-            viewport={{ once: true, margin: '-50px' }}
-            transition={{ duration: 0.7, delay: 0.2 }}
-            className="w-full relative rounded-2xl overflow-hidden shadow-2xl shadow-gray-200/50"
-          >
-            {/* InteractiveMap component is loaded here */}
-            <InteractiveMap height="600px" />
-          </motion.div>
         </div>
       </section>
 

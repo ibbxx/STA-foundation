@@ -152,7 +152,8 @@ export default function AdminContent() {
   const modalTitle = mode === 'edit' ? 'Edit Program' : 'Tambah Program';
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
+      {/* ═══════ PROGRAMS ═══════ */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900">Program STA</h1>
