@@ -2,6 +2,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Shield, Users, Heart, Target, Lightbulb, CheckCircle2, ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { supabase } from '../../lib/supabase';
 
 const fadeUp = {
   initial: { opacity: 0, y: 20 },
@@ -20,31 +21,66 @@ const PARTNERS = [
 ];
 
 export default function About() {
+  const [heroImage, setHeroImage] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    async function loadHero() {
+      try {
+        const { data } = await supabase.from('site_content').select('value').eq('key', 'hero_tentang_kami').single();
+        if (data && (data as any).value) {
+          const val = (data as any).value;
+          const parsed = typeof val === 'string' ? JSON.parse(val) : val;
+          if (parsed.imageUrl) setHeroImage(parsed.imageUrl);
+        }
+      } catch (e) {}
+    }
+    loadHero();
+  }, []);
+
   return (
     <div className="bg-white text-gray-900 font-sans selection:bg-emerald-600 selection:text-white">
       
       {/* 1. HERO SECTION */}
-      <section className="relative pt-32 pb-20 md:pt-40 md:pb-28 bg-[#F8FBF9] overflow-hidden">
-        <div className="max-w-4xl mx-auto px-6 text-center relative z-10">
+      <section className="relative min-h-[100svh] w-full flex flex-col justify-start md:justify-center overflow-hidden bg-gray-900">
+        {heroImage && (
+          <div className="absolute inset-0 z-0">
+            {/* Image fills the container */}
+            <img src={heroImage} className="w-full h-full object-cover object-top md:object-center" alt="Tentang Kami" />
+            
+            {/* Subtle overlay to ensure white text is readable even outside the card area */}
+            <div className="absolute inset-0 bg-black/20" />
+            
+            {/* Directional gradient to fade smoothly behind the text card */}
+            <div className="absolute inset-0 bg-gradient-to-t from-gray-900/90 via-gray-900/40 to-transparent md:bg-gradient-to-r md:from-gray-900/90 md:via-gray-900/40 md:to-transparent" />
+          </div>
+        )}
+        
+        <div className="relative z-10 w-full max-w-7xl mx-auto px-5 md:px-8 pb-12 md:pb-0 pt-32">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
+            className="w-full md:max-w-xl"
           >
-            <p className="text-emerald-600 font-bold tracking-[0.2em] uppercase text-xs md:text-sm mb-6 inline-flex items-center gap-2 bg-emerald-50 px-4 py-2 rounded-full">
-              #PendidikanUntukSemua
-            </p>
-            <h1 className="text-3xl md:text-5xl lg:text-6xl font-black text-gray-900 leading-[1.15] mb-8">
-              Membangun Masa Depan Pendidikan Indonesia Lewat Data dan Aksi Nyata
+            <div className="inline-flex items-center gap-1.5 md:gap-2 px-2.5 py-1 md:px-3 md:py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 mb-4 md:mb-5">
+              <span className="w-1 h-1 md:w-1.5 md:h-1.5 rounded-full bg-emerald-400"></span>
+              <p className="text-white font-medium tracking-widest uppercase text-[8px] md:text-xs">
+                Pendidikan Untuk Semua
+              </p>
+            </div>
+            
+            <h1 className="text-[15px] md:text-3xl lg:text-4xl font-bold text-white leading-[1.3] md:leading-snug mb-2 md:mb-4">
+              Membangun Masa Depan Pendidikan Indonesia Lewat Data & Aksi
             </h1>
-            <p className="text-base md:text-xl text-gray-600 leading-relaxed max-w-3xl mx-auto mb-10 font-light">
-              Pendidikan yang layak adalah hak setiap anak bangsa. Kami hadir untuk menjembatani niat baik dengan aksi nyata, memastikan tidak ada lagi mimpi yang runtuh hanya karena atap ruang kelas yang rapuh.
+            
+            <p className="text-[11px] md:text-base text-gray-300 leading-relaxed font-light mb-4 md:mb-8 line-clamp-2 md:line-clamp-none">
+              Pendidikan yang layak adalah hak setiap anak bangsa. Kami hadir untuk menjembatani niat baik dengan aksi nyata, memastikan tidak ada lagi mimpi yang tertinggal.
             </p>
+            
             <Link 
               to="/kontak" 
-              className="inline-flex items-center gap-2 bg-emerald-700 text-white px-8 py-4 rounded-full font-bold hover:bg-emerald-800 transition-colors shadow-lg shadow-emerald-900/10 hover:shadow-xl hover:shadow-emerald-900/20"
+              className="inline-flex items-center gap-1.5 md:gap-2 bg-emerald-600 text-white px-4 py-1.5 md:px-6 md:py-3 rounded-full font-medium hover:bg-emerald-500 transition-colors shadow-lg shadow-emerald-900/30 text-[10px] md:text-sm w-fit"
             >
-              Mari Berkolaborasi Bersama Kami <ArrowRight size={18} />
+              Kolaborasi <ArrowRight size={12} className="md:w-4 md:h-4" />
             </Link>
           </motion.div>
         </div>

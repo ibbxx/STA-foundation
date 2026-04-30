@@ -13,6 +13,8 @@ export type EventMapLocation = {
   locationLabel?: string | null;
   actionHref?: string | null;
   actionLabel?: string | null;
+  images: string[];
+  fullContent?: string | null;
 };
 
 type ImpactMapPayload = {
@@ -96,6 +98,8 @@ function parseLocation(location: unknown, index: number): EventMapLocation | nul
     locationLabel,
     actionHref,
     actionLabel,
+    images: Array.isArray(location.images) ? location.images.map(img => String(img)) : [],
+    fullContent: toText(location.full_content) ?? toText(location.fullContent),
   };
 }
 

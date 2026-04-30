@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { logError } from './error-logger';
 
 export const REPORT_SCHOOL_STORAGE_KEY = 'sta-report-school-draft-v2';
-export const REPORT_SCHOOL_ADMIN_NUMBER = '6281523961519'; // New WA number
+export const REPORT_SCHOOL_ADMIN_NUMBER = '6287882799026'; // Updated WA number
 
 /**
  * Fetch the user's public IP address using ipify API.

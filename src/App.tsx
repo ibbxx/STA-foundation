@@ -13,12 +13,13 @@ const ProgramDetail = lazy(() => import('./pages/public/ProgramDetail'));
 const Donate = lazy(() => import('./pages/public/Donate'));
 const PaymentSuccess = lazy(() => import('./pages/public/PaymentSuccess'));
 const About = lazy(() => import('./pages/public/About'));
-const Faq = lazy(() => import('./pages/public/Faq'));
+
 const Events = lazy(() => import('./pages/public/Events'));
 
 const LaporkanSekolah = lazy(() => import('./pages/public/LaporkanSekolah'));
 const Contact = lazy(() => import('./pages/public/Contact'));
 const Leaderboard = lazy(() => import('./pages/public/Leaderboard'));
+const JourneyDetail = lazy(() => import('./pages/public/JourneyDetail'));
 
 /* ── Admin Pages ── */
 const AdminLogin = lazy(() => import('./pages/admin/AdminLogin'));
@@ -29,7 +30,7 @@ const AdminDonors = lazy(() => import('./pages/admin/AdminDonors'));
 const AdminTransactions = lazy(() => import('./pages/admin/AdminTransactions'));
 const AdminSchoolReports = lazy(() => import('./pages/admin/AdminSchoolReports'));
 const AdminContent = lazy(() => import('./pages/admin/AdminContent'));
-const AdminSettings = lazy(() => import('./pages/admin/AdminSettings'));
+const AdminImpactMap = lazy(() => import('./pages/admin/AdminImpactMap'));
 
 function RouteLoader() {
   return (
@@ -76,7 +77,8 @@ export default function App() {
         <Route path="/payment/success" element={renderWithSuspense(<PublicLayout><PaymentSuccess /></PublicLayout>)} />
         <Route path="/tentang-kami" element={renderWithSuspense(<PublicLayout><About /></PublicLayout>)} />
         <Route path="/events" element={renderWithSuspense(<PublicLayout><Events /></PublicLayout>)} />
-        <Route path="/faq" element={renderWithSuspense(<PublicLayout><Faq /></PublicLayout>)} />
+        <Route path="/journey/:id" element={renderWithSuspense(<PublicLayout><JourneyDetail /></PublicLayout>)} />
+
 
         <Route path="/laporkan" element={renderWithSuspense(<PublicLayout><LaporkanSekolah /></PublicLayout>)} />
         <Route path="/kontak" element={renderWithSuspense(<PublicLayout><Contact /></PublicLayout>)} />
@@ -91,7 +93,7 @@ export default function App() {
           <Route path="transactions" element={renderWithSuspense(<AdminTransactions />)} />
           <Route path="school-reports" element={renderWithSuspense(<AdminSchoolReports />)} />
           <Route path="content" element={renderWithSuspense(<AdminContent />)} />
-          <Route path="settings" element={renderWithSuspense(<AdminSettings />)} />
+          <Route path="impact-map" element={renderWithSuspense(<AdminImpactMap />)} />
         </Route>
 
         {/* Rute Penanganan 404/Fallback */}

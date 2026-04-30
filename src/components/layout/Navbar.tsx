@@ -44,7 +44,8 @@ export default function Navbar() {
   ];
 
   const isHome = location.pathname === "/";
-  const isSolid = isScrolled || isHovered || mobileMenuOpen;
+  const isContact = location.pathname === "/kontak";
+  const isSolid = isScrolled || isHovered || mobileMenuOpen || isContact;
   
   const isDarkText = isSolid || !isHome;
 

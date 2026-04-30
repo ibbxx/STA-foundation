@@ -936,8 +936,25 @@ values
   ('hero_primary_label', to_jsonb('Donasi Sekarang'::text)),
   ('hero_primary_link', to_jsonb('/campaigns'::text)),
   ('hero_secondary_label', to_jsonb('Laporkan Sekolah'::text)),
-  ('hero_secondary_link', to_jsonb('/laporkan'::text))
-on conflict (key) do nothing;
+  ('hero_secondary_link', to_jsonb('/laporkan'::text)),
+  ('impact_map', to_jsonb('{
+    "locations": [
+      {
+        "id": "journey-bali-01",
+        "title": "Awal Jejak di Bali",
+        "description": "Tahun 2024 menandai awal perjalanan kami di Bali Utara. Kami berkolaborasi membangun fasilitas sanitasi layak bagi anak-anak di pesisir Buleleng sebagai bagian dari komitmen pemerataan pendidikan.",
+        "latitude": -8.179,
+        "longitude": 115.152472,
+        "status": "Selesai",
+        "imageUrl": "https://images.unsplash.com/photo-1544027993-37dbfe43562a?q=80&w=1200",
+        "locationLabel": "Buleleng, Bali",
+        "actionHref": "/journey/journey-bali-01",
+        "actionLabel": "Baca Cerita"
+      }
+    ]
+  }'::jsonb))
+on conflict (key) do update
+set value = excluded.value;
 
 -- ============================================================
 -- 12. Final Backfill

@@ -3,12 +3,12 @@ import Map, { Marker, Popup } from 'react-map-gl/maplibre';
 import type { MapRef } from '@vis.gl/react-maplibre';
 import type { LngLatBoundsLike } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import { ArrowRight, MapPinned, X } from 'lucide-react';
+import { ArrowRight, MapPinned, X, Layers, Maximize2, Navigation } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import type { EventMapLocation } from '../../lib/public-events';
 import { cn } from '../../lib/utils';
 
-// MapStyle menggunakan Esri World Imagery (Satelit Resolusi Tinggi, Gratis tanpa API Key)
+// MapStyles
 const ESRI_SATELLITE_STYLE = {
   version: 8,
   sources: {
@@ -32,6 +32,29 @@ const ESRI_SATELLITE_STYLE = {
   ],
 } as const;
 
+const ESRI_STREETS_STYLE = {
+  version: 8,
+  sources: {
+    'esri-streets': {
+      type: 'raster',
+      tiles: [
+        'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',
+      ],
+      tileSize: 256,
+      attribution: 'Tiles &copy; Esri &mdash; Source: Esri, DeLorme, NAVTEQ, USGS, Intermap, iPC, NRCAN, Esri Japan, METI, Esri China (Hong Kong), Esri (Thailand), TomTom, 2012',
+    },
+  },
+  layers: [
+    {
+      id: 'streets-layer',
+      type: 'raster',
+      source: 'esri-streets',
+      minzoom: 0,
+      maxzoom: 19,
+    },
+  ],
+} as const;
+
 interface InteractiveMapProps {
   locations?: EventMapLocation[];
   height?: string;
@@ -40,8 +63,10 @@ interface InteractiveMapProps {
   emptyDescription?: string;
   scrollWheelZoom?: boolean;
   onLocationSelect?: (location: EventMapLocation) => void;
+  onClick?: (e: any) => void;
   useFallbackLocations?: boolean;
   viewportMode?: 'default' | 'fit-indonesia';
+  showControls?: boolean;
 }
 
 const DESKTOP_VIEW_STATE = {
@@ -70,6 +95,7 @@ const DEFAULT_LOCATIONS: EventMapLocation[] = [
     slug: 'renovasi-sdn-01-harapan',
     actionHref: '/campaigns/renovasi-sdn-01-harapan',
     actionLabel: 'Lihat Detail',
+    images: [],
   },
   {
     id: '2',
@@ -82,6 +108,7 @@ const DEFAULT_LOCATIONS: EventMapLocation[] = [
     slug: 'perpustakaan-desa-suka-maju',
     actionHref: '/campaigns/perpustakaan-desa-suka-maju',
     actionLabel: 'Lihat Detail',
+    images: [],
   },
   {
     id: '3',
@@ -94,6 +121,7 @@ const DEFAULT_LOCATIONS: EventMapLocation[] = [
     slug: 'fasilitas-air-bersih-pelosok',
     actionHref: '/campaigns/fasilitas-air-bersih-pelosok',
     actionLabel: 'Lihat Detail',
+    images: [],
   },
   {
     id: '4',
@@ -106,6 +134,7 @@ const DEFAULT_LOCATIONS: EventMapLocation[] = [
     slug: 'pelatihan-guru-indonesia-timur',
     actionHref: '/campaigns/pelatihan-guru-indonesia-timur',
     actionLabel: 'Lihat Detail',
+    images: [],
   },
 ];
 
@@ -147,9 +176,12 @@ export default function InteractiveMap({
   onLocationSelect,
   useFallbackLocations = true,
   viewportMode = 'default',
+  showControls = true,
+  onClick,
 }: InteractiveMapProps) {
   const [popupInfo, setPopupInfo] = useState<EventMapLocation | null>(null);
   const [mapReady, setMapReady] = useState(false);
+  const [mapStyle, setMapStyle] = useState<'satellite' | 'streets'>('satellite');
   const mapRef = useRef<MapRef | null>(null);
 
   const hasLocations = Boolean(locations && locations.length > 0);
@@ -218,12 +250,34 @@ export default function InteractiveMap({
         initialViewState={mapInitialViewState}
         maxBounds={INDONESIA_BOUNDS}
         style={{ width: '100%', height: '100%' }}
-        mapStyle={ESRI_SATELLITE_STYLE as any}
+        mapStyle={(mapStyle === 'satellite' ? ESRI_SATELLITE_STYLE : ESRI_STREETS_STYLE) as any}
         scrollZoom={scrollWheelZoom}
         dragRotate={false}
         touchPitch={false}
         onLoad={handleMapLoad}
+        onClick={onClick}
       >
+        {/* Map Type Toggle */}
+        {showControls && (
+          <div className="absolute right-4 top-4 z-20 flex flex-col gap-2">
+            <button
+              onClick={() => setMapStyle(prev => prev === 'satellite' ? 'streets' : 'satellite')}
+              className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/20 bg-black/60 text-white shadow-lg backdrop-blur-md transition-all hover:bg-black/80"
+              title={mapStyle === 'satellite' ? 'Switch to Street View' : 'Switch to Satellite View'}
+            >
+              <Layers className="h-5 w-5" />
+            </button>
+            <button
+              onClick={() => {
+                mapRef.current?.fitBounds(INDONESIA_BOUNDS, { padding: 40, duration: 1000 });
+              }}
+              className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/20 bg-black/60 text-white shadow-lg backdrop-blur-md transition-all hover:bg-black/80"
+              title="Reset View"
+            >
+              <Maximize2 className="h-5 w-5" />
+            </button>
+          </div>
+        )}
         {normalizedLocations.map((loc) => (
           <Marker
             key={loc.id}
@@ -258,7 +312,7 @@ export default function InteractiveMap({
           >
             <div className="relative flex w-56 sm:w-64 flex-col overflow-hidden rounded-xl bg-gray-900/90 backdrop-blur-xl border border-white/10 shadow-2xl">
               {/* Custom Close Button */}
-              <button 
+              <button
                 onClick={(e) => {
                   e.stopPropagation();
                   setPopupInfo(null);
@@ -269,9 +323,9 @@ export default function InteractiveMap({
               </button>
 
               <div className="relative h-36 w-full overflow-hidden bg-gray-800">
-                <img 
-                  src={popupInfo.imageUrl} 
-                  alt={popupInfo.title} 
+                <img
+                  src={popupInfo.imageUrl}
+                  alt={popupInfo.title}
                   className="h-full w-full object-cover opacity-90 transition-opacity hover:opacity-100"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-gray-900/90 to-transparent"></div>

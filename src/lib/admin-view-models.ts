@@ -39,6 +39,13 @@ export const defaultProgramValues: AdminProgramValues = {
   title: '',
   description: '',
   icon_name: '',
+  hero_image_url: '',
+  home_slider_image: '',
+  overview: '',
+  stage_label: '',
+  stage_value: '',
+  focus_areas: '',
+  gallery_images: '',
   content: '',
 };
 
@@ -297,12 +304,24 @@ export function getReportImageUrls(imageUrls: SchoolReportRow['image_urls']) {
 }
 
 export function toProgramPayload(values: AdminProgramValues): ProgramInsert {
+  // Simpan data redesign dalam field content sebagai JSON agar tidak mengubah skema DB
+  const detailData = {
+    hero_image_url: values.hero_image_url?.trim(),
+    home_slider_image: values.home_slider_image?.trim(),
+    overview: values.overview?.trim(),
+    stage_label: values.stage_label?.trim(),
+    stage_value: values.stage_value?.trim(),
+    focus_areas: values.focus_areas?.trim() ? values.focus_areas.split('\n').map(s => s.trim()).filter(Boolean) : [],
+    gallery_images: values.gallery_images?.trim() ? values.gallery_images.split('\n').map(s => s.trim()).filter(Boolean) : [],
+    body_content: values.content?.trim(),
+  };
+
   return {
     slug: values.slug.trim(),
     title: values.title.trim(),
     description: values.description.trim(),
     icon_name: values.icon_name.trim(),
-    content: values.content?.trim() ? values.content.trim() : null,
+    content: JSON.stringify(detailData),
   };
 }
 

@@ -1,17 +1,21 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { AlertCircle, CheckCircle2, Edit2, Layers3, Plus, RefreshCw, Save, Search, Sparkles, Trash2 } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Edit2, Layers3, Plus, RefreshCw, Save, Search, Settings, Sparkles, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import AdminModal from '../../components/admin/AdminModal';
+import AdminHeroManager from '../../components/admin/AdminHeroManager';
+import AdminOtherPagesHero from '../../components/admin/AdminOtherPagesHero';
 import { adminProgramSchema, programIconOptions, type AdminProgramValues } from '../../lib/admin-schemas';
 import { formatAdminDate } from '../../lib/admin-helpers';
-import { deleteProgram, fetchProgramRows, insertProgram, updateProgram } from '../../lib/admin-repository';
+import { deleteProgram, fetchProgramRows, insertProgram, updateProgram, fetchSiteContentRows, upsertSiteContent } from '../../lib/admin-repository';
 import {
   buildProgramSummary,
   defaultProgramValues,
   filterPrograms,
   toProgramPayload,
 } from '../../lib/admin-view-models';
+import { uploadAdminImage } from '../../lib/supabase-storage';
+import { getProgramIcon } from '../../lib/program-icons';
 import { logError } from '../../lib/error-logger';
 import { ProgramRow } from '../../lib/supabase';
 import { cn } from '../../lib/utils';
@@ -25,6 +29,85 @@ export default function AdminContent() {
   const [mode, setMode] = useState<'create' | 'edit' | null>(null);
   const [editingProgram, setEditingProgram] = useState<ProgramRow | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  // Header Config State
+  const [headerModalOpen, setHeaderModalOpen] = useState(false);
+  const [headerData, setHeaderData] = useState({
+    label: 'INISIATIF UTAMA',
+    title: 'Program Kami',
+    description: 'Tiga pilar inisiatif yang kami rancang untuk menciptakan ekosistem pendidikan yang inklusif, layak, dan berkelanjutan.'
+  });
+  const [savingHeader, setSavingHeader] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
+
+  // CTA Config State
+  const [ctaModalOpen, setCtaModalOpen] = useState(false);
+  const [ctaData, setCtaData] = useState({
+    title: 'Bergabunglah untuk Masa Depan yang Lebih Cerah',
+    description: 'Setiap kontribusi Anda, sekecil apapun, adalah harapan bagi ribuan saudara kita. Mari bersama membangun Indonesia yang lebih baik.',
+    primaryButtonText: 'Laporkan Sekolah',
+    primaryButtonLink: '/laporkan',
+    secondaryButtonText: 'Hubungi Kami',
+    secondaryButtonLink: '/kontak',
+    imageUrl: ''
+  });
+  const [savingCta, setSavingCta] = useState(false);
+
+  const handleUploadImage = async (e: React.ChangeEvent<HTMLInputElement>, fieldName: 'hero_image_url' | 'home_slider_image') => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      setUploadingImage(true);
+      const oldUrl = watch(fieldName);
+      const url = await uploadAdminImage(file, 'programs');
+      setValue(fieldName, url, { shouldDirty: true, shouldValidate: true });
+      if (oldUrl) {
+        import('../../lib/supabase-storage').then(m => m.deleteFilesFromStorage([oldUrl]));
+      }
+    } catch (err) {
+      alert('Gagal mengunggah gambar. Pastikan ukuran file tidak terlalu besar.');
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  const handleUploadCtaImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      setUploadingImage(true);
+      const oldUrl = ctaData.imageUrl;
+      const url = await uploadAdminImage(file, 'general');
+      setCtaData(prev => ({ ...prev, imageUrl: url }));
+      if (oldUrl) {
+        import('../../lib/supabase-storage').then(m => m.deleteFilesFromStorage([oldUrl]));
+      }
+    } catch (err) {
+      alert('Gagal mengunggah gambar.');
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  const handleUploadGallery = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+    try {
+      setUploadingImage(true);
+      const urls = [];
+      for (const f of files) {
+        const url = await uploadAdminImage(f, 'programs');
+        urls.push(url);
+      }
+      const existing = watch('gallery_images') || '';
+      const newText = existing ? existing + '\n' + urls.join('\n') : urls.join('\n');
+      setValue('gallery_images', newText, { shouldDirty: true, shouldValidate: true });
+    } catch (err) {
+      alert('Gagal mengunggah gambar galeri.');
+    } finally {
+      setUploadingImage(false);
+    }
+  };
 
   const {
     register,
@@ -55,19 +138,95 @@ export default function AdminContent() {
     setPrograms(data ?? []);
     setLoading(false);
   }
+  async function loadHeaderData() {
+    const { data } = await fetchSiteContentRows();
+    if (data) {
+      const headerRow = (data as any[]).find(r => r.key === 'home_programs_header');
+      if (headerRow && headerRow.value) {
+        try {
+          const parsed = typeof headerRow.value === 'string' ? JSON.parse(headerRow.value) : headerRow.value;
+          setHeaderData({
+            label: parsed.label || 'INISIATIF UTAMA',
+            title: parsed.title || 'Program Kami',
+            description: parsed.description || 'Tiga pilar inisiatif yang kami rancang untuk menciptakan ekosistem pendidikan yang inklusif, layak, dan berkelanjutan.'
+          });
+        } catch (e) {
+          console.error("Gagal parse header data", e);
+        }
+      }
+    }
+  }
+
+  async function loadCtaData() {
+    const { data } = await fetchSiteContentRows();
+    if (data) {
+      const ctaRow = (data as any[]).find(r => r.key === 'home_cta');
+      if (ctaRow && ctaRow.value) {
+        try {
+          const parsed = typeof ctaRow.value === 'string' ? JSON.parse(ctaRow.value) : ctaRow.value;
+          setCtaData({
+            title: parsed.title || 'Bergabunglah untuk Masa Depan yang Lebih Cerah',
+            description: parsed.description || 'Setiap kontribusi Anda, sekecil apapun, adalah harapan bagi ribuan saudara kita. Mari bersama membangun Indonesia yang lebih baik.',
+            primaryButtonText: parsed.primaryButtonText || 'Laporkan Sekolah',
+            primaryButtonLink: parsed.primaryButtonLink || '/laporkan',
+            secondaryButtonText: parsed.secondaryButtonText || 'Hubungi Kami',
+            secondaryButtonLink: parsed.secondaryButtonLink || '/kontak',
+            imageUrl: parsed.imageUrl || ''
+          });
+        } catch (e) {
+          console.error("Gagal parse CTA data", e);
+        }
+      }
+    }
+  }
 
   useEffect(() => {
     loadPrograms();
+    loadHeaderData();
+    loadCtaData();
   }, []);
 
   useEffect(() => {
     if (mode === 'edit' && editingProgram) {
+      let hero_image_url = '';
+      let home_slider_image = '';
+      let overview = '';
+      let stage_label = '';
+      let stage_value = '';
+      let focus_areas = '';
+      let gallery_images = '';
+      let body_content = editingProgram.content ?? '';
+
+      // Coba parse content sebagai JSON
+      try {
+        if (editingProgram.content && (editingProgram.content.startsWith('{') || editingProgram.content.startsWith('['))) {
+          const parsed = JSON.parse(editingProgram.content);
+          hero_image_url = parsed.hero_image_url || '';
+          home_slider_image = parsed.home_slider_image || '';
+          overview = parsed.overview || '';
+          stage_label = parsed.stage_label || '';
+          stage_value = parsed.stage_value || '';
+          focus_areas = Array.isArray(parsed.focus_areas) ? parsed.focus_areas.join('\n') : '';
+          gallery_images = Array.isArray(parsed.gallery_images) ? parsed.gallery_images.join('\n') : '';
+          body_content = parsed.body_content || '';
+        }
+      } catch (e) {
+        // Bukan JSON, biarkan as is
+      }
+
       reset({
         slug: editingProgram.slug,
         title: editingProgram.title,
         description: editingProgram.description,
         icon_name: editingProgram.icon_name,
-        content: editingProgram.content ?? '',
+        hero_image_url,
+        home_slider_image,
+        overview,
+        stage_label,
+        stage_value,
+        focus_areas,
+        gallery_images,
+        content: body_content,
       });
       return;
     }
@@ -132,6 +291,22 @@ export default function AdminContent() {
     if (!confirmed) return;
 
     setDeletingId(program.id);
+
+    // Kumpulkan URL gambar untuk dihapus dari storage
+    const urlsToDelete: string[] = [];
+    try {
+      if (program.content && (program.content.startsWith('{') || program.content.startsWith('['))) {
+        const parsed = JSON.parse(program.content);
+        if (parsed.hero_image_url) urlsToDelete.push(parsed.hero_image_url);
+        if (parsed.home_slider_image) urlsToDelete.push(parsed.home_slider_image);
+        if (Array.isArray(parsed.gallery_images)) {
+          urlsToDelete.push(...parsed.gallery_images);
+        }
+      }
+    } catch (e) {
+      // Abaikan jika bukan JSON
+    }
+
     const { error: deleteError } = await deleteProgram(program.id);
 
     if (deleteError) {
@@ -143,41 +318,153 @@ export default function AdminContent() {
       return;
     }
 
+    if (urlsToDelete.length > 0) {
+      import('../../lib/supabase-storage').then(m => m.deleteFilesFromStorage(urlsToDelete).catch(err => logError('AdminContent.deleteStorage', err)));
+    }
+
     setDeletingId(null);
     setNotice(`Program "${program.title}" berhasil dihapus.`);
     await loadPrograms();
   }
 
+  async function saveHeaderData() {
+    setSavingHeader(true);
+    setNotice(null);
+    setError(null);
+    try {
+      const payload = {
+        key: 'home_programs_header',
+        value: headerData
+      };
+      const { error } = await upsertSiteContent([payload]);
+      if (error) throw error;
+      
+      setNotice('Header program berhasil diperbarui.');
+      setHeaderModalOpen(false);
+    } catch (err: any) {
+      setError(err.message || 'Gagal menyimpan header.');
+    } finally {
+      setSavingHeader(false);
+    }
+  }
+
+  async function saveCtaData() {
+    setSavingCta(true);
+    setNotice(null);
+    setError(null);
+    try {
+      const payload = {
+        key: 'home_cta',
+        value: ctaData
+      };
+      const { error } = await upsertSiteContent([payload]);
+      if (error) throw error;
+      
+      setNotice('Konten CTA berhasil diperbarui.');
+      setCtaModalOpen(false);
+    } catch (err: any) {
+      setError(err.message || 'Gagal menyimpan CTA.');
+    } finally {
+      setSavingCta(false);
+    }
+  }
+
   const selectedIcon = watch('icon_name');
   const modalTitle = mode === 'edit' ? 'Edit Program' : 'Tambah Program';
 
+  async function handleSeedData() {
+    if (!window.confirm('Apakah Anda ingin memuat data program default ke database? Ini akan memudahkan Anda mengelola konten yang sudah ada.')) return;
+    
+    setLoading(true);
+    const { PROGRAMS } = await import('../../lib/programs');
+    
+    for (const p of PROGRAMS) {
+      const detailData = {
+        hero_image_url: '',
+        home_slider_image: '',
+        overview: p.overview,
+        stage_label: p.stage_label,
+        stage_value: p.stage_value,
+        focus_areas: p.focus_areas,
+        gallery_images: [],
+        body_content: '',
+      };
+
+      await insertProgram({
+        slug: p.slug,
+        title: p.title,
+        description: p.short_description,
+        icon_name: p.icon_name,
+        content: JSON.stringify(detailData),
+      });
+    }
+    
+    await loadPrograms();
+    setNotice('Data program default berhasil diinisialisasi.');
+  }
+
   return (
-    <div className="space-y-8">
-      {/* ═══════ PROGRAMS ═══════ */}
+    <div className="space-y-12 pb-12">
+      {/* ═══════ PAGE HEADER ═══════ */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">Program STA</h1>
-          <p className="text-sm text-slate-500 mt-1">Kelola konten dan deskripsi dari program Sekolah Tanah Air.</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => loadPrograms()}
-            className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-xl text-sm font-medium hover:bg-slate-50 transition-colors"
-          >
-            <RefreshCw size={16} />
-            Refresh
-          </button>
-          <button
-            onClick={openCreateModal}
-            className="flex items-center gap-2 px-4 py-2 bg-zinc-900 text-white rounded-xl text-sm font-medium shadow-sm hover:bg-zinc-950 transition-colors"
-          >
-            <Plus size={16} />
-            Tambah Program
-          </button>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">Manajemen Konten</h1>
+          <p className="text-sm text-slate-500 mt-1">Kelola hero, konten program, dan deskripsi aplikasi Sekolah Tanah Air.</p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      {/* ═══════ SECTION: HERO BERANDA ═══════ */}
+      <div className="space-y-4">
+        <div className="border-b border-slate-200 pb-4">
+          <h2 className="text-lg font-bold text-slate-900">Hero Beranda</h2>
+          <p className="text-sm text-slate-500">Atur media dan teks utama yang pertama kali dilihat pengunjung.</p>
+        </div>
+        <AdminHeroManager />
+        <AdminOtherPagesHero />
+      </div>
+
+      {/* ═══════ SECTION: PROGRAM STA ═══════ */}
+      <div className="space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-slate-200 pb-4">
+          <div>
+            <h2 className="text-lg font-bold text-slate-900">Program & Inisiatif</h2>
+            <p className="text-sm text-slate-500">Kelola halaman detail program dan slider di Beranda.</p>
+          </div>
+          <div className="flex items-center gap-3">
+            {programs.length === 0 && !loading && (
+              <button
+                onClick={handleSeedData}
+                className="flex items-center gap-2 px-4 py-2 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl text-sm font-medium hover:bg-emerald-100 transition-colors"
+              >
+                <Sparkles size={16} />
+                Inisialisasi Data
+              </button>
+            )}
+            <button
+              onClick={() => loadPrograms()}
+              className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-xl text-sm font-medium hover:bg-slate-50 transition-colors"
+            >
+              <RefreshCw size={16} />
+              Refresh
+            </button>
+            <button
+              onClick={() => setHeaderModalOpen(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-xl text-sm font-medium hover:bg-slate-50 transition-colors"
+            >
+              <Settings size={16} />
+              Pengaturan Header
+            </button>
+            <button
+              onClick={openCreateModal}
+              className="flex items-center gap-2 px-4 py-2 bg-zinc-900 text-white rounded-xl text-sm font-medium shadow-sm hover:bg-zinc-950 transition-colors"
+            >
+              <Plus size={16} />
+              Tambah Program
+            </button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="p-5 rounded-2xl border border-slate-200 bg-white shadow-sm flex items-start gap-4">
           <div className="p-3 bg-zinc-100 text-zinc-900 rounded-xl">
             <Layers3 size={24} />
@@ -303,6 +590,43 @@ export default function AdminContent() {
           </div>
         )}
       </div>
+      </div>
+
+      {/* ═══════ SECTION: CTA BERANDA ═══════ */}
+      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+        <div className="p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+          <div className="flex items-center gap-4">
+            <div>
+              <h2 className="text-lg font-bold text-slate-900">Ajakan Bertindak (CTA)</h2>
+              <p className="text-sm text-slate-500">Sesuaikan teks, gambar, dan tombol ajakan di bagian bawah Beranda.</p>
+            </div>
+          </div>
+          <button
+            onClick={() => setCtaModalOpen(true)}
+            className="flex items-center gap-2 px-6 py-3 bg-zinc-900 text-white rounded-xl text-sm font-semibold hover:bg-zinc-800 transition-all shadow-lg shadow-zinc-100 whitespace-nowrap"
+          >
+            Edit Konten CTA
+          </button>
+        </div>
+        
+        {/* Konten Terpasang (Preview) */}
+        <div className="px-6 pb-6">
+          <div className="p-4 bg-slate-50 rounded-xl border border-slate-100 flex flex-wrap gap-x-12 gap-y-4">
+             <div className="space-y-1">
+               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Judul Saat Ini</p>
+               <p className="text-sm font-medium text-slate-700">{ctaData.title}</p>
+             </div>
+             <div className="space-y-1">
+               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Aksi Utama</p>
+               <p className="text-sm font-medium text-slate-700">{ctaData.primaryButtonText} ({ctaData.primaryButtonLink})</p>
+             </div>
+             <div className="space-y-1">
+               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Status Gambar</p>
+               <p className="text-sm font-medium text-slate-700">{ctaData.imageUrl ? 'Terpasang' : 'Tidak Ada'}</p>
+             </div>
+          </div>
+        </div>
+      </div>
 
       <AdminModal
         open={mode !== null}
@@ -322,79 +646,350 @@ export default function AdminContent() {
             <button
               type="submit"
               form="program-form"
-              disabled={isSubmitting}
+              disabled={isSubmitting || uploadingImage}
               className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-zinc-900 rounded-xl hover:bg-zinc-950 transition-colors disabled:opacity-50"
             >
-              {isSubmitting ? 'Menyimpan...' : 'Simpan'}
+              {isSubmitting || uploadingImage ? 'Memproses...' : 'Simpan'}
             </button>
           </>
         )}
       >
-        <form id="program-form" onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2">
+        <form id="program-form" onSubmit={handleSubmit(onSubmit)} className="space-y-8">
+          {/* ── SEKSI 1: IDENTITAS & NAVIGASI ── */}
+          <div className="p-5 bg-white border border-slate-200 rounded-2xl space-y-5 shadow-sm">
+            <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-emerald-500" />
+              Identitas & Navigasi
+            </h3>
+            <div className="grid gap-5 md:grid-cols-2">
+              <label className="block space-y-1.5">
+                <span className="text-sm font-medium text-slate-700">Judul Program</span>
+                <input
+                  type="text"
+                  {...register('title')}
+                  placeholder="Contoh: Jelajah Tanah Air"
+                  className="w-full px-3 py-2.5 text-sm bg-white border border-slate-200 rounded-xl focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 outline-none transition-all placeholder:text-slate-400"
+                />
+                {errors.title && <p className="text-xs text-rose-500">{errors.title.message}</p>}
+              </label>
+
+              <label className="block space-y-1.5">
+                <span className="text-sm font-medium text-slate-700">Slug (URL)</span>
+                <input
+                  type="text"
+                  {...register('slug')}
+                  placeholder="contoh-slug-program"
+                  className="w-full px-3 py-2.5 text-sm bg-white border border-slate-200 rounded-xl focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 outline-none transition-all placeholder:text-slate-400"
+                />
+                {errors.slug && <p className="text-xs text-rose-500">{errors.slug.message}</p>}
+              </label>
+            </div>
+          </div>
+
+          {/* ── SEKSI 2: MEDIA VISUAL ── */}
+          <div className="p-5 bg-white border border-slate-200 rounded-2xl space-y-5 shadow-sm">
+            <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-blue-500" />
+              Media Visual & Gambar
+            </h3>
+            
             <label className="block space-y-1.5">
-              <span className="text-sm font-medium text-slate-700">Judul Program</span>
-              <input
-                type="text"
-                {...register('title')}
-                className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 outline-none transition-all placeholder:text-slate-400"
-              />
-              {errors.title && <p className="text-xs text-rose-500">{errors.title.message}</p>}
+              <span className="text-sm font-medium text-slate-700">Gambar Hero Halaman Detail</span>
+              <div className="flex gap-2 items-center">
+                <input
+                  type="text"
+                  {...register('hero_image_url')}
+                  placeholder="URL gambar akan terisi otomatis setelah upload..."
+                  className="flex-1 px-3 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 outline-none transition-all"
+                  readOnly
+                />
+                <label className="px-4 py-2.5 bg-zinc-900 text-white text-sm font-medium rounded-xl hover:bg-zinc-800 transition-colors cursor-pointer whitespace-nowrap shadow-sm">
+                  {uploadingImage ? 'Mengunggah...' : 'Upload Gambar'}
+                  <input type="file" accept="image/*" className="hidden" onChange={(e) => handleUploadImage(e, 'hero_image_url')} disabled={uploadingImage} />
+                </label>
+              </div>
+              {errors.hero_image_url && <p className="text-xs text-red-600">{errors.hero_image_url.message}</p>}
             </label>
 
             <label className="block space-y-1.5">
-              <span className="text-sm font-medium text-slate-700">Slug</span>
-              <input
-                type="text"
-                {...register('slug')}
-                className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 outline-none transition-all placeholder:text-slate-400"
-              />
-              {errors.slug && <p className="text-xs text-rose-500">{errors.slug.message}</p>}
+              <span className="text-sm font-medium text-slate-700">Gambar Slider Beranda</span>
+              <div className="flex gap-2 items-center">
+                <input
+                  type="text"
+                  {...register('home_slider_image')}
+                  placeholder="URL gambar akan terisi otomatis setelah upload..."
+                  className="flex-1 px-3 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 outline-none transition-all"
+                  readOnly
+                />
+                <label className="px-4 py-2.5 bg-zinc-900 text-white text-sm font-medium rounded-xl hover:bg-zinc-800 transition-colors cursor-pointer whitespace-nowrap shadow-sm">
+                  {uploadingImage ? 'Mengunggah...' : 'Upload Gambar'}
+                  <input type="file" accept="image/*" className="hidden" onChange={(e) => handleUploadImage(e, 'home_slider_image')} disabled={uploadingImage} />
+                </label>
+              </div>
+              {errors.home_slider_image && <p className="text-xs text-red-600">{errors.home_slider_image.message}</p>}
             </label>
           </div>
 
+          {/* ── SEKSI 3: NARASI & DETAIL ── */}
+          <div className="p-5 bg-white border border-slate-200 rounded-2xl space-y-5 shadow-sm">
+            <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-amber-500" />
+              Narasi & Detail Konten
+            </h3>
+
+            <div className="grid gap-5 md:grid-cols-2">
+              <label className="block space-y-1.5">
+                <span className="text-sm font-medium text-slate-700">Label Tahap (Contoh: Fase Program)</span>
+                <input
+                  type="text"
+                  {...register('stage_label')}
+                  placeholder="Fase Program"
+                  className="w-full px-3 py-2.5 text-sm bg-white border border-slate-200 rounded-xl focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 outline-none transition-all placeholder:text-slate-400"
+                />
+              </label>
+
+              <label className="block space-y-1.5">
+                <span className="text-sm font-medium text-slate-700">Nilai Tahap (Contoh: Survei & Pemetaan)</span>
+                <input
+                  type="text"
+                  {...register('stage_value')}
+                  placeholder="Survei & Pemetaan"
+                  className="w-full px-3 py-2.5 text-sm bg-white border border-slate-200 rounded-xl focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 outline-none transition-all placeholder:text-slate-400"
+                />
+              </label>
+            </div>
+
+            <label className="block space-y-1.5">
+              <span className="text-sm font-medium text-slate-700">Deskripsi Singkat (Muncul di Kartu)</span>
+              <textarea
+                rows={2}
+                {...register('description')}
+                placeholder="Tulis deskripsi singkat untuk kartu di beranda..."
+                className="w-full px-3 py-2.5 text-sm bg-white border border-slate-200 rounded-xl focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 outline-none transition-all placeholder:text-slate-400"
+              />
+              {errors.description && <p className="text-xs text-rose-500">{errors.description.message}</p>}
+            </label>
+
+            <label className="block space-y-1.5">
+              <span className="text-sm font-medium text-slate-700">Filosofi / Overview (Halaman Detail)</span>
+              <textarea
+                rows={4}
+                {...register('overview')}
+                placeholder="Jelaskan filosofi mendalam di balik program ini..."
+                className="w-full px-3 py-2.5 text-sm bg-white border border-slate-200 rounded-xl focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 outline-none transition-all placeholder:text-slate-400"
+              />
+            </label>
+
+            <label className="block space-y-1.5">
+              <span className="text-sm font-medium text-slate-700">Fokus Strategis (Satu poin per baris)</span>
+              <textarea
+                rows={4}
+                {...register('focus_areas')}
+                placeholder="Contoh:&#10;Pemberdayaan Guru Lokal&#10;Pengadaan Fasilitas Belajar&#10;Kurikulum Berbasis Budaya"
+                className="w-full px-3 py-2.5 text-sm bg-white border border-slate-200 rounded-xl focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 outline-none transition-all placeholder:text-slate-400"
+              />
+              {errors.focus_areas && <p className="text-xs text-red-600">{errors.focus_areas.message}</p>}
+            </label>
+          </div>
+
+          {/* ── SEKSI 4: GALERI & LANJUTAN ── */}
+          <div className="p-5 bg-white border border-slate-200 rounded-2xl space-y-5 shadow-sm">
+            <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-purple-500" />
+              Galeri & Konten Lanjutan
+            </h3>
+
+            <label className="block space-y-1.5">
+              <span className="text-sm font-medium text-slate-700">Galeri Gambar (Multi-upload)</span>
+              <div className="flex gap-2 items-start">
+                <textarea
+                  rows={3}
+                  {...register('gallery_images')}
+                  placeholder="Klik tombol upload untuk memilih banyak gambar sekaligus..."
+                  className="flex-1 px-3 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 outline-none transition-all"
+                  readOnly
+                />
+                <label className="px-4 py-2.5 bg-zinc-900 text-white text-sm font-medium rounded-xl hover:bg-zinc-800 transition-colors cursor-pointer whitespace-nowrap shadow-sm">
+                  {uploadingImage ? 'Mengunggah...' : 'Upload Banyak'}
+                  <input type="file" accept="image/*" multiple className="hidden" onChange={handleUploadGallery} disabled={uploadingImage} />
+                </label>
+              </div>
+              <p className="text-[10px] text-slate-400 italic">Disarankan memilih minimal 4 gambar untuk tampilan optimal di halaman detail.</p>
+              {errors.gallery_images && <p className="text-xs text-red-600">{errors.gallery_images.message}</p>}
+            </label>
+
+            <label className="block space-y-1.5">
+              <span className="text-sm font-medium text-slate-700">Catatan Internal / Konten Tambahan (Opsional)</span>
+              <textarea
+                rows={3}
+                {...register('content')}
+                placeholder="Tambahkan informasi tambahan jika diperlukan..."
+                className="w-full px-3 py-2.5 text-sm bg-white border border-slate-200 rounded-xl focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 outline-none transition-all placeholder:text-slate-400"
+              />
+            </label>
+          </div>
+        </form>
+      </AdminModal>
+
+      {/* MODAL HEADER */}
+      <AdminModal
+        open={headerModalOpen}
+        onClose={() => setHeaderModalOpen(false)}
+        title="Pengaturan Header Beranda"
+        description="Atur teks yang muncul di atas daftar program pada halaman utama."
+        widthClassName="max-w-md"
+        footer={(
+          <>
+            <button
+              onClick={() => setHeaderModalOpen(false)}
+              className="px-4 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors"
+            >
+              Batal
+            </button>
+            <button
+              onClick={saveHeaderData}
+              disabled={savingHeader}
+              className="px-4 py-2 text-sm font-medium text-white bg-zinc-900 rounded-xl hover:bg-zinc-950 transition-colors disabled:opacity-50"
+            >
+              {savingHeader ? 'Menyimpan...' : 'Simpan'}
+            </button>
+          </>
+        )}
+      >
+        <div className="space-y-4">
+          <label className="block space-y-1.5">
+            <span className="text-sm font-medium text-slate-700">Label (Teks Kecil di Atas)</span>
+            <input
+              type="text"
+              value={headerData.label}
+              onChange={(e) => setHeaderData({ ...headerData, label: e.target.value })}
+              className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 outline-none transition-all"
+            />
+          </label>
+          <label className="block space-y-1.5">
+            <span className="text-sm font-medium text-slate-700">Judul Utama</span>
+            <input
+              type="text"
+              value={headerData.title}
+              onChange={(e) => setHeaderData({ ...headerData, title: e.target.value })}
+              className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 outline-none transition-all"
+            />
+          </label>
           <label className="block space-y-1.5">
             <span className="text-sm font-medium text-slate-700">Deskripsi Singkat</span>
             <textarea
               rows={3}
-              {...register('description')}
-              className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 outline-none transition-all placeholder:text-slate-400"
+              value={headerData.description}
+              onChange={(e) => setHeaderData({ ...headerData, description: e.target.value })}
+              className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 outline-none transition-all"
             />
-            {errors.description && <p className="text-xs text-rose-500">{errors.description.message}</p>}
           </label>
+        </div>
+      </AdminModal>
 
-          <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
-            <p className="text-sm font-medium text-slate-700">Pilih Ikon</p>
-            <div className="flex flex-wrap gap-2">
-              {programIconOptions.map((iconName) => (
-                <button
-                  key={iconName}
-                  type="button"
-                  onClick={() => setValue('icon_name', iconName, { shouldDirty: true, shouldValidate: true })}
-                  className={cn(
-                    'px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider rounded-lg transition-colors border',
-                    selectedIcon === iconName
-                      ? 'bg-zinc-900 text-white border-zinc-900'
-                      : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50 hover:text-slate-700',
-                  )}
-                >
-                  {iconName}
-                </button>
-              ))}
+      {/* MODAL CTA */}
+      <AdminModal
+        open={ctaModalOpen}
+        onClose={() => setCtaModalOpen(false)}
+        title="Pengaturan CTA Beranda"
+        description="Atur teks dan tombol pada bagian ajakan bertindak (Call to Action) di bagian bawah halaman Beranda."
+        widthClassName="max-w-xl"
+        footer={(
+          <>
+            <button
+              onClick={() => setCtaModalOpen(false)}
+              className="px-4 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors"
+            >
+              Batal
+            </button>
+            <button
+              onClick={saveCtaData}
+              disabled={savingCta}
+              className="px-4 py-2 text-sm font-medium text-white bg-zinc-900 rounded-xl hover:bg-zinc-950 transition-colors disabled:opacity-50"
+            >
+              {savingCta ? 'Menyimpan...' : 'Simpan'}
+            </button>
+          </>
+        )}
+      >
+        <div className="space-y-4">
+          <label className="block space-y-1.5">
+            <span className="text-sm font-medium text-slate-700">Judul Utama CTA</span>
+            <input
+              type="text"
+              value={ctaData.title}
+              onChange={(e) => setCtaData({ ...ctaData, title: e.target.value })}
+              className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 outline-none transition-all"
+            />
+          </label>
+          <label className="block space-y-1.5">
+            <span className="text-sm font-medium text-slate-700">Gambar CTA</span>
+            <div className="flex gap-2 items-center">
+              <input
+                type="text"
+                value={ctaData.imageUrl}
+                placeholder="URL gambar..."
+                className="flex-1 px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 outline-none transition-all"
+                readOnly
+              />
+              <label className="px-4 py-2 bg-zinc-900 text-white text-sm font-medium rounded-xl hover:bg-zinc-800 transition-colors cursor-pointer whitespace-nowrap shadow-sm">
+                {uploadingImage ? 'Uploading...' : 'Upload'}
+                <input type="file" accept="image/*" className="hidden" onChange={handleUploadCtaImage} disabled={uploadingImage} />
+              </label>
             </div>
-            {errors.icon_name && <p className="text-xs text-rose-500">{errors.icon_name.message}</p>}
+          </label>
+          <label className="block space-y-1.5">
+            <span className="text-sm font-medium text-slate-700">Deskripsi</span>
+            <textarea
+              rows={3}
+              value={ctaData.description}
+              onChange={(e) => setCtaData({ ...ctaData, description: e.target.value })}
+              className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 outline-none transition-all"
+            />
+          </label>
+          
+          <div className="grid grid-cols-2 gap-4">
+            <label className="block space-y-1.5">
+              <span className="text-sm font-medium text-slate-700">Teks Tombol Utama</span>
+              <input
+                type="text"
+                value={ctaData.primaryButtonText}
+                onChange={(e) => setCtaData({ ...ctaData, primaryButtonText: e.target.value })}
+                className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 outline-none transition-all"
+              />
+            </label>
+            <label className="block space-y-1.5">
+              <span className="text-sm font-medium text-slate-700">Link Tombol Utama</span>
+              <input
+                type="text"
+                value={ctaData.primaryButtonLink}
+                onChange={(e) => setCtaData({ ...ctaData, primaryButtonLink: e.target.value })}
+                className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 outline-none transition-all"
+              />
+            </label>
           </div>
 
-          <label className="block space-y-1.5">
-            <span className="text-sm font-medium text-slate-700">Konten Detail</span>
-            <textarea
-              rows={8}
-              {...register('content')}
-              className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 outline-none transition-all placeholder:text-slate-400"
-            />
-            {errors.content && <p className="text-xs text-rose-500">{errors.content.message}</p>}
-          </label>
-        </form>
+          <div className="grid grid-cols-2 gap-4">
+            <label className="block space-y-1.5">
+              <span className="text-sm font-medium text-slate-700">Teks Tombol Kedua</span>
+              <input
+                type="text"
+                value={ctaData.secondaryButtonText}
+                onChange={(e) => setCtaData({ ...ctaData, secondaryButtonText: e.target.value })}
+                className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 outline-none transition-all"
+              />
+            </label>
+            <label className="block space-y-1.5">
+              <span className="text-sm font-medium text-slate-700">Link Tombol Kedua</span>
+              <input
+                type="text"
+                value={ctaData.secondaryButtonLink}
+                onChange={(e) => setCtaData({ ...ctaData, secondaryButtonLink: e.target.value })}
+                className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 outline-none transition-all"
+              />
+            </label>
+          </div>
+        </div>
       </AdminModal>
     </div>
   );

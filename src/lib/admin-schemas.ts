@@ -11,6 +11,13 @@ export const adminProgramSchema = z.object({
     .trim()
     .min(1, 'Nama ikon wajib diisi.')
     .refine((value) => programIconOptions.includes(value as (typeof programIconOptions)[number]), 'Pilih ikon yang tersedia.'),
+  hero_image_url: z.string().trim().optional().or(z.literal('')),
+  home_slider_image: z.string().trim().optional().or(z.literal('')),
+  overview: z.string().trim().optional().or(z.literal('')),
+  stage_label: z.string().trim().optional().or(z.literal('')),
+  stage_value: z.string().trim().optional().or(z.literal('')),
+  focus_areas: z.string().trim().optional().or(z.literal('')), // Akan disimpan sebagai JSON atau string terpisah
+  gallery_images: z.string().trim().optional().or(z.literal('')),
   content: z.string().trim().optional().or(z.literal('')),
 });
 
@@ -102,3 +109,20 @@ export const adminSiteContentSchema = z.object({
 });
 
 export type AdminSiteContentValues = z.infer<typeof adminSiteContentSchema>;
+
+export const adminMapLocationSchema = z.object({
+  id: z.string().trim().optional(),
+  title: z.string().trim().min(1, 'Judul wajib diisi.'),
+  description: z.string().trim().min(1, 'Deskripsi wajib diisi.'),
+  imageUrl: z.string().trim().min(1, 'URL Gambar wajib diisi.'),
+  latitude: z.number().min(-90).max(90),
+  longitude: z.number().min(-180).max(180),
+  status: z.enum(['Berjalan', 'Selesai', 'Akan Datang']),
+  locationLabel: z.string().trim().optional().or(z.literal('')),
+  actionHref: z.string().trim().optional().or(z.literal('')),
+  actionLabel: z.string().trim().optional().or(z.literal('')),
+  images: z.array(z.string()),
+  fullContent: z.string().trim().optional().or(z.literal('')),
+});
+
+export type AdminMapLocationValues = z.infer<typeof adminMapLocationSchema>;

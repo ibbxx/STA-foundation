@@ -10,7 +10,9 @@ import {
   Users,
   BarChart3,
   CheckCircle2,
+  RefreshCw,
 } from 'lucide-react';
+import { CircularTestimonials } from '../../components/ui/circular-testimonials';
 import { Link } from 'react-router-dom';
 import { Campaign } from '../../lib/supabase';
 import { logError } from '../../lib/error-logger';
@@ -19,6 +21,9 @@ import { getProgramIcon } from '../../lib/program-icons';
 import { PROGRAMS } from '../../lib/programs';
 import { formatCurrency, calculateProgress, cn } from '../../lib/utils';
 import { fetchHeroContent, DEFAULT_HERO_SLIDES, type HeroSlide } from '../../lib/admin-hero';
+import { supabase } from '../../lib/supabase';
+import InteractiveMap from '../../components/shared/InteractiveMap';
+import { fetchImpactMapLocations, type EventMapLocation } from '../../lib/public-events';
 /* ─────────── Animation Variants ─────────── */
 
 const fadeUp = {
@@ -38,6 +43,98 @@ export default function Home() {
   // Hero Slideshow State
   const [heroSlides, setHeroSlides] = React.useState<HeroSlide[]>(DEFAULT_HERO_SLIDES);
   const [currentSlideIndex, setCurrentSlideIndex] = React.useState(0);
+
+  // Programs State (Dynamic from Supabase)
+  const [dynamicPrograms, setDynamicPrograms] = React.useState<any[]>([]);
+  const [headerData, setHeaderData] = React.useState({
+    label: 'INISIATIF UTAMA',
+    title: 'Program Kami',
+    description: 'Tiga pilar inisiatif yang kami rancang untuk menciptakan ekosistem pendidikan yang inklusif, layak, dan berkelanjutan.'
+  });
+
+  const [ctaData, setCtaData] = React.useState({
+    title: 'Bergabunglah untuk Masa Depan yang Lebih Cerah',
+    description: 'Setiap kontribusi Anda, sekecil apapun, adalah harapan bagi ribuan saudara kita. Mari bersama membangun Indonesia yang lebih baik.',
+    primaryButtonText: 'Laporkan Sekolah',
+    primaryButtonLink: '/laporkan',
+    secondaryButtonText: 'Hubungi Kami',
+    secondaryButtonLink: '/kontak',
+    imageUrl: ''
+  });
+
+  // Map Data
+  const [mapLocations, setMapLocations] = React.useState<EventMapLocation[]>([]);
+  const [loadingMap, setLoadingMap] = React.useState(true);
+
+  React.useEffect(() => {
+    async function loadPrograms() {
+      try {
+        const { data } = await supabase.from('programs').select('*').order('created_at', { ascending: true });
+        if (data && data.length > 0) {
+          const mapped = data.map((item: any) => {
+            let detail = {};
+            try {
+              if (item.content && (item.content.startsWith('{') || item.content.startsWith('['))) {
+                detail = JSON.parse(item.content);
+              }
+            } catch (e) {}
+            
+            return {
+              ...item,
+              ...detail
+            };
+          });
+          setDynamicPrograms(mapped);
+        }
+
+        // Fetch Header
+        const { data: siteContent } = await supabase.from('site_content').select('*').eq('key', 'home_programs_header').single();
+        if (siteContent && (siteContent as any).value) {
+          const val = (siteContent as any).value;
+          const parsed = typeof val === 'string' ? JSON.parse(val) : val;
+          setHeaderData({
+            label: parsed.label || 'INISIATIF UTAMA',
+            title: parsed.title || 'Program Kami',
+            description: parsed.description || 'Tiga pilar inisiatif yang kami rancang untuk menciptakan ekosistem pendidikan yang inklusif, layak, dan berkelanjutan.'
+          });
+        }
+
+        // Fetch CTA
+        const { data: ctaContent } = await supabase.from('site_content').select('*').eq('key', 'home_cta').single();
+        if (ctaContent && (ctaContent as any).value) {
+          const val = (ctaContent as any).value;
+          const parsed = typeof val === 'string' ? JSON.parse(val) : val;
+          setCtaData({
+            title: parsed.title || 'Bergabunglah untuk Masa Depan yang Lebih Cerah',
+            description: parsed.description || 'Setiap kontribusi Anda, sekecil apapun, adalah harapan bagi ribuan saudara kita. Mari bersama membangun Indonesia yang lebih baik.',
+            primaryButtonText: parsed.primaryButtonText || 'Laporkan Sekolah',
+            primaryButtonLink: parsed.primaryButtonLink || '/laporkan',
+            secondaryButtonText: parsed.secondaryButtonText || 'Hubungi Kami',
+            secondaryButtonLink: parsed.secondaryButtonLink || '/kontak',
+            imageUrl: parsed.imageUrl || ''
+          });
+        }
+      } catch (err) {
+        console.error("Failed to load programs for home slider:", err);
+      }
+    }
+    loadPrograms();
+  }, []);
+
+  React.useEffect(() => {
+    async function loadMapData() {
+      setLoadingMap(true);
+      try {
+        const locs = await fetchImpactMapLocations();
+        setMapLocations(locs);
+      } catch (err) {
+        console.error("Failed to load map locations:", err);
+      } finally {
+        setLoadingMap(false);
+      }
+    }
+    loadMapData();
+  }, []);
 
   React.useEffect(() => {
     let ignore = false;
@@ -466,75 +563,108 @@ export default function Home() {
         </section>
       )}
 
-      {/* ═══════ 6 · INITIATIVES (PREMIUM CLEAN - MOBILE OPTIMIZED) ═══════ */}
+      {/* ═══════ 6 · INITIATIVES (PREMIUM CIRCULAR SLIDER) ═══════ */}
       <section className="py-20 md:py-24 lg:py-32 bg-[#FAF9F6] overflow-hidden">
         <div className="max-w-7xl mx-auto px-5 sm:px-6 lg:px-8">
           <motion.div {...fadeUp} className="mb-12 md:mb-16 flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-gray-200 pb-8 sm:pb-10">
             <div className="max-w-2xl">
               <p className="text-emerald-700 font-bold uppercase tracking-[0.2em] text-xs sm:text-sm mb-3 md:mb-4 flex items-center gap-3">
                 <span className="w-8 md:w-10 h-[2px] bg-emerald-600"></span>
-                Inisiatif Utama
+                {headerData.label}
               </p>
               <h2 className="text-3xl md:text-4xl lg:text-5xl font-black text-gray-900 leading-tight tracking-tight">
-                Program Kami
+                {headerData.title}
               </h2>
             </div>
             <p className="max-w-md text-gray-600 text-[15px] md:text-lg leading-relaxed font-light">
-              Tiga pilar inisiatif yang kami rancang untuk menciptakan ekosistem pendidikan yang inklusif, layak, dan berkelanjutan.
+              {headerData.description}
             </p>
           </motion.div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-6 lg:gap-8">
-            {PROGRAMS.map((program, i) => {
-              const ProgramIcon = getProgramIcon(program.icon_name);
-
-              return (
-                <motion.div
-                  key={program.id}
-                  initial={{ opacity: 0, y: 30 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true, margin: '-50px' }}
-                  transition={{ duration: 0.6, delay: i * 0.1 }}
-                  className="h-full"
-                >
-                  <Link
-                    to={program.detail_path}
-                    className="group flex flex-col h-full bg-white border border-gray-100 p-6 md:p-8 lg:p-10 hover:border-emerald-200 hover:shadow-[0_8px_30px_rgb(0,0,0,0.04)] transition-all duration-300 rounded-2xl md:rounded-none"
-                  >
-                    <div className="flex items-center justify-between mb-8">
-                      <div className="w-14 h-14 md:w-16 md:h-16 rounded-full bg-emerald-50 text-emerald-700 flex items-center justify-center group-hover:bg-emerald-600 group-hover:text-white transition-colors duration-300">
-                        <ProgramIcon size={28} strokeWidth={1.5} className="w-6 h-6 md:w-7 md:h-7" />
-                      </div>
-                      <span className="text-xs font-bold tracking-[0.15em] uppercase text-gray-400">
-                        0{i + 1}
-                      </span>
-                    </div>
-
-                    <div className="flex-1">
-                      <span className="inline-block px-3 py-1.5 bg-gray-50 text-emerald-700 text-[10px] md:text-xs font-bold uppercase tracking-widest mb-4 rounded-full md:rounded-none">
-                        {program.stage_value}
-                      </span>
-                      <h3 className="text-xl md:text-2xl lg:text-3xl font-bold text-gray-900 mb-3 md:mb-4 leading-snug group-hover:text-emerald-700 transition-colors duration-300">
-                        {program.title}
-                      </h3>
-                      <p className="text-gray-600 text-[15px] md:text-base leading-relaxed font-light mb-8">
-                        {program.short_description}
-                      </p>
-                    </div>
-
-                    <div className="mt-auto pt-5 md:pt-6 border-t border-gray-50 flex items-center gap-3 text-sm font-bold uppercase tracking-wider text-emerald-700">
-                      <span>Eksplorasi</span>
-                      <ArrowRight size={18} className="transition-transform duration-300 group-hover:translate-x-2 w-4 h-4 md:w-5 md:h-5" />
-                    </div>
-                  </Link>
-                </motion.div>
-              );
-            })}
+          <div className="flex justify-center">
+            <CircularTestimonials
+              testimonials={(dynamicPrograms.length > 0 ? dynamicPrograms : PROGRAMS).map((program, i) => {
+                return {
+                  name: program.title,
+                  designation: program.stage_value || 'Program STA',
+                  quote: program.short_description || program.description,
+                  src: program.home_slider_image || program.hero_image_url || '',
+                  href: `/programs/${program.slug}`
+                };
+              })}
+              autoplay={true}
+              colors={{
+                name: "#111827",
+                designation: "#059669",
+                testimony: "#4b5563",
+                arrowBackground: "#065f46",
+                arrowForeground: "#ffffff",
+                arrowHoverBackground: "#047857",
+              }}
+              fontSizes={{
+                name: "clamp(1.5rem, 4vw, 2.5rem)",
+                designation: "0.875rem",
+                quote: "clamp(1rem, 2vw, 1.25rem)",
+              }}
+            />
           </div>
         </div>
       </section>
 
-      {/* ═══════ 9 · FINAL CTA ═══════ */}
+      {/* ═══════ 7 · INTERACTIVE IMPACT MAP ═══════ */}
+      <section className="py-20 bg-white">
+        <div className="max-w-7xl mx-auto px-5 sm:px-6 lg:px-8">
+          <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-8 mb-12">
+            <motion.div {...fadeUp} className="max-w-2xl">
+              <p className="text-emerald-700 font-bold uppercase tracking-[0.2em] text-xs mb-3 flex items-center gap-3">
+                <span className="w-8 h-[2px] bg-emerald-600"></span>
+                Peta Dampak
+              </p>
+              <h2 className="text-3xl md:text-4xl font-black text-gray-900 leading-tight tracking-tight">
+                Jejak Aksi Nyata Kami
+              </h2>
+              <p className="mt-4 text-gray-600 text-base md:text-lg leading-relaxed font-light">
+                Eksplorasi sebaran kegiatan Sekolah Tanah Air di berbagai penjuru Indonesia. 
+                Klik titik lokasi untuk melihat detail aksi yang telah dilakukan.
+              </p>
+            </motion.div>
+            <motion.div {...fadeUp} transition={{ delay: 0.1 }}>
+              <Link
+                to="/events"
+                className="inline-flex items-center gap-2 text-sm font-bold text-emerald-700 hover:text-emerald-900 transition-colors group"
+              >
+                Lihat Semua Lokasi
+                <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+              </Link>
+            </motion.div>
+          </div>
+
+          <motion.div
+            initial={{ opacity: 0, scale: 0.98 }}
+            whileInView={{ opacity: 1, scale: 1 }}
+            viewport={{ once: true, margin: '-60px' }}
+            transition={{ duration: 0.8 }}
+            className="relative rounded-[2rem] overflow-hidden shadow-2xl shadow-gray-200/50 border border-gray-100"
+          >
+            <InteractiveMap 
+              locations={mapLocations}
+              height="500px"
+              className="w-full"
+              useFallbackLocations={true}
+              viewportMode="fit-indonesia"
+              scrollWheelZoom={false}
+            />
+            {loadingMap && (
+              <div className="absolute inset-0 z-30 flex items-center justify-center bg-white/40 backdrop-blur-sm">
+                <div className="flex flex-col items-center gap-3">
+                  <RefreshCw className="h-8 w-8 text-emerald-600 animate-spin" />
+                  <p className="text-xs font-bold text-emerald-900 uppercase tracking-widest">Memetakan Dampak...</p>
+                </div>
+              </div>
+            )}
+          </motion.div>
+        </div>
+      </section>
       <section className="py-10 sm:py-14 md:py-16 lg:py-20">
         <div className="max-w-7xl mx-auto px-5 sm:px-6 lg:px-8">
           <div className="grid lg:grid-cols-2 gap-0 rounded-2xl sm:rounded-[1.5rem] md:rounded-[2rem] overflow-hidden shadow-xl shadow-gray-200/30">
@@ -545,37 +675,32 @@ export default function Home() {
               <div className="relative z-10 space-y-4 sm:space-y-5">
                 <Quote size={28} className="text-emerald-400/40" />
                 <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-white leading-tight">
-                  Bergabunglah untuk Masa Depan yang Lebih Cerah
+                  {ctaData.title}
                 </h2>
                 <p className="text-emerald-100/75 text-sm sm:text-base leading-relaxed">
-                  Setiap kontribusi Anda, sekecil apapun, adalah harapan bagi ribuan saudara kita. Mari bersama membangun Indonesia yang lebih baik.
+                  {ctaData.description}
                 </p>
                 <div className="flex flex-col sm:flex-row gap-3 pt-2">
-                  {/* HIDDEN FOR PRESENTATION MODE
-                  <Link to="/campaigns" className="bg-white text-emerald-700 px-6 sm:px-7 py-3 sm:py-3.5 rounded-full font-bold hover:bg-emerald-50 transition-all text-center text-sm shadow-lg">
-                    Mulai Berdonasi
+                  <Link to={ctaData.primaryButtonLink} className="bg-white text-emerald-700 px-6 sm:px-7 py-3 sm:py-3.5 rounded-full font-bold hover:bg-emerald-50 transition-all text-center text-sm shadow-lg">
+                    {ctaData.primaryButtonText}
                   </Link>
-                  */}
-                  {/* TEMPORARY CTA */}
-                  <Link to="/laporkan" className="bg-white text-emerald-700 px-6 sm:px-7 py-3 sm:py-3.5 rounded-full font-bold hover:bg-emerald-50 transition-all text-center text-sm shadow-lg">
-                    Laporkan Sekolah
-                  </Link>
-                  <Link to="/kontak" className="bg-emerald-800/60 text-white px-6 sm:px-7 py-3 sm:py-3.5 rounded-full font-bold hover:bg-emerald-800 transition-all text-center text-sm border border-emerald-600/40">
-                    Hubungi Kami
+                  <Link to={ctaData.secondaryButtonLink} className="bg-emerald-800/60 text-white px-6 sm:px-7 py-3 sm:py-3.5 rounded-full font-bold hover:bg-emerald-800 transition-all text-center text-sm border border-emerald-600/40">
+                    {ctaData.secondaryButtonText}
                   </Link>
                 </div>
               </div>
             </div>
 
-            {/* Image */}
-            <div className="relative aspect-[16/10] lg:aspect-auto order-1 lg:order-2">
-              <img
-                src=""
-                alt="Kebersamaan"
-                className="w-full h-full object-cover"
-                loading="lazy"
-                decoding="async"
-              />
+            <div className="relative aspect-[16/10] lg:aspect-auto order-1 lg:order-2 bg-emerald-800/10">
+              {ctaData.imageUrl && (
+                <img
+                  src={ctaData.imageUrl}
+                  alt={ctaData.title}
+                  className="w-full h-full object-cover"
+                  loading="lazy"
+                  decoding="async"
+                />
+              )}
               <div className="absolute inset-0 bg-gradient-to-l from-transparent to-emerald-700/5" />
             </div>
           </div>

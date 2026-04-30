@@ -1,4 +1,7 @@
-import { Mail, Phone, MapPin, Send, MessageCircle } from 'lucide-react';
+import React from 'react';
+import { Mail, Phone, MapPin, Send, MessageCircle, ArrowRight } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { supabase } from '../../lib/supabase';
 
 /**
  * Komponen Halaman Kontak (Contact).
@@ -6,15 +9,49 @@ import { Mail, Phone, MapPin, Send, MessageCircle } from 'lucide-react';
  * formulir pesan langsung bagi publik dan calon mitra.
  */
 export default function Contact() {
+  const [heroImage, setHeroImage] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    async function loadHero() {
+      try {
+        const { data } = await supabase.from('site_content').select('value').eq('key', 'hero_kontak').single();
+        if (data && (data as any).value) {
+          const val = (data as any).value;
+          const parsed = typeof val === 'string' ? JSON.parse(val) : val;
+          if (parsed.imageUrl) setHeroImage(parsed.imageUrl);
+        }
+      } catch (e) { }
+    }
+    loadHero();
+  }, []);
+
   return (
     <div className="bg-white">
-      {/* Bagian Pahlawan (Hero Section) Pengenalan Halaman */}
-      <section className="bg-emerald-50/50 pt-24 pb-16 sm:pt-32 sm:pb-24">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-6">
-          <h1 className="text-3xl font-black text-gray-900 sm:text-4xl md:text-6xl">Hubungi Kami</h1>
-          <p className="mx-auto max-w-3xl text-base leading-relaxed text-gray-600 sm:text-xl">
-            Punya pertanyaan atau ingin berkolaborasi? Kami siap mendengarkan dan membantu Anda.
-          </p>
+      {/* Spacer untuk Navbar agar tidak tumpang tindih */}
+      <div className="h-16 sm:h-20 bg-white" />
+
+      {/* Bagian Pahlawan (Hero Section) */}
+      <section className="relative min-h-[50svh] w-full flex flex-col justify-center overflow-hidden bg-gray-900">
+        {heroImage && (
+          <div className="absolute inset-0 z-0">
+            <img src={heroImage} className="w-full h-full object-cover" alt="Hubungi Kami" />
+            <div className="absolute inset-0 bg-black/30" />
+            <div className="absolute inset-0 bg-gradient-to-r from-gray-900/80 via-transparent to-transparent" />
+          </div>
+        )}
+        <div className="relative z-10 w-full max-w-7xl mx-auto px-5 md:px-8">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="w-full md:max-w-2xl"
+          >
+            <h1 className="text-[24px] sm:text-4xl md:text-6xl lg:text-7xl font-black text-white leading-tight tracking-tight mb-4">
+              Hubungi Kami
+            </h1>
+            <p className="text-[11px] sm:text-sm md:text-xl text-gray-300 leading-relaxed font-light max-w-xl">
+              Punya pertanyaan atau ingin berkolaborasi? <br className="hidden md:block" /> Kami siap mendengarkan dan membantu mewujudkan aksi nyata Anda.
+            </p>
+          </motion.div>
         </div>
       </section>
 
@@ -34,7 +71,6 @@ export default function Contact() {
                 {[
                   { label: 'Email', value: 'halo@tanahair.org', icon: Mail, color: 'bg-blue-500' },
                   { label: 'WhatsApp', value: '+62 812 3456 7890', icon: MessageCircle, color: 'bg-emerald-500' },
-                  { label: 'Telepon', value: '(021) 1234 5678', icon: Phone, color: 'bg-orange-500' },
                   { label: 'Alamat', value: 'Jl. Kemanusiaan No. 123, Jakarta Selatan', icon: MapPin, color: 'bg-rose-500' },
                 ].map((item, i) => (
                   <div key={i} className="group flex items-start space-x-4 rounded-[1.5rem] border border-gray-100 bg-gray-50/70 p-4 sm:space-x-6 sm:p-5">

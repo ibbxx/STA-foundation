@@ -39,15 +39,7 @@ export default function CampaignDetail() {
   const [activeSlide, setActiveSlide] = useState(0);
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
   const [updateLightboxImage, setUpdateLightboxImage] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
 
-  const handleCopyLink = useCallback(() => {
-    if (typeof navigator !== 'undefined' && navigator.clipboard) {
-      void navigator.clipboard.writeText(window.location.href);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    }
-  }, []);
 
   useEffect(() => {
     let ignore = false;
@@ -251,8 +243,6 @@ export default function CampaignDetail() {
               <div className="rounded-sm border border-x-gray-100 border-b-gray-100 border-t-0 bg-white px-5 pb-5">
                 <CampaignShareButtons
                   campaignTitle={campaign.title}
-                  copied={copied}
-                  onCopyLink={handleCopyLink}
                   keyPrefix="mobile-"
                 />
               </div>
@@ -380,8 +370,6 @@ export default function CampaignDetail() {
               <div className="rounded-sm border border-gray-100 bg-white px-6 pb-6 -mt-4">
                 <CampaignShareButtons
                   campaignTitle={campaign.title}
-                  copied={copied}
-                  onCopyLink={handleCopyLink}
                   keyPrefix="desktop-"
                 />
               </div>

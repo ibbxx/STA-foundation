@@ -10,7 +10,8 @@ import {
   Settings,
   Users,
   X,
-  Bell
+  Bell,
+  MapPinned
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import type { ComponentType } from 'react';
@@ -30,11 +31,11 @@ type AdminNavItem = {
 const menuItems: AdminNavItem[] = [
   { name: 'Dashboard', path: '/admin', icon: LayoutDashboard },
   { name: 'Campaigns', path: '/admin/campaigns', icon: FileText },
-  { name: 'Program STA', path: '/admin/content', icon: BookText },
+  { name: 'Manajemen Konten', path: '/admin/content', icon: BookText },
   { name: 'Donatur', path: '/admin/donors', icon: Users },
   { name: 'Donasi', path: '/admin/transactions', icon: Banknote },
+  { name: 'Peta Dampak', path: '/admin/impact-map', icon: MapPinned },
   { name: 'Laporan Sekolah', path: '/admin/school-reports', icon: Building2 },
-  { name: 'CMS Portal', path: '/admin/settings', icon: Settings },
 ];
 
 export default function AdminLayout() {

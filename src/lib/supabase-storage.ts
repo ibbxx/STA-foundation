@@ -89,7 +89,7 @@ export async function uploadFileToStorage(file: File, options: UploadOptions = {
   return data.publicUrl;
 }
 
-export async function uploadAdminImage(file: File, folder: 'campaigns' | 'hero' | 'programs' = 'campaigns') {
+export async function uploadAdminImage(file: File, folder: 'campaigns' | 'hero' | 'programs' | 'general' = 'campaigns') {
   // Khusus hero, kita jangan kompres untuk menjaga branding/kualitas asli
   const skipCompression = folder === 'hero';
   return uploadFileToStorage(file, { bucket: defaultBucket, folder, skipCompression });

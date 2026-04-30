@@ -27,17 +27,12 @@ import {
 } from '../../lib/report-school';
 import { checkIPRateLimit, checkIsBlacklisted, insertSchoolReport, uploadSchoolReportPhotos } from '../../lib/admin-repository';
 import { logError } from '../../lib/error-logger';
+import { supabase } from '../../lib/supabase';
 
 // Derive type from Zod schema to keep resolver and form in sync
 type FormValues = z.infer<typeof reportSchoolFormSchema>;
 
-const trustHighlights = [
-  { icon: ShieldCheck, title: 'Ditinjau tim STA', description: 'Setiap laporan dibaca manual agar proses verifikasi hati-hati.' },
-  { icon: Search, title: 'Verifikasi awal', description: 'Informasi awal dibandingkan dengan konteks lapangan sebelum ditindak.' },
-  { icon: HeartHandshake, title: 'Tanpa biaya', description: 'Laporan ini independen, tidak dipungut biaya apapun.' },
-];
-
-function createEmptyAssets(): ReportSchoolAssets {
+const createEmptyAssets = (): ReportSchoolAssets => {
   return { schoolPhotos: [] };
 }
 
@@ -64,6 +59,25 @@ export default function LaporkanSekolah() {
   const [spamError, setSpamError] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const [heroImage, setHeroImage] = useState<string | null>(null);
+  const [modalImage, setModalImage] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function loadData() {
+      try {
+        const { data: rows } = await supabase.from('site_content').select('key, value').in('key', ['hero_laporkan', 'modal_lapor_sekolah']);
+        if (rows) {
+          rows.forEach((row: any) => {
+            const val = row.value;
+            const parsed = typeof val === 'string' ? JSON.parse(val) : val;
+            if (row.key === 'hero_laporkan' && parsed.imageUrl) setHeroImage(parsed.imageUrl);
+            if (row.key === 'modal_lapor_sekolah' && parsed.imageUrl) setModalImage(parsed.imageUrl);
+          });
+        }
+      } catch (e) { }
+    }
+    loadData();
+  }, []);
 
   // Close modal on Escape key press
   useEffect(() => {
@@ -142,7 +156,7 @@ export default function LaporkanSekolah() {
     // 2. Create a dummy photo file so validation passes and WA gets a photo count
     const dummyBlob = new Blob(['dummy image content'], { type: 'image/jpeg' });
     const dummyFile = new File([dummyBlob], 'dummy-photo.jpg', { type: 'image/jpeg' });
-    
+
     setAssets(prev => ({
       ...prev,
       schoolPhotos: [dummyFile]
@@ -223,65 +237,49 @@ export default function LaporkanSekolah() {
   });
 
   return (
-    <div className="min-h-screen bg-[#FAF9F7] text-gray-900 font-sans">
-      
-      {/* ═══════════════ PAGE CONTENT (INTRO) ═══════════════ */}
-      <main className="pt-32 pb-20 md:pt-40 md:pb-32 px-6">
-        <div className="max-w-4xl mx-auto">
+    <div className="min-h-screen bg-[#FDFCFB] selection:bg-emerald-600 selection:text-white">
+      {/* 1. HERO SECTION */}
+      <section className="relative min-h-[100svh] w-full flex flex-col justify-end md:justify-center overflow-hidden bg-gray-900">
+        {heroImage && (
+          <div className="absolute inset-0 z-0">
+            <img src={heroImage} className="w-full h-full object-cover object-center" alt="Laporkan Sekolah" />
+            <div className="absolute inset-0 bg-black/20" />
+            <div className="absolute inset-0 bg-gradient-to-t from-gray-900/90 via-gray-900/40 to-transparent md:bg-gradient-to-r md:from-gray-900/90 md:via-gray-900/40 md:to-transparent" />
+          </div>
+        )}
+        <div className="relative z-10 w-full max-w-7xl mx-auto px-5 md:px-8 pb-12 md:pb-0 pt-32">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
-            className="text-center space-y-8"
+            className="w-full md:max-w-2xl"
           >
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-emerald-100 text-emerald-700 mb-2 shadow-sm">
-              <ShieldCheck size={32} strokeWidth={1.5} />
-            </div>
-            
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-black text-gray-900 leading-tight tracking-tight">
-              Bantu kami menemukan sekolah yang butuh bantuan.
+            <h1 className="text-[20px] sm:text-3xl md:text-5xl lg:text-6xl font-black text-white leading-[1.2] tracking-tight mb-4 md:mb-6">
+              Bantu kami menemukan <br className="hidden md:block" /> sekolah yang butuh bantuan.
             </h1>
             
-            <p className="text-lg md:text-xl text-gray-600 leading-relaxed font-light max-w-2xl mx-auto">
-              Setiap laporan Anda adalah langkah pertama untuk mengonversi kerusakan fisik menjadi kampanye penggalangan dana yang nyata dan transparan.
+            <p className="text-[11px] sm:text-sm md:text-xl text-gray-300 leading-relaxed font-light max-w-xl mb-8 md:mb-10">
+              Setiap laporan Anda adalah langkah pertama untuk aksi nyata yang transparan dan berdampak luas bagi pendidikan Indonesia.
             </p>
-
-            <div className="pt-6">
+ 
+            <div className="flex flex-row items-center gap-3">
               <button
                 onClick={() => setIsModalOpen(true)}
-                className="w-full sm:w-auto px-10 py-4 bg-emerald-700 text-white font-bold rounded-full hover:bg-emerald-800 transition-transform active:scale-95 shadow-lg shadow-emerald-900/10 flex items-center justify-center gap-3 group mx-auto"
+                className="inline-flex h-10 md:h-14 items-center justify-center gap-2 rounded-full bg-emerald-600 px-6 md:px-10 text-[11px] md:text-base font-bold text-white transition-all hover:bg-emerald-500 active:scale-95 shadow-lg shadow-emerald-900/40 group"
               >
                 Mulai Laporkan Sekarang 
-                <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
+                <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform md:w-5 md:h-5" />
               </button>
             </div>
           </motion.div>
-
-          {/* Trust Highlights */}
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2, duration: 0.5 }}
-            className="mt-20 grid md:grid-cols-3 gap-8"
-          >
-            {trustHighlights.map((highlight) => (
-              <div key={highlight.title} className="bg-white rounded-2xl border border-gray-100 p-8 shadow-sm text-center hover:shadow-md transition-shadow">
-                <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 mx-auto mb-6">
-                  <highlight.icon size={28} strokeWidth={1.5} />
-                </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-3">{highlight.title}</h3>
-                <p className="text-sm text-gray-500 leading-relaxed">{highlight.description}</p>
-              </div>
-            ))}
-          </motion.div>
         </div>
-      </main>
+      </section>
 
       {/* ═══════════════ MODAL WIZARD ═══════════════ */}
       <AnimatePresence>
         {isModalOpen && (
           <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 sm:p-6">
-            
+
             {/* Backdrop */}
             <motion.div
               initial={{ opacity: 0 }}
@@ -303,7 +301,7 @@ export default function LaporkanSekolah() {
               className="bg-white w-full max-w-5xl h-[95vh] max-h-[800px] rounded-3xl overflow-hidden shadow-2xl flex flex-col md:flex-row relative z-10"
             >
               {/* Close Button */}
-              <button 
+              <button
                 onClick={() => {
                   if (!isSuccess && !isSubmitting) setIsModalOpen(false);
                 }}
@@ -315,11 +313,13 @@ export default function LaporkanSekolah() {
 
               {/* Left Panel (Branding) */}
               <div className="hidden md:block w-1/3 relative bg-[#0A2E1F] overflow-hidden shrink-0">
-                <img 
-                  src="https://images.unsplash.com/photo-1497633762265-9d179a990aa6?auto=format&fit=crop&q=80&w=800" 
-                  alt="Sekolah"
-                  className="absolute inset-0 w-full h-full object-cover opacity-20 mix-blend-overlay"
-                />
+                {modalImage && (
+                  <img
+                    src={modalImage}
+                    alt="Sekolah"
+                    className="absolute inset-0 w-full h-full object-cover opacity-20 mix-blend-overlay"
+                  />
+                )}
                 <div className="absolute inset-0 p-10 flex flex-col justify-between">
                   <div className="flex items-center gap-3 font-bold text-lg text-white">
                     <div className="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center border border-emerald-500/30">
@@ -330,7 +330,7 @@ export default function LaporkanSekolah() {
 
                   <div>
                     <h2 className="text-3xl font-black text-white leading-tight mb-4">
-                      Bersama <br/>Membangun <br/><span className="text-emerald-400">Pendidikan.</span>
+                      Bersama <br />Membangun <br /><span className="text-emerald-400">Pendidikan.</span>
                     </h2>
                     <p className="text-emerald-100/70 text-sm leading-relaxed">
                       Laporan Anda adalah data berharga. Tim relawan kami akan menggunakan informasi ini untuk melakukan verifikasi faktual di lapangan.
@@ -341,7 +341,7 @@ export default function LaporkanSekolah() {
 
               {/* Right Panel (Form Content) */}
               <div className="flex-1 flex flex-col bg-white h-full min-h-0 min-w-0 relative">
-                
+
                 {/* Mobile Header */}
                 <div className="md:hidden px-6 py-4 border-b border-gray-100 flex items-center gap-2 font-bold text-sm text-gray-900 shrink-0">
                   <ShieldCheck size={16} className="text-emerald-600" />
@@ -360,7 +360,7 @@ export default function LaporkanSekolah() {
                         className="h-full flex flex-col items-center justify-center text-center pb-10"
                       >
                         <div className="relative mb-8">
-                          <motion.div 
+                          <motion.div
                             initial={{ scale: 0.5, opacity: 0 }}
                             animate={{ scale: 1, opacity: 1 }}
                             transition={{ type: "spring", stiffness: 300, damping: 20 }}
@@ -389,11 +389,11 @@ export default function LaporkanSekolah() {
                       >
                         <FormProvider {...methods}>
                           <form onSubmit={onSubmit}>
-                            
+
                             {/* Step Progress directly in the white panel so it reads clearly */}
                             <div className="mb-10">
                               <StepProgress steps={REPORT_SCHOOL_STEPS} currentStep={currentStep} />
-                              
+
                               {import.meta.env.DEV && (
                                 <button
                                   type="button"
@@ -451,7 +451,7 @@ export default function LaporkanSekolah() {
                     )}
                   </AnimatePresence>
                 </div>
-                
+
                 {/* Fixed Bottom Navigation */}
                 {!isSuccess && (
                   <div className="px-6 pb-6 pt-2 md:px-12 md:pb-8 bg-white shrink-0">

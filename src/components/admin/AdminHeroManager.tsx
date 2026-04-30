@@ -184,6 +184,15 @@ export default function AdminHeroManager() {
       return;
     }
     if (!window.confirm('Yakin hapus slide ini?')) return;
+    
+    // Delete from storage
+    const slide = slides.find((s) => s.id === id);
+    if (slide && slide.imageUrl) {
+      import('../../lib/supabase-storage').then((m) => {
+        m.deleteFilesFromStorage([slide.imageUrl]).catch(err => logError('AdminHeroManager.deleteStorage', err));
+      });
+    }
+
     setSlides((prev) => prev.filter((s) => s.id !== id));
   }
 
@@ -191,8 +200,18 @@ export default function AdminHeroManager() {
     setUploadingId(slideId);
     setError(null);
     try {
+      const slide = slides.find((s) => s.id === slideId);
+      const oldUrl = slide?.imageUrl;
+
       const url = await uploadAdminImage(file, 'hero');
       updateSlide(slideId, 'imageUrl', url);
+
+      // Delete old image from storage
+      if (oldUrl) {
+        import('../../lib/supabase-storage').then((m) => {
+          m.deleteFilesFromStorage([oldUrl]).catch(err => logError('AdminHeroManager.deleteOldStorage', err));
+        });
+      }
     } catch (err) {
       logError('AdminHeroManager.upload', err);
       setError(err instanceof Error ? err.message : 'Gagal upload gambar.');
