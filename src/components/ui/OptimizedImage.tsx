@@ -3,6 +3,7 @@ import { logError } from '../../lib/error-logger';
 import { cn } from '../../lib/utils';
 
 interface OptimizedImageProps {
+  key?: string | number;
   src: string;
   alt: string;
   className?: string;

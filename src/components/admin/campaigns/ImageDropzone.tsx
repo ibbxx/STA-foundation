@@ -48,6 +48,7 @@ type ImageDropzoneProps = {
 // ─── Sortable thumbnail card ───────────────────────────────────────────
 
 type SortableImageCardProps = {
+  key?: string | number;
   item: ImagePreviewItem;
   onRemove: (id: string) => void;
   onCropClick: (item: ImagePreviewItem) => void;

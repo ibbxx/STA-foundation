@@ -26,6 +26,7 @@ function ProgramSlideCard({
   onDelete,
   onUploadImage,
 }: {
+  key?: string | number;
   slide: HomeProgramSlide;
   index: number;
   total: number;

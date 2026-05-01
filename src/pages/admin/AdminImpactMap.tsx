@@ -224,7 +224,7 @@ export default function AdminImpactMap() {
 
     try {
       setUploadingGallery(true);
-      const uploadPromises = files.map(file => uploadAdminImage(file, 'general'));
+      const uploadPromises = files.map(file => uploadAdminImage(file as File, 'general'));
       const urls = await Promise.all(uploadPromises);
       setValue('images', [...galleryImages, ...urls], { shouldDirty: true, shouldValidate: true });
     } catch (err) {

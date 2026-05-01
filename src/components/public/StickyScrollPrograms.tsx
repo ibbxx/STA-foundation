@@ -2,7 +2,10 @@ import React, { useRef, Component, ErrorInfo, ReactNode } from 'react';
 import { motion, useScroll, useTransform, type MotionValue, mix } from 'framer-motion';
 import type { HomeProgramSlide } from '../../lib/admin-home-programs';
 
-class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean, error: Error | null }> {
+class ErrorBoundary extends React.Component<{ children: ReactNode }, { hasError: boolean, error: Error | null }> {
+  public state: { hasError: boolean, error: Error | null };
+  public props!: { children: ReactNode };
+
   constructor(props: { children: ReactNode }) {
     super(props);
     this.state = { hasError: false, error: null };
@@ -31,7 +34,7 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boole
   }
 }
 
-function SlideContent({ prog, index, len, scrollYProgress }: { prog: HomeProgramSlide; index: number; len: number; scrollYProgress: MotionValue<number>; }) {
+function SlideContent({ prog, index, len, scrollYProgress }: { key?: React.Key; prog: HomeProgramSlide; index: number; len: number; scrollYProgress: MotionValue<number>; }) {
   const center = index / (len > 1 ? len - 1 : 1);
   const span = 1 / (len > 1 ? len - 1 : 1);
 
@@ -79,7 +82,7 @@ function SlideContent({ prog, index, len, scrollYProgress }: { prog: HomeProgram
   );
 }
 
-function SlideImage({ prog, index, len, scrollYProgress }: { prog: HomeProgramSlide; index: number; len: number; scrollYProgress: MotionValue<number>; }) {
+function SlideImage({ prog, index, len, scrollYProgress }: { key?: React.Key; prog: HomeProgramSlide; index: number; len: number; scrollYProgress: MotionValue<number>; }) {
   const center = index / (len > 1 ? len - 1 : 1);
   const span = 1 / (len > 1 ? len - 1 : 1);
 
@@ -125,7 +128,7 @@ function SlideImage({ prog, index, len, scrollYProgress }: { prog: HomeProgramSl
 
 const colorMixer = mix("#E5E7EB", "#059669");
 
-function SlideIndicator({ index, len, scrollYProgress }: { index: number; len: number; scrollYProgress: MotionValue<number>; }) {
+function SlideIndicator({ index, len, scrollYProgress }: { key?: React.Key; index: number; len: number; scrollYProgress: MotionValue<number>; }) {
   const center = index / (len > 1 ? len - 1 : 1);
   const span = 1 / (len > 1 ? len - 1 : 1);
   

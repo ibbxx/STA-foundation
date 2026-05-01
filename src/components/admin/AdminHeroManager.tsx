@@ -28,6 +28,7 @@ function SlideCard({
   onDelete,
   onUploadImage,
 }: {
+  key?: string | number;
   slide: HeroSlide;
   index: number;
   total: number;

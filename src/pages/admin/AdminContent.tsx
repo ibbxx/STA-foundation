@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { AlertCircle, CheckCircle2, Edit2, Layers3, Plus, RefreshCw, Save, Search, Settings, Sparkles, Trash2 } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import AdminModal from '../../components/admin/AdminModal';
 import AdminHeroManager from '../../components/admin/AdminHeroManager';
@@ -97,7 +97,7 @@ export default function AdminContent() {
       setUploadingImage(true);
       const urls = [];
       for (const f of files) {
-        const url = await uploadAdminImage(f, 'programs');
+        const url = await uploadAdminImage(f as File, 'programs');
         urls.push(url);
       }
       const existing = watch('gallery_images') || '';

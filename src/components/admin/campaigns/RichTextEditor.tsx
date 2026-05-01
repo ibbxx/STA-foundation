@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import { logError } from '../../../lib/error-logger';
 import { cn } from '../../../lib/utils';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 
 type RichTextEditorProps = {
   label: string;
