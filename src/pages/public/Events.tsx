@@ -155,14 +155,16 @@ export default function Events() {
         </div>
       </section>
 
-      <section className="border-b border-emerald-100/80 bg-[#F7F4EC] py-6">
-        <div className="mx-auto grid max-w-7xl grid-cols-2 gap-4 px-5 sm:px-6 lg:grid-cols-4 lg:px-8">
-          {stats.map((stat) => (
-            <div key={stat.label} className="rounded-2xl border border-white/80 bg-white/80 px-4 py-4 shadow-sm">
-              <p className="text-2xl font-black tracking-tight text-gray-900 sm:text-3xl">{stat.value}</p>
-              <p className="mt-1 text-xs font-medium uppercase tracking-[0.16em] text-gray-500">{stat.label}</p>
-            </div>
-          ))}
+      <section className="border-b border-emerald-100/30 bg-[#F7F4EC]/50 py-3 sm:py-5">
+        <div className="mx-auto max-w-7xl px-5 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-4 gap-2 sm:gap-4 md:gap-8">
+            {stats.map((stat) => (
+              <div key={stat.label} className="text-center">
+                <p className="text-sm sm:text-lg md:text-2xl font-black tracking-tight text-gray-900 leading-none">{stat.value}</p>
+                <p className="mt-1 text-[7px] sm:text-[9px] font-bold uppercase tracking-[0.1em] text-gray-400 leading-none truncate">{stat.label}</p>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 

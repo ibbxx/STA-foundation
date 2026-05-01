@@ -15,6 +15,8 @@ export type EventMapLocation = {
   actionLabel?: string | null;
   images: string[];
   fullContent?: string | null;
+  journeyPeriod?: string | null;
+  journeyProgress?: string | null;
 };
 
 type ImpactMapPayload = {
@@ -100,6 +102,8 @@ function parseLocation(location: unknown, index: number): EventMapLocation | nul
     actionLabel,
     images: Array.isArray(location.images) ? location.images.map(img => String(img)) : [],
     fullContent: toText(location.full_content) ?? toText(location.fullContent),
+    journeyPeriod: toText(location.journey_period) ?? toText(location.journeyPeriod),
+    journeyProgress: toText(location.journey_progress) ?? toText(location.journeyProgress),
   };
 }
 

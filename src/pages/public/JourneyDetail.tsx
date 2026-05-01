@@ -170,17 +170,17 @@ export default function JourneyDetail() {
                   </div>
                   <div>
                     <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">Periode Jejak</p>
-                    <p className="text-sm font-bold text-gray-900 leading-tight">Agustus 2024</p>
+                    <p className="text-sm font-bold text-gray-900 leading-tight">{journey.journeyPeriod || 'Agustus 2024'}</p>
                   </div>
                 </div>
-
+ 
                 <div className="flex gap-4">
                   <div className="flex-shrink-0 h-10 w-10 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600">
                     <CheckCircle2 size={18} />
                   </div>
                   <div>
                     <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">Capaian</p>
-                    <p className="text-sm font-bold text-gray-900 leading-tight">100% Selesai</p>
+                    <p className="text-sm font-bold text-gray-900 leading-tight">{journey.journeyProgress || '100% Selesai'}</p>
                   </div>
                 </div>
               </div>

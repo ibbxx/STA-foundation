@@ -7,6 +7,7 @@ import {
   Users,
   BarChart3,
   CheckCircle2,
+  Globe,
 } from 'lucide-react';
 import { CircularTestimonials } from '../../components/ui/circular-testimonials';
 import { Link } from 'react-router-dom';
@@ -134,11 +135,11 @@ export default function Home() {
 
       {/* ═══════ 3 · HAPPENING NOW — EDITORIAL BENTO ═══════ */}
       {/* Hidden for presentation mode — set to true to re-enable */}
-      <section className="bg-gray-50/50 py-16 sm:py-20">
+      <section className="bg-gray-50/50 py-12 sm:py-16">
           <div className="mx-auto max-w-7xl px-5 sm:px-6 lg:px-8">
-            <div className="mb-10 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-end">
+            <div className="mb-8 flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-end">
               <motion.div {...fadeUp}>
-                <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-800">Terkini</p>
+                <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-800">Terkini</p>
                 <h2 className="text-xl font-black tracking-tight text-gray-900 sm:text-2xl md:text-3xl">Sedang Berlangsung</h2>
               </motion.div>
               <Link to="/campaigns" className="group flex items-center text-xs font-bold uppercase tracking-widest text-emerald-800 transition-colors hover:text-emerald-950">
@@ -186,9 +187,9 @@ export default function Home() {
                           />
                           <div className="absolute inset-0 bg-gray-900/5" />
                         </div>
-                        <div className="flex flex-col justify-center p-6 sm:p-8 lg:flex-1">
-                          <div className="mb-6 space-y-3">
-                            <h3 className="text-xl font-bold leading-tight text-gray-900 transition-colors group-hover:text-emerald-800 sm:text-2xl">
+                        <div className="flex flex-col justify-center p-6 sm:p-7 lg:flex-1">
+                          <div className="mb-5 space-y-2">
+                            <h3 className="text-xl font-bold leading-tight text-gray-900 transition-colors group-hover:text-emerald-800 sm:text-xl">
                               {hero.title}
                             </h3>
                             <p className="line-clamp-2 text-sm leading-relaxed text-gray-500">
@@ -264,82 +265,75 @@ export default function Home() {
           </div>
         </section>
 
-      {/* ═══════ 4 · STATS CTA ═══════ */}
-      {/* Hidden for presentation mode — set to true to re-enable */}
-      <section className="relative overflow-hidden bg-[#1A3C32] py-20 sm:py-24">
-          <div className="relative z-10 mx-auto max-w-7xl px-6 sm:px-8 lg:px-12">
-            <div className="grid items-center gap-16 lg:grid-cols-2">
-              <motion.div
-                initial={{ opacity: 0, x: -20 }}
-                whileInView={{ opacity: 1, x: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.6 }}
-                className="space-y-8"
-              >
-                <div className="space-y-4">
-                  <h2 className="text-3xl font-black leading-tight text-white sm:text-4xl lg:text-5xl">
-                    Berdonasi Bersama Kami — Simpel, Efektif, &amp; Berdampak
+      {/* ═══════ 4 · STATS CTA (STREAMLINED) ═══════ */}
+      <section className="relative py-12 sm:py-20 bg-white">
+        <div className="max-w-6xl mx-auto px-5 sm:px-6">
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="relative bg-[#064e3b] rounded-[2rem] overflow-hidden p-6 sm:p-10 md:p-12 shadow-2xl shadow-emerald-900/20"
+          >
+            {/* Background Accent */}
+            <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl -mr-32 -mt-32 pointer-events-none" />
+            <div className="absolute bottom-0 left-0 w-64 h-64 bg-teal-500/5 rounded-full blur-3xl -ml-32 -mb-32 pointer-events-none" />
+
+            <div className="relative z-10 grid lg:grid-cols-5 gap-8 lg:gap-12 items-center">
+              {/* Text Content - Spans 3 cols */}
+              <div className="lg:col-span-3 space-y-5">
+                <div className="space-y-3">
+                  <h2 className="text-xl sm:text-3xl font-black text-white leading-tight">
+                    Berdonasi Bersama Kami — <span className="text-emerald-400">Simpel & Berdampak</span>
                   </h2>
-                  <p className="max-w-lg text-base font-light leading-relaxed text-emerald-100/70">
-                    Lebih dari 1.000 kampanye telah berhasil disalurkan dan memberikan dampak nyata kepada puluhan ribu penerima manfaat di seluruh pelosok Indonesia.
+                  <p className="max-w-lg text-xs sm:text-sm font-light text-emerald-100/70 leading-relaxed">
+                    Lebih dari 1.000 kampanye telah berhasil disalurkan dan memberikan dampak nyata kepada puluhan ribu penerima manfaat di seluruh penjuru tanah air.
                   </p>
                 </div>
                 <Link
                   to="/campaigns"
-                  className="group inline-flex items-center gap-3 rounded-full bg-white px-8 py-4 text-sm font-bold text-emerald-900 transition-all hover:bg-emerald-50 hover:shadow-xl hover:shadow-black/10"
+                  className="group inline-flex items-center gap-2 bg-white px-5 py-2.5 rounded-full text-xs font-bold text-emerald-900 hover:bg-emerald-50 transition-all hover:scale-105"
                 >
                   Mulai Berdonasi
-                  <ArrowRight size={16} className="transition-transform group-hover:translate-x-1" />
+                  <ArrowRight size={14} className="transition-transform group-hover:translate-x-1" />
                 </Link>
-              </motion.div>
+              </div>
 
-              <motion.div
-                initial={{ opacity: 0, x: 20 }}
-                whileInView={{ opacity: 1, x: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.6, delay: 0.2 }}
-                className="grid grid-cols-2 gap-4 sm:gap-6"
-              >
+              {/* Stats Grid - Spans 2 cols */}
+              <div className="lg:col-span-2 grid grid-cols-2 gap-4">
                 {[
-                  { value: 'Rp 250 Juta+', label: 'Donasi Tersalurkan', icon: Heart },
-                  { value: '60+', label: 'Pejuang Tanah Air', icon: Users },
-                  { value: '5', label: 'Lokasi Provinsi', icon: CheckCircle2 },
-                  { value: '9', label: 'Mitra Kolaborasi', icon: HandHeart },
-                  { value: '3M+', label: 'Edukasi & Promosi', icon: BarChart3 },
+                  { label: "Penerima Manfaat", value: "15k+", icon: Users },
+                  { label: "Wilayah Dampak", value: "24", icon: Globe },
+                  { label: "Kampanye Selesai", value: "1.2k", icon: CheckCircle2 },
+                  { label: "Mitra Kolaborasi", value: "9", icon: Heart }
                 ].map((stat, i) => (
-                  <div
-                    key={i}
-                    className={cn(
-                      "flex flex-col justify-center rounded-2xl bg-white/5 p-6 border border-white/5 transition-colors hover:bg-white/10",
-                      i === 4 ? "col-span-2 sm:col-span-1" : ""
-                    )}
-                  >
-                    <stat.icon size={20} className="mb-4 text-emerald-400" />
-                    <div className="space-y-1">
-                      <h3 className="text-2xl font-black text-white sm:text-3xl">{stat.value}</h3>
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-200/50">{stat.label}</p>
+                  <div key={i} className="bg-white/5 border border-white/10 rounded-xl p-4 transition-colors hover:bg-white/10">
+                    <stat.icon size={16} className="text-emerald-400 mb-2" />
+                    <div className="space-y-0.5">
+                      <p className="text-lg font-black text-white leading-none">{stat.value}</p>
+                      <p className="text-[9px] font-bold uppercase tracking-widest text-emerald-200/50 leading-none">{stat.label}</p>
                     </div>
                   </div>
                 ))}
-              </motion.div>
+              </div>
             </div>
-          </div>
-        </section>
+          </motion.div>
+        </div>
+      </section>
 
       {/* ═══════ 5 · INITIATIVES (PREMIUM CIRCULAR SLIDER) ═══════ */}
-      <section className="py-12 md:py-24 lg:py-32 bg-[#FAF9F6] overflow-hidden">
+      <section className="py-8 sm:py-20 md:py-24 lg:py-32 bg-[#FAF9F6] overflow-hidden">
         <div className="max-w-7xl mx-auto px-5 sm:px-6 lg:px-8">
-          <motion.div {...fadeUp} className="mb-8 md:mb-16 flex flex-col md:flex-row md:items-end justify-between gap-4 md:gap-6 border-b border-gray-200 pb-6 sm:pb-10">
+          <motion.div {...fadeUp} className="mb-6 md:mb-16 flex flex-col md:flex-row md:items-end justify-between gap-3 md:gap-6 border-b border-gray-200 pb-5 sm:pb-10">
             <div className="max-w-2xl">
-              <p className="text-emerald-700 font-bold uppercase tracking-[0.2em] text-xs sm:text-sm mb-3 md:mb-4 flex items-center gap-3">
-                <span className="w-8 md:w-10 h-[2px] bg-emerald-600"></span>
+              <p className="text-emerald-700 font-bold uppercase tracking-[0.2em] text-[10px] sm:text-xs mb-2 md:mb-4 flex items-center gap-3">
+                <span className="w-6 md:w-10 h-[2px] bg-emerald-600"></span>
                 {headerData.label}
               </p>
-              <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-black text-gray-900 leading-tight tracking-tight">
+              <h2 className="text-xl sm:text-3xl md:text-4xl lg:text-5xl font-black text-gray-900 leading-tight tracking-tight">
                 {headerData.title}
               </h2>
             </div>
-            <p className="max-w-md text-gray-600 text-[15px] md:text-lg leading-relaxed font-light">
+            <p className="max-w-md text-gray-600 text-sm md:text-lg leading-relaxed font-light">
               {headerData.description}
             </p>
           </motion.div>
@@ -365,9 +359,9 @@ export default function Home() {
                 arrowHoverBackground: "#047857",
               }}
               fontSizes={{
-                name: "clamp(1.5rem, 4vw, 2.5rem)",
-                designation: "0.875rem",
-                quote: "clamp(1rem, 2vw, 1.25rem)",
+                name: "clamp(1.25rem, 4vw, 2.5rem)",
+                designation: "0.75rem",
+                quote: "clamp(0.875rem, 2vw, 1.25rem)",
               }}
             />
           </div>

@@ -62,6 +62,8 @@ export default function AdminImpactMap() {
       actionLabel: '',
       images: [],
       fullContent: '',
+      journeyPeriod: '',
+      journeyProgress: '',
     },
   });
 
@@ -108,6 +110,8 @@ export default function AdminImpactMap() {
         actionLabel: editingLocation.actionLabel || '',
         images: editingLocation.images || [],
         fullContent: editingLocation.fullContent || '',
+        journeyPeriod: editingLocation.journeyPeriod || '',
+        journeyProgress: editingLocation.journeyProgress || '',
       });
     } else if (mode === 'create') {
       reset({
@@ -467,11 +471,32 @@ export default function AdminImpactMap() {
               {errors.title && <p className="text-xs text-rose-500">{errors.title.message}</p>}
             </div>
             <div className="space-y-1.5">
-              <label className="text-sm font-medium text-slate-700">Label Lokasi / Wilayah</label>
+              <label className="text-sm font-medium text-slate-700">Wilayah / Label Lokasi</label>
               <input
                 type="text"
                 {...register('locationLabel')}
                 placeholder="Contoh: Barru, Sulawesi Selatan"
+                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:ring-1 focus:ring-zinc-900 outline-none"
+              />
+            </div>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-slate-700">Periode Jejak</label>
+              <input
+                type="text"
+                {...register('journeyPeriod')}
+                placeholder="Contoh: Agustus 2024"
+                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:ring-1 focus:ring-zinc-900 outline-none"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-slate-700">Capaian / Progress</label>
+              <input
+                type="text"
+                {...register('journeyProgress')}
+                placeholder="Contoh: 100% Selesai"
                 className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:ring-1 focus:ring-zinc-900 outline-none"
               />
             </div>

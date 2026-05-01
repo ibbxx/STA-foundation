@@ -180,10 +180,10 @@ export const CircularTestimonials = ({
   };
 
   return (
-    <div className="testimonial-container relative w-full max-w-7xl px-4 py-8">
-      <div className="testimonial-grid grid gap-6 md:gap-20 md:grid-cols-2">
+    <div className="testimonial-container relative w-full max-w-7xl px-4 py-4 sm:py-8">
+      <div className="testimonial-grid grid gap-4 sm:gap-6 md:gap-20 md:grid-cols-2">
         {/* Images */}
-        <div className="image-container relative w-full h-[220px] sm:h-[260px] md:h-[400px] lg:h-[500px]" style={{ perspective: '1000px' }} ref={imageContainerRef}>
+        <div className="image-container relative w-full h-[180px] sm:h-[260px] md:h-[400px] lg:h-[500px]" style={{ perspective: '1000px' }} ref={imageContainerRef}>
           {testimonials.map((testimonial, index) => (
             <img
               key={testimonial.src + index}

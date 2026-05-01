@@ -168,9 +168,11 @@ export default function CampaignDetail() {
                 </span>
                 <CampaignStatusBadge startDate={campaign.start_date} endDate={campaign.end_date} />
               </div>
-              <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-gray-900 leading-tight">
-                {campaign.title}
-              </h1>
+              <div className="space-y-3">
+                <h1 className="text-lg sm:text-2xl md:text-3xl lg:text-4xl font-black text-gray-900 leading-tight tracking-tight">
+                  {campaign.title}
+                </h1>
+              </div>
             </div>
 
             {/* Premium Image Carousel with Lightbox */}

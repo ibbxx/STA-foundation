@@ -12,7 +12,7 @@ export default function CtaSection({ data }: CtaSectionProps) {
       <div className="max-w-7xl mx-auto px-5 sm:px-6 lg:px-8">
         <div className="grid lg:grid-cols-2 gap-0 rounded-2xl sm:rounded-[1.5rem] md:rounded-[2rem] overflow-hidden shadow-xl shadow-gray-200/30">
           {/* Text */}
-          <div className="relative order-2 flex flex-col justify-center overflow-hidden bg-emerald-700 p-6 sm:p-10 md:p-14 lg:order-1 lg:p-16">
+          <div className="relative order-2 flex flex-col justify-center overflow-hidden bg-emerald-700 p-6 sm:p-10 md:p-12 lg:order-1 lg:p-12">
             <div className="absolute top-0 right-0 w-40 sm:w-48 h-40 sm:h-48 bg-emerald-500/20 rounded-full blur-3xl pointer-events-none" />
             <div className="absolute bottom-0 left-0 w-28 sm:w-32 h-28 sm:h-32 bg-teal-800/20 rounded-full blur-2xl pointer-events-none" />
             <div className="relative z-10 space-y-4 sm:space-y-5">

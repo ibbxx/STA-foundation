@@ -134,6 +134,8 @@ export const adminMapLocationSchema = z.object({
   actionLabel: z.string().trim().optional().or(z.literal('')),
   images: z.array(z.string()),
   fullContent: z.string().trim().optional().or(z.literal('')),
+  journeyPeriod: z.string().trim().optional().or(z.literal('')),
+  journeyProgress: z.string().trim().optional().or(z.literal('')),
 });
 
 export type AdminMapLocationValues = z.infer<typeof adminMapLocationSchema>;
