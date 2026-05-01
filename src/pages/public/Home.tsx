@@ -134,8 +134,7 @@ export default function Home() {
 
       {/* ═══════ 3 · HAPPENING NOW — EDITORIAL BENTO ═══════ */}
       {/* Hidden for presentation mode — set to true to re-enable */}
-      {false && (
-        <section className="bg-gray-50/50 py-16 sm:py-20">
+      <section className="bg-gray-50/50 py-16 sm:py-20">
           <div className="mx-auto max-w-7xl px-5 sm:px-6 lg:px-8">
             <div className="mb-10 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-end">
               <motion.div {...fadeUp}>
@@ -264,12 +263,10 @@ export default function Home() {
             )}
           </div>
         </section>
-      )}
 
       {/* ═══════ 4 · STATS CTA ═══════ */}
       {/* Hidden for presentation mode — set to true to re-enable */}
-      {false && (
-        <section className="relative overflow-hidden bg-[#1A3C32] py-20 sm:py-24">
+      <section className="relative overflow-hidden bg-[#1A3C32] py-20 sm:py-24">
           <div className="relative z-10 mx-auto max-w-7xl px-6 sm:px-8 lg:px-12">
             <div className="grid items-center gap-16 lg:grid-cols-2">
               <motion.div
@@ -328,7 +325,6 @@ export default function Home() {
             </div>
           </div>
         </section>
-      )}
 
       {/* ═══════ 5 · INITIATIVES (PREMIUM CIRCULAR SLIDER) ═══════ */}
       <section className="py-12 md:py-24 lg:py-32 bg-[#FAF9F6] overflow-hidden">

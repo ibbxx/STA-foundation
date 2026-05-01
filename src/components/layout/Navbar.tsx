@@ -38,7 +38,7 @@ export default function Navbar() {
     { label: "Beranda", href: "/" },
     { label: "Tentang Kami", href: "/tentang-kami" },
     { label: "Event", href: "/events" },
-    // { label: "Campaign", href: "/campaigns" }, // Hidden for presentation mode
+    { label: "Campaign", href: "/campaigns" },
     { label: "Laporkan Sekolah", href: "/laporkan" },
     { label: "Kontak", href: "/kontak" },
   ];
@@ -46,7 +46,7 @@ export default function Navbar() {
   const isHome = location.pathname === "/";
   const isContact = location.pathname === "/kontak";
   const isSolid = isScrolled || isHovered || mobileMenuOpen || isContact;
-  
+
   const isDarkText = isSolid || !isHome;
 
   const textColorMenu = isDarkText ? "text-gray-900/80" : "text-white/90";
@@ -108,46 +108,31 @@ export default function Navbar() {
           {/* Core CTA */}
           <div className="hidden md:flex items-center gap-6">
             {/* HIDDEN FOR PRESENTATION MODE */}
-            {false && (
-              <>
-                <Link
-                  to="/leaderboard"
-                  className={cn(
-                    "flex items-center gap-2 text-sm font-medium transition-all duration-300 py-1 border-b border-transparent",
-                    location.pathname === "/leaderboard"
-                      ? "text-yellow-500 border-yellow-500"
-                      : cn(textColorMenu, hoverColorMenu)
-                  )}
-                >
-                  <Trophy size={16} />
-                  Leaderboard
-                </Link>
-                <Link
-                  to="/campaigns"
-                  className={cn(
-                    "inline-block px-6 py-2.5 text-sm font-light rounded-sm transition-colors shadow-none",
-                    isDarkText 
-                      ? "bg-[#2C5F4F] text-[#F5F1E8] hover:bg-[#234A3D]" 
-                      : "bg-white text-[#2C5F4F] hover:bg-white/90"
-                  )}
-                >
-                  Donasi Sekarang
-                </Link>
-              </>
-            )}
-            
-            {/* TEMPORARY CTA */}
             <Link
-              to="/laporkan"
+              to="/leaderboard"
+              aria-label="Leaderboard"
+              title="Leaderboard"
+              className={cn(
+                "flex items-center justify-center text-sm font-medium transition-all duration-300 py-1 border-b border-transparent",
+                location.pathname === "/leaderboard"
+                  ? "text-yellow-500 border-yellow-500"
+                  : cn(textColorMenu, hoverColorMenu)
+              )}
+            >
+              <Trophy size={16} />
+            </Link>
+            <Link
+              to="/campaigns"
               className={cn(
                 "inline-block px-6 py-2.5 text-sm font-light rounded-sm transition-colors shadow-none",
-                isDarkText 
-                  ? "bg-[#2C5F4F] text-[#F5F1E8] hover:bg-[#234A3D]" 
+                isDarkText
+                  ? "bg-[#2C5F4F] text-[#F5F1E8] hover:bg-[#234A3D]"
                   : "bg-white text-[#2C5F4F] hover:bg-white/90"
               )}
             >
-              Laporkan Sekolah
+              Donasi Sekarang
             </Link>
+
           </div>
 
           {/* Mobile Hamburg */}
@@ -184,24 +169,14 @@ export default function Navbar() {
               ))}
             </div>
             {/* HIDDEN FOR PRESENTATION MODE */}
-            {false && (
-              <Link
-                to="/campaigns"
-                onClick={() => setMobileMenuOpen(false)}
-                className="inline-flex min-h-12 items-center justify-center rounded-2xl bg-[#2C5F4F] px-6 py-3 text-sm font-light text-[#F5F1E8] transition-colors hover:bg-[#234A3D]"
-              >
-                Donasi Sekarang
-              </Link>
-            )}
-            
-            {/* TEMPORARY CTA */}
             <Link
-              to="/laporkan"
+              to="/campaigns"
               onClick={() => setMobileMenuOpen(false)}
               className="inline-flex min-h-12 items-center justify-center rounded-2xl bg-[#2C5F4F] px-6 py-3 text-sm font-light text-[#F5F1E8] transition-colors hover:bg-[#234A3D]"
             >
-              Laporkan Sekolah
+              Donasi Sekarang
             </Link>
+
           </div>
         </motion.div>
       )}

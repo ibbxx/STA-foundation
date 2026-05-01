@@ -91,20 +91,18 @@ export default function HeroSlideshow() {
 
                 <div className="mt-8 flex flex-col items-start gap-3 sm:mt-12 sm:flex-row">
                   <Link
-                    to="/tentang-kami"
+                    to="/campaigns"
                     className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-[#2C5F4F] pl-6 pr-4 text-sm font-bold text-[#F5F1E8] transition-all duration-300 hover:bg-[#234A3D] md:h-12 md:text-base"
                   >
-                    <span className="whitespace-nowrap">Pelajari Lebih Lanjut</span>
+                    <span className="whitespace-nowrap">Donasi Sekarang</span>
                     <ArrowRight className="ml-1 h-4 w-4" />
                   </Link>
-                  <a
-                    href="https://wa.me/6287882799026"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex h-11 items-center justify-center rounded-full border border-[#F5F1E8]/25 px-6 text-sm font-medium text-[#F5F1E8] transition-all duration-300 hover:bg-[#F5F1E8]/10 md:h-12 md:text-base"
+                  <Link
+                    to="/laporkan"
+                    className="inline-flex h-11 items-center justify-center rounded-full bg-white px-6 text-sm font-bold text-[#2C5F4F] transition-all duration-300 hover:bg-white/90 md:h-12 md:text-base"
                   >
-                    <span className="whitespace-nowrap">Jadi Mitra Kolaborator</span>
-                  </a>
+                    <span className="whitespace-nowrap">Laporkan Sekolah</span>
+                  </Link>
                 </div>
               </motion.div>
             </AnimatePresence>
