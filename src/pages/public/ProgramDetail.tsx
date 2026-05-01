@@ -141,7 +141,7 @@ export default function ProgramDetail() {
       </nav>
 
       {/* ═══════ HERO SECTION ═══════ */}
-      <section className="relative pt-12 pb-6 sm:pt-24 sm:pb-10 overflow-hidden">
+      <section className="relative pt-20 pb-6 sm:pt-32 sm:pb-10 overflow-hidden">
         <div className="max-w-7xl mx-auto px-5 lg:px-8">
           <div className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
             
