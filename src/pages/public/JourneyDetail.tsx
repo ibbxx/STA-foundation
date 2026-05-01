@@ -98,7 +98,7 @@ export default function JourneyDetail() {
               </span>
             </div>
             
-            <h1 className="text-3xl sm:text-4xl md:text-6xl font-black text-gray-900 leading-tight tracking-tight max-w-4xl">
+            <h1 className="text-2xl sm:text-4xl md:text-6xl font-black text-gray-900 leading-tight tracking-tight max-w-4xl">
               {journey.title}
             </h1>
           </motion.div>
@@ -107,7 +107,7 @@ export default function JourneyDetail() {
 
       {/* Content Section */}
       <section className="mx-auto max-w-5xl px-6 -mt-8 relative z-20">
-        <div className="grid gap-12 lg:grid-cols-3">
+        <div className="grid gap-8 lg:gap-12 lg:grid-cols-3">
           {/* Main Story */}
           <motion.div 
             {...fadeUp}
@@ -115,7 +115,7 @@ export default function JourneyDetail() {
             className="lg:col-span-2 space-y-8"
           >
             <div className="prose prose-emerald max-w-none">
-              <p className="text-lg sm:text-xl text-gray-700 leading-relaxed font-serif italic border-l-4 border-emerald-500 pl-6 py-2">
+              <p className="text-base sm:text-xl text-gray-700 leading-relaxed font-serif italic border-l-4 border-emerald-500 pl-4 sm:pl-6 py-2">
                 "{journey.description}"
               </p>
               
@@ -127,7 +127,7 @@ export default function JourneyDetail() {
             </div>
 
             {journey.images && journey.images.length > 0 && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-12">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-8 sm:mt-12">
                 {journey.images.map((url, idx) => (
                   <div key={idx} className="overflow-hidden rounded-2xl border border-emerald-100 shadow-sm transition-transform hover:scale-[1.02] duration-300">
                     <img 

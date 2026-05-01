@@ -55,7 +55,7 @@ export default function About() {
           </div>
         )}
         
-        <div className="relative z-10 w-full max-w-7xl mx-auto px-5 md:px-8 pb-12 md:pb-0 pt-32">
+        <div className="relative z-10 w-full max-w-7xl mx-auto px-5 md:px-8 pb-12 md:pb-0 pt-24 md:pt-32">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -87,9 +87,9 @@ export default function About() {
       </section>
 
       {/* 2. STATS STRIP */}
-      <section className="bg-white py-12 md:py-16 border-y border-gray-100">
+      <section className="bg-white py-8 md:py-16 border-y border-gray-100">
         <div className="max-w-7xl mx-auto px-6">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-12 text-center divide-x divide-gray-100">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-12 text-center divide-x divide-gray-100">
             {[
               { value: '115 Jt', suffix: '+', label: 'Donasi Terkumpul' },
               { value: '52', suffix: '+', label: 'Pejuang Tanah Air' },
@@ -115,10 +115,10 @@ export default function About() {
       </section>
 
       {/* 3. THE CORE VALUES */}
-      <section className="py-20 md:py-32 bg-[#F8FBF9]">
+      <section className="py-12 md:py-32 bg-[#F8FBF9]">
         <div className="max-w-7xl mx-auto px-6">
-          <motion.div {...fadeUp} className="text-center max-w-3xl mx-auto mb-16 md:mb-20">
-            <h2 className="text-3xl md:text-5xl font-black text-gray-900 mb-6 tracking-tight">The Core Values</h2>
+          <motion.div {...fadeUp} className="text-center max-w-3xl mx-auto mb-10 md:mb-20">
+            <h2 className="text-2xl sm:text-3xl md:text-5xl font-black text-gray-900 mb-4 md:mb-6 tracking-tight">The Core Values</h2>
             <p className="text-gray-600 text-base md:text-xl font-light leading-relaxed">
               Sekolah Tanah Air memiliki nilai keyakinan bersama dengan harapan membangun masa depan pendidikan Indonesia.
             </p>
@@ -148,9 +148,9 @@ export default function About() {
       </section>
 
       {/* 4. VISI KAMI + MISI KAMI */}
-      <section className="py-20 md:py-32 bg-white">
+      <section className="py-12 md:py-32 bg-white">
         <div className="max-w-7xl mx-auto px-6">
-          <div className="grid lg:grid-cols-12 gap-16 lg:gap-24 items-start">
+          <div className="grid lg:grid-cols-12 gap-10 lg:gap-24 items-start">
             
             {/* Visi */}
             <motion.div {...fadeUp} className="lg:col-span-5 lg:sticky lg:top-32">
@@ -158,7 +158,7 @@ export default function About() {
                 <Target size={28} strokeWidth={1.5} />
               </div>
               <h2 className="text-sm font-bold uppercase tracking-[0.2em] text-emerald-600 mb-4">Visi Kami</h2>
-              <h3 className="text-3xl md:text-4xl lg:text-5xl font-black leading-tight text-gray-900 tracking-tight">
+              <h3 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-black leading-tight text-gray-900 tracking-tight">
                 Menjadi pusat data dan penggerak utama dalam mewujudkan kesetaraan fasilitas pendidikan di seluruh pelosok Indonesia melalui inovasi teknologi dan semangat kolaborasi.
               </h3>
             </motion.div>
@@ -195,10 +195,10 @@ export default function About() {
       </section>
 
       {/* 5. MITRA KOLABORATOR */}
-      <section className="py-20 md:py-32 bg-[#F8FBF9] border-t border-gray-100">
+      <section className="py-12 md:py-32 bg-[#F8FBF9] border-t border-gray-100">
         <div className="max-w-7xl mx-auto px-6 text-center">
-          <motion.div {...fadeUp} className="max-w-2xl mx-auto mb-16">
-            <h2 className="text-3xl md:text-5xl font-black text-gray-900 mb-6 tracking-tight">Mitra Kolaborator</h2>
+          <motion.div {...fadeUp} className="max-w-2xl mx-auto mb-10 md:mb-16">
+            <h2 className="text-2xl sm:text-3xl md:text-5xl font-black text-gray-900 mb-4 md:mb-6 tracking-tight">Mitra Kolaborator</h2>
             <p className="text-gray-600 text-base md:text-xl font-light leading-relaxed">
               Langkah besar ini terwujud berkat sinergi dari mitra dan kolaborator strategis kami.
             </p>

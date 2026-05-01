@@ -228,7 +228,7 @@ export default function Home() {
         </AnimatePresence>
 
         {/* Content overlay — bottom-left, flush left on all screens */}
-        <div className="relative z-10 flex min-h-screen items-end pb-24 sm:pb-32 pt-32">
+        <div className="relative z-10 flex min-h-screen items-end pb-16 sm:pb-32 pt-28">
           <div className="flex flex-col px-5 sm:px-8 lg:px-12">
             <div className="max-w-2xl text-left">
               <AnimatePresence mode="wait">
@@ -239,7 +239,7 @@ export default function Home() {
                   exit={{ opacity: 0, y: -20 }}
                   transition={{ duration: 0.8, delay: 0.2 }}
                 >
-                  <h1 className="mt-4 max-w-2xl text-balance text-3xl font-black uppercase leading-[1.1] tracking-tight text-[#F5F1E8] sm:mt-8 sm:text-4xl md:text-5xl lg:mt-16 xl:text-6xl">
+                  <h1 className="mt-4 max-w-2xl text-balance text-2xl font-black uppercase leading-[1.1] tracking-tight text-[#F5F1E8] sm:text-3xl md:mt-8 md:text-5xl lg:mt-16 xl:text-6xl">
                     {currentSlide.title}
                   </h1>
                   {currentSlide.subtitle && (
@@ -564,15 +564,15 @@ export default function Home() {
       )}
 
       {/* ═══════ 6 · INITIATIVES (PREMIUM CIRCULAR SLIDER) ═══════ */}
-      <section className="py-20 md:py-24 lg:py-32 bg-[#FAF9F6] overflow-hidden">
+      <section className="py-12 md:py-24 lg:py-32 bg-[#FAF9F6] overflow-hidden">
         <div className="max-w-7xl mx-auto px-5 sm:px-6 lg:px-8">
-          <motion.div {...fadeUp} className="mb-12 md:mb-16 flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-gray-200 pb-8 sm:pb-10">
+          <motion.div {...fadeUp} className="mb-8 md:mb-16 flex flex-col md:flex-row md:items-end justify-between gap-4 md:gap-6 border-b border-gray-200 pb-6 sm:pb-10">
             <div className="max-w-2xl">
               <p className="text-emerald-700 font-bold uppercase tracking-[0.2em] text-xs sm:text-sm mb-3 md:mb-4 flex items-center gap-3">
                 <span className="w-8 md:w-10 h-[2px] bg-emerald-600"></span>
                 {headerData.label}
               </p>
-              <h2 className="text-3xl md:text-4xl lg:text-5xl font-black text-gray-900 leading-tight tracking-tight">
+              <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-black text-gray-900 leading-tight tracking-tight">
                 {headerData.title}
               </h2>
             </div>
@@ -612,18 +612,18 @@ export default function Home() {
       </section>
 
       {/* ═══════ 7 · INTERACTIVE IMPACT MAP ═══════ */}
-      <section className="py-20 bg-white">
+      <section className="py-12 md:py-20 bg-white">
         <div className="max-w-7xl mx-auto px-5 sm:px-6 lg:px-8">
-          <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-8 mb-12">
+          <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 mb-8 md:mb-12">
             <motion.div {...fadeUp} className="max-w-2xl">
               <p className="text-emerald-700 font-bold uppercase tracking-[0.2em] text-xs mb-3 flex items-center gap-3">
                 <span className="w-8 h-[2px] bg-emerald-600"></span>
                 Peta Dampak
               </p>
-              <h2 className="text-3xl md:text-4xl font-black text-gray-900 leading-tight tracking-tight">
+              <h2 className="text-2xl sm:text-3xl md:text-4xl font-black text-gray-900 leading-tight tracking-tight">
                 Jejak Aksi Nyata Kami
               </h2>
-              <p className="mt-4 text-gray-600 text-base md:text-lg leading-relaxed font-light">
+              <p className="mt-3 md:mt-4 text-gray-600 text-sm md:text-lg leading-relaxed font-light">
                 Eksplorasi sebaran kegiatan Sekolah Tanah Air di berbagai penjuru Indonesia. 
                 Klik titik lokasi untuk melihat detail aksi yang telah dilakukan.
               </p>
@@ -648,7 +648,7 @@ export default function Home() {
           >
             <InteractiveMap 
               locations={mapLocations}
-              height="500px"
+              height="min(500px, 70vh)"
               className="w-full"
               useFallbackLocations={true}
               viewportMode="fit-indonesia"
@@ -665,7 +665,7 @@ export default function Home() {
           </motion.div>
         </div>
       </section>
-      <section className="py-10 sm:py-14 md:py-16 lg:py-20">
+      <section className="py-8 sm:py-14 md:py-16 lg:py-20">
         <div className="max-w-7xl mx-auto px-5 sm:px-6 lg:px-8">
           <div className="grid lg:grid-cols-2 gap-0 rounded-2xl sm:rounded-[1.5rem] md:rounded-[2rem] overflow-hidden shadow-xl shadow-gray-200/30">
             {/* Text */}
