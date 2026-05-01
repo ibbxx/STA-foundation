@@ -68,7 +68,7 @@ export default function AdminCampaigns() {
   const [campaignSearch, setCampaignSearch] = useState('');
   const campaignImageList = useImagePreviewList();
   const timelineImageList = useImagePreviewList();
-  
+
   const campaignImages = campaignImageList.items;
   const timelineImages = timelineImageList.items;
 
@@ -233,14 +233,14 @@ export default function AdminCampaigns() {
   function handleCollabLogoChange(index: number, file: File) {
     const id = collabFields[index].id;
     const previewUrl = URL.createObjectURL(file);
-    
+
     setCollabLogos(prev => {
       if (prev[id]?.previewUrl && !prev[id].previewUrl.startsWith('http')) {
         URL.revokeObjectURL(prev[id].previewUrl);
       }
       return { ...prev, [id]: { file, previewUrl } };
     });
-    
+
     // Tandai bahwa ada perubahan (kita biarkan validator meloloskan string non-url sementara)
     campaignForm.setValue(`collaborators.${index}.avatar`, 'PENDING_UPLOAD', { shouldDirty: true });
   }
@@ -292,7 +292,7 @@ export default function AdminCampaigns() {
                 bucket: getCampaignAssetsBucketName(),
                 folder: 'campaigns',
               })),
-            );
+          );
         } catch (uploadError) {
           logError('AdminCampaigns.uploadCampaignImages', uploadError, {
             queuedCount: queuedItems.length,
@@ -307,7 +307,7 @@ export default function AdminCampaigns() {
       for (let i = 0; i < updatedCollaborators.length; i++) {
         const collabId = collabFields[i].id;
         const logoData = collabLogos[collabId];
-        
+
         if (logoData?.file) {
           try {
             const logoUrl = await uploadFileToStorage(logoData.file, {
@@ -649,7 +649,7 @@ export default function AdminCampaigns() {
                           </div>
                         )}
                         <div className="absolute top-3 right-3">
-                           <CampaignStatusBadge startDate={campaign.start_date} endDate={campaign.end_date} />
+                           <CampaignStatusBadge startDate={campaign.start_date} endDate={campaign.end_date} slug={campaign.slug} dbStatus={campaign.status} />
                         </div>
                       </div>
 
@@ -661,7 +661,7 @@ export default function AdminCampaigns() {
                           </div>
                           {campaign.is_featured ? (
                             <div className="flex shrink-0 items-center justify-center rounded-full bg-amber-50 p-1.5 text-amber-600 shadow-sm" title="Featured">
-                              <Plus size={10} className="rotate-45" /> 
+                              <Plus size={10} className="rotate-45" />
                             </div>
                           ) : null}
                         </div>
@@ -726,9 +726,8 @@ export default function AdminCampaigns() {
                 key={tab}
                 type="button"
                 onClick={() => setActiveModalTab(tab)}
-                className={`pb-3 text-sm font-semibold transition-colors relative ${
-                  activeModalTab === tab ? 'text-zinc-900' : 'text-gray-500 hover:text-gray-700'
-                }`}
+                className={`pb-3 text-sm font-semibold transition-colors relative ${activeModalTab === tab ? 'text-zinc-900' : 'text-gray-500 hover:text-gray-700'
+                  }`}
               >
                 {tab === 'detail' ? 'Detail & Target' : tab === 'mitra' ? 'Mitra Kolaborator' : tab === 'updates' ? 'Timeline Updates' : 'Daftar Donatur'}
                 {activeModalTab === tab && (
@@ -744,8 +743,11 @@ export default function AdminCampaigns() {
               <div className={activeModalTab === 'detail' ? 'block' : 'hidden'}>
                 <Card className="border-gray-200 bg-white shadow-sm">
                   {selectedCampaign ? (
-                    <div className="px-6 pt-6 pb-2">
-                      <CampaignStatusBadge startDate={selectedCampaign.start_date} endDate={selectedCampaign.end_date} />
+                    <div className="px-6 pt-6 pb-2 flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <CampaignStatusBadge startDate={selectedCampaign.start_date} endDate={selectedCampaign.end_date} slug={selectedCampaign.slug} dbStatus={selectedCampaign.status} />
+                        <span className="text-[10px] text-gray-400 font-mono uppercase tracking-tight">ID: {selectedCampaign.id.split('-')[0]}</span>
+                      </div>
                     </div>
                   ) : null}
                   <CardContent className="space-y-6">
@@ -817,6 +819,7 @@ export default function AdminCampaigns() {
                           className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 outline-none transition-colors focus:border-gray-300"
                         >
                           <option value="draft">Draft (Sembunyikan)</option>
+                          <option value="upcoming">Upcoming (Akan Datang)</option>
                           <option value="active">Active (Tayang)</option>
                           <option value="completed">Completed (Selesai)</option>
                         </select>
@@ -892,9 +895,9 @@ export default function AdminCampaigns() {
                               <div className="relative group">
                                 <div className="h-20 w-20 rounded-full border-2 border-dashed border-gray-300 bg-white overflow-hidden flex items-center justify-center transition-colors group-hover:border-emerald-400">
                                   {collabLogos[field.id]?.previewUrl || field.avatar ? (
-                                    <img 
-                                      src={collabLogos[field.id]?.previewUrl || field.avatar || ''} 
-                                      className="h-full w-full object-contain p-2" 
+                                    <img
+                                      src={collabLogos[field.id]?.previewUrl || field.avatar || ''}
+                                      className="h-full w-full object-contain p-2"
                                       alt="Preview"
                                     />
                                   ) : (
@@ -916,7 +919,7 @@ export default function AdminCampaigns() {
                               </div>
                               <p className="text-[10px] text-gray-400 mt-2 font-medium">Klik untuk upload</p>
                             </div>
-                            
+
                             <div className="grid gap-4 md:grid-cols-2 flex-1">
                               <div className="space-y-1.5">
                                 <label className="text-xs font-medium text-gray-700">Nama Mitra *</label>
@@ -959,149 +962,149 @@ export default function AdminCampaigns() {
           </div>
 
           <div className={activeModalTab === 'updates' ? 'block' : 'hidden'}>
-          <Card className="border-gray-200 bg-white shadow-sm">
-            <CardHeader className="space-y-3">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <CardTitle className="text-lg font-semibold text-gray-900">Timeline updates</CardTitle>
-                </div>
-                <span className="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-500">
-                  {updates.length} posts
-                </span>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {selectedCampaign ? (
-                <>
-                  <form onSubmit={updateForm.handleSubmit(handleUpdateSubmit)} className="space-y-5 rounded-lg border border-gray-200 bg-gray-50 p-5">
-                    <div className="grid gap-4 lg:grid-cols-[1fr_200px_200px]">
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium text-gray-700">Judul update</label>
-                        <input
-                          type="text"
-                          {...updateForm.register('title')}
-                          placeholder="Contoh: Progress pembangunan minggu ini"
-                          className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 outline-none transition-colors placeholder:text-gray-400 focus:border-gray-300"
-                        />
-                        {updateForm.formState.errors.title ? <p className="text-xs text-red-600">{updateForm.formState.errors.title.message}</p> : null}
-                      </div>
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium text-gray-700">Tipe update</label>
-                        <select
-                          {...updateForm.register('update_type')}
-                          className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 outline-none transition-colors focus:border-gray-300"
-                        >
-                          <option value="General">General</option>
-                          <option value="Fundraising Progress">Fundraising Progress</option>
-                          <option value="Distribution">Distribution</option>
-                        </select>
-                        {updateForm.formState.errors.update_type ? <p className="text-xs text-red-600">{updateForm.formState.errors.update_type.message}</p> : null}
-                      </div>
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium text-gray-700">Tanggal Kejadian</label>
-                        <input
-                          type="date"
-                          {...updateForm.register('created_at')}
-                          className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 outline-none transition-colors focus:border-gray-300"
-                        />
-                      </div>
-                    </div>
-
-                    <Controller
-                      name="content"
-                      control={updateForm.control}
-                      render={({ field }) => (
-                        <RichTextEditor
-                          label="Konten update"
-                          error={updateForm.formState.errors.content?.message}
-                          placeholder="Bagikan progres, distribusi bantuan, atau milestones penggalangan dana..."
-                          value={field.value}
-                          onChange={field.onChange}
-                        />
-                      )}
-                    />
-
-                    <ImageDropzone
-                      label="Galeri update"
-                      description="Tambahkan satu atau beberapa gambar dokumentasi untuk memperkuat update ini."
-                      items={timelineImages}
-                      onFilesAdd={handleTimelineImageAdd}
-                      onRemove={handleTimelineImageRemove}
-                      onReorder={handleTimelineImageReorder}
-                      onCropReplace={handleTimelineImageCropReplace}
-                      multiple={true}
-                      emptyHint="Drop beberapa gambar di sini untuk galeri update."
-                    />
-
-                    <div className="flex justify-end">
-                      <button
-                        type="submit"
-                        disabled={updateForm.formState.isSubmitting}
-                        className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
-                      >
-                        {updateForm.formState.isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                        {updateForm.formState.isSubmitting ? 'Saving...' : 'Post update'}
-                      </button>
-                    </div>
-                  </form>
-
-                  <div className="space-y-4">
-                    {loadingUpdates ? (
-                      <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-6 text-sm text-gray-500">
-                        Memuat timeline update...
-                      </div>
-                    ) : updates.length === 0 ? (
-                      <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-6 text-sm text-gray-500">
-                        Belum ada update untuk campaign ini.
-                      </div>
-                    ) : (
-                      updates.map((update) => (
-                        <div key={update.id} className="group relative rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteUpdate(update.id, update.title, update.image_url, update.images)}
-                            title="Hapus Update"
-                            className="absolute top-3 right-3 rounded-md p-1.5 text-gray-400 opacity-0 transition-all hover:bg-red-50 hover:text-red-600 group-hover:opacity-100"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                          <div className="flex flex-wrap items-center gap-2 mb-1 pr-8">
-                            <span className="rounded-full bg-gray-100 px-2.5 py-0.5 text-[11px] font-medium text-gray-600">
-                              {update.update_type}
-                            </span>
-                            <span className="text-[11px] text-gray-400">{formatAdminDate(update.created_at, true)}</span>
-                          </div>
-                          <h3 className="text-sm font-semibold text-gray-900 mb-1.5 pr-8">{update.title}</h3>
-                          <div className="flex flex-col gap-3 mt-2">
-                            {update.images && update.images.length > 0 ? (
-                              <div className={`grid gap-2 ${update.images.length === 1 ? 'grid-cols-1' : update.images.length === 2 ? 'grid-cols-2' : 'grid-cols-2 sm:grid-cols-3'}`}>
-                                {update.images.map((imgUrl, i) => (
-                                  <div key={i} className={`relative overflow-hidden rounded-md border border-gray-100 bg-gray-50 ${update.images!.length === 3 && i === 0 ? 'col-span-2 sm:col-span-1' : ''} ${update.images!.length === 1 ? 'aspect-video' : 'aspect-square sm:aspect-video'}`}>
-                                    <img src={imgUrl} alt={`${update.title} ${i + 1}`} className="h-full w-full object-cover" />
-                                  </div>
-                                ))}
-                              </div>
-                            ) : update.image_url ? (
-                              <div className="relative w-full aspect-video overflow-hidden rounded-md border border-gray-100 bg-gray-50">
-                                <img src={update.image_url} alt={update.title} className="h-full w-full object-cover" />
-                              </div>
-                            ) : null}
-                            <div
-                              className="prose prose-sm max-w-none leading-relaxed text-gray-700 [&_img]:hidden [&_p]:my-0 [&_h2]:text-sm [&_h2]:font-bold [&_h3]:text-sm [&_h3]:font-bold"
-                              dangerouslySetInnerHTML={{ __html: sanitizeHTML(update.content) }}
-                            />
-                          </div>
-                        </div>
-                      ))
-                    )}
+            <Card className="border-gray-200 bg-white shadow-sm">
+              <CardHeader className="space-y-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <CardTitle className="text-lg font-semibold text-gray-900">Timeline updates</CardTitle>
                   </div>
-                </>
-              ) : (
-                <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-6 text-sm text-gray-500">
-                  Simpan campaign terlebih dahulu sebelum memposting timeline update.
+                  <span className="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-500">
+                    {updates.length} posts
+                  </span>
                 </div>
-              )}
-            </CardContent>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {selectedCampaign ? (
+                  <>
+                    <form onSubmit={updateForm.handleSubmit(handleUpdateSubmit)} className="space-y-5 rounded-lg border border-gray-200 bg-gray-50 p-5">
+                      <div className="grid gap-4 lg:grid-cols-[1fr_200px_200px]">
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium text-gray-700">Judul update</label>
+                          <input
+                            type="text"
+                            {...updateForm.register('title')}
+                            placeholder="Contoh: Progress pembangunan minggu ini"
+                            className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 outline-none transition-colors placeholder:text-gray-400 focus:border-gray-300"
+                          />
+                          {updateForm.formState.errors.title ? <p className="text-xs text-red-600">{updateForm.formState.errors.title.message}</p> : null}
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium text-gray-700">Tipe update</label>
+                          <select
+                            {...updateForm.register('update_type')}
+                            className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 outline-none transition-colors focus:border-gray-300"
+                          >
+                            <option value="General">General</option>
+                            <option value="Fundraising Progress">Fundraising Progress</option>
+                            <option value="Distribution">Distribution</option>
+                          </select>
+                          {updateForm.formState.errors.update_type ? <p className="text-xs text-red-600">{updateForm.formState.errors.update_type.message}</p> : null}
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium text-gray-700">Tanggal Kejadian</label>
+                          <input
+                            type="date"
+                            {...updateForm.register('created_at')}
+                            className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 outline-none transition-colors focus:border-gray-300"
+                          />
+                        </div>
+                      </div>
+
+                      <Controller
+                        name="content"
+                        control={updateForm.control}
+                        render={({ field }) => (
+                          <RichTextEditor
+                            label="Konten update"
+                            error={updateForm.formState.errors.content?.message}
+                            placeholder="Bagikan progres, distribusi bantuan, atau milestones penggalangan dana..."
+                            value={field.value}
+                            onChange={field.onChange}
+                          />
+                        )}
+                      />
+
+                      <ImageDropzone
+                        label="Galeri update"
+                        description="Tambahkan satu atau beberapa gambar dokumentasi untuk memperkuat update ini."
+                        items={timelineImages}
+                        onFilesAdd={handleTimelineImageAdd}
+                        onRemove={handleTimelineImageRemove}
+                        onReorder={handleTimelineImageReorder}
+                        onCropReplace={handleTimelineImageCropReplace}
+                        multiple={true}
+                        emptyHint="Drop beberapa gambar di sini untuk galeri update."
+                      />
+
+                      <div className="flex justify-end">
+                        <button
+                          type="submit"
+                          disabled={updateForm.formState.isSubmitting}
+                          className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {updateForm.formState.isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                          {updateForm.formState.isSubmitting ? 'Saving...' : 'Post update'}
+                        </button>
+                      </div>
+                    </form>
+
+                    <div className="space-y-4">
+                      {loadingUpdates ? (
+                        <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-6 text-sm text-gray-500">
+                          Memuat timeline update...
+                        </div>
+                      ) : updates.length === 0 ? (
+                        <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-6 text-sm text-gray-500">
+                          Belum ada update untuk campaign ini.
+                        </div>
+                      ) : (
+                        updates.map((update) => (
+                          <div key={update.id} className="group relative rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteUpdate(update.id, update.title, update.image_url, update.images)}
+                              title="Hapus Update"
+                              className="absolute top-3 right-3 rounded-md p-1.5 text-gray-400 opacity-0 transition-all hover:bg-red-50 hover:text-red-600 group-hover:opacity-100"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                            <div className="flex flex-wrap items-center gap-2 mb-1 pr-8">
+                              <span className="rounded-full bg-gray-100 px-2.5 py-0.5 text-[11px] font-medium text-gray-600">
+                                {update.update_type}
+                              </span>
+                              <span className="text-[11px] text-gray-400">{formatAdminDate(update.created_at, true)}</span>
+                            </div>
+                            <h3 className="text-sm font-semibold text-gray-900 mb-1.5 pr-8">{update.title}</h3>
+                            <div className="flex flex-col gap-3 mt-2">
+                              {update.images && update.images.length > 0 ? (
+                                <div className={`grid gap-2 ${update.images.length === 1 ? 'grid-cols-1' : update.images.length === 2 ? 'grid-cols-2' : 'grid-cols-2 sm:grid-cols-3'}`}>
+                                  {update.images.map((imgUrl, i) => (
+                                    <div key={i} className={`relative overflow-hidden rounded-md border border-gray-100 bg-gray-50 ${update.images!.length === 3 && i === 0 ? 'col-span-2 sm:col-span-1' : ''} ${update.images!.length === 1 ? 'aspect-video' : 'aspect-square sm:aspect-video'}`}>
+                                      <img src={imgUrl} alt={`${update.title} ${i + 1}`} className="h-full w-full object-cover" />
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : update.image_url ? (
+                                <div className="relative w-full aspect-video overflow-hidden rounded-md border border-gray-100 bg-gray-50">
+                                  <img src={update.image_url} alt={update.title} className="h-full w-full object-cover" />
+                                </div>
+                              ) : null}
+                              <div
+                                className="prose prose-sm max-w-none leading-relaxed text-gray-700 [&_img]:hidden [&_p]:my-0 [&_h2]:text-sm [&_h2]:font-bold [&_h3]:text-sm [&_h3]:font-bold"
+                                dangerouslySetInnerHTML={{ __html: sanitizeHTML(update.content) }}
+                              />
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </>
+                ) : (
+                  <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-6 text-sm text-gray-500">
+                    Simpan campaign terlebih dahulu sebelum memposting timeline update.
+                  </div>
+                )}
+              </CardContent>
             </Card>
           </div>
 

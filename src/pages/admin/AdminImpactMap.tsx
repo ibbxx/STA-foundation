@@ -625,24 +625,32 @@ export default function AdminImpactMap() {
           </div>
 
           <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-4">
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Tautan Aksi (Opsional)</p>
+            <div className="flex items-center justify-between">
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Tautan Detail Journey (Opsional)</p>
+              <div className="group relative">
+                <Info size={14} className="text-slate-300 cursor-help" />
+                <div className="absolute right-0 bottom-full mb-2 hidden w-48 rounded-lg bg-gray-900 p-2 text-[10px] text-white group-hover:block z-50 shadow-xl">
+                  Jika dikosongkan, sistem akan mencoba mengarahkan ke halaman Journey secara otomatis.
+                </div>
+              </div>
+            </div>
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-1.5">
                 <label className="text-xs font-medium text-slate-500">Label Tombol</label>
                 <input
                   type="text"
                   {...register('actionLabel')}
-                  placeholder="Contoh: Lihat Detail"
-                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:ring-1 focus:ring-zinc-900 outline-none"
+                  placeholder="Contoh: Baca Cerita Lengkap"
+                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:ring-1 focus:ring-zinc-900 outline-none bg-white"
                 />
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-slate-500">Link URL</label>
+                <label className="text-xs font-medium text-slate-500">Custom Link Journey (ID/Slug)</label>
                 <input
                   type="text"
                   {...register('actionHref')}
-                  placeholder="Contoh: /journey/id"
-                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:ring-1 focus:ring-zinc-900 outline-none"
+                  placeholder="Contoh: /journey/sdn-01-aceh"
+                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:ring-1 focus:ring-zinc-900 outline-none bg-white"
                 />
               </div>
             </div>

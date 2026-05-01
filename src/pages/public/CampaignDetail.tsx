@@ -26,6 +26,7 @@ import {
 import { Campaign, CampaignUpdateRow } from '../../lib/supabase/types';
 import { calculateProgress, formatCurrency, formatLongDate } from '../../lib/utils';
 import { sanitizeHTML } from '../../lib/sanitize';
+import CampaignStatusBadge, { getCampaignTemporalStatus } from '../../components/admin/campaigns/CampaignStatusBadge';
 
 
 
@@ -161,9 +162,12 @@ export default function CampaignDetail() {
 
             {/* Header Title Area - More Compact */}
             <div className="space-y-1">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600">
-                {campaign.category_name ?? 'Campaign'}
-              </span>
+              <div className="flex items-center gap-3">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600">
+                  {campaign.category_name ?? 'Campaign'}
+                </span>
+                <CampaignStatusBadge startDate={campaign.start_date} endDate={campaign.end_date} />
+              </div>
               <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-gray-900 leading-tight">
                 {campaign.title}
               </h1>
@@ -239,6 +243,9 @@ export default function CampaignDetail() {
                 donorCount={campaign.donor_count ?? 0}
                 daysLeft={daysLeft}
                 slug={campaign.slug}
+                startDate={campaign.start_date}
+                endDate={campaign.end_date}
+                dbStatus={campaign.status}
                 variant="compact"
               />
               <div className="rounded-sm border border-x-gray-100 border-b-gray-100 border-t-0 bg-white px-5 pb-5">
@@ -366,6 +373,9 @@ export default function CampaignDetail() {
                 donorCount={campaign.donor_count ?? 0}
                 daysLeft={daysLeft}
                 slug={campaign.slug}
+                startDate={campaign.start_date}
+                endDate={campaign.end_date}
+                dbStatus={campaign.status}
                 variant="full"
               />
               <div className="rounded-sm border border-gray-100 bg-white px-6 pb-6 -mt-4">
@@ -408,12 +418,20 @@ export default function CampaignDetail() {
               <div className="h-full bg-emerald-600" style={{ width: `${progress}%` }} />
             </div>
           </div>
-          <Link
-            to={`/donate/${campaign.slug}`}
-            className="inline-flex h-10 shrink-0 items-center justify-center rounded-sm bg-gray-900 px-6 text-xs font-bold uppercase tracking-widest text-white transition-colors hover:bg-emerald-600"
-          >
-            Donasi
-          </Link>
+          {(campaign.status === 'upcoming' || getCampaignTemporalStatus(campaign.start_date, campaign.end_date) !== 'Ongoing') ? (
+            <div
+              className="inline-flex h-10 shrink-0 items-center justify-center rounded-sm bg-gray-100 px-4 text-[10px] font-bold uppercase tracking-widest text-gray-400 cursor-not-allowed"
+            >
+              {(campaign.status === 'upcoming' || getCampaignTemporalStatus(campaign.start_date, campaign.end_date) === 'Upcoming') ? 'Upcoming' : 'Donasi Selesai'}
+            </div>
+          ) : (
+            <Link
+              to={`/donate/${campaign.slug}`}
+              className="inline-flex h-10 shrink-0 items-center justify-center rounded-sm bg-gray-900 px-6 text-xs font-bold uppercase tracking-widest text-white transition-colors hover:bg-emerald-600"
+            >
+              Donasi
+            </Link>
+          )}
         </div>
       </div>
 

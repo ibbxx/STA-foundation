@@ -74,7 +74,7 @@ function parseLocation(location: unknown, index: number): EventMapLocation | nul
   if (!inferred) return null;
 
   const slug = toText(location.slug);
-  const actionHref = toText(location.action_href) ?? toText(location.actionHref) ?? (slug ? `/campaigns/${slug}` : null);
+  const actionHref = toText(location.action_href) ?? toText(location.actionHref) ?? (slug ? `/journey/${slug}` : null);
   const actionLabel = toText(location.action_label) ?? toText(location.actionLabel) ?? (actionHref ? 'Lihat Detail' : null);
   const title = toText(location.title) ?? toText(location.name) ?? `Lokasi ${index + 1}`;
   const province = toText(location.province);

@@ -1,6 +1,7 @@
 import { Users, Clock } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { formatCurrency } from '../../lib/utils';
+import { getCampaignTemporalStatus } from '../admin/campaigns/CampaignStatusBadge';
 
 type CampaignStatsCardProps = {
   currentAmount: number;
@@ -9,6 +10,9 @@ type CampaignStatsCardProps = {
   donorCount: number;
   daysLeft: number | null;
   slug: string;
+  startDate?: string | null;
+  endDate?: string | null;
+  dbStatus?: string | null;
   /** Visual variant: 'compact' for mobile, 'full' for desktop sidebar */
   variant?: 'compact' | 'full';
 };
@@ -20,9 +24,15 @@ export default function CampaignStatsCard({
   donorCount,
   daysLeft,
   slug,
+  startDate,
+  endDate,
+  dbStatus,
   variant = 'compact',
 }: CampaignStatsCardProps) {
   const isDesktop = variant === 'full';
+  const temporalStatus = getCampaignTemporalStatus(startDate, endDate);
+  const status = dbStatus === 'upcoming' ? 'Upcoming' : temporalStatus;
+  const canDonate = status === 'Ongoing';
 
   return (
     <div className={`rounded-sm border border-gray-100 bg-white flex flex-col gap-6 ${isDesktop ? 'p-6' : 'p-5 space-y-4'}`}>
@@ -61,12 +71,20 @@ export default function CampaignStatsCard({
       </div>
 
       <div className={`flex flex-col gap-2 ${isDesktop ? 'pt-2 border-t border-gray-50' : ''}`}>
-        <Link
-          to={`/donate/${slug}`}
-          className={`flex w-full items-center justify-center rounded-sm bg-gray-900 text-xs font-bold uppercase tracking-widest text-white transition-colors hover:bg-emerald-600 ${isDesktop ? 'py-4' : 'py-3.5'}`}
-        >
-          Donasi Sekarang
-        </Link>
+        {canDonate ? (
+          <Link
+            to={`/donate/${slug}`}
+            className={`flex w-full items-center justify-center rounded-sm bg-gray-900 text-xs font-bold uppercase tracking-widest text-white transition-colors hover:bg-emerald-600 ${isDesktop ? 'py-4' : 'py-3.5'}`}
+          >
+            Donasi Sekarang
+          </Link>
+        ) : (
+          <div
+            className={`flex w-full items-center justify-center rounded-sm bg-gray-100 text-xs font-bold uppercase tracking-widest text-gray-400 cursor-not-allowed ${isDesktop ? 'py-4' : 'py-3.5'}`}
+          >
+            {temporalStatus === 'Upcoming' ? 'Upcoming' : 'Donasi Selesai'}
+          </div>
+        )}
       </div>
     </div>
   );

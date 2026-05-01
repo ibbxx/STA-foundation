@@ -3,25 +3,25 @@ import { ProgressiveBlur } from '../../components/ui/progressive-blur';
 import { cn } from '../../lib/utils';
 
 const PARTNERS = [
-  { name: 'Admedika', src: '/mitra/assets/admedika.png', href: 'https://www.instagram.com/admedika_ig?igsh=MW04d3hhMmYxa3pvMQ==', sizeClass: 'h-14 md:h-20 scale-110' },
-  { name: 'Bali Nggih', src: '/mitra/assets/balinggih.png', href: 'https://www.instagram.com/balinggih?igsh=MTg5MDBsZ3JvdzJqZw==', sizeClass: 'h-8 md:h-12' },
-  { name: 'Distrik Berisik', src: '/mitra/assets/blue-db.png', href: 'https://www.instagram.com/distrik_berisik?igsh=Mmk3bTN6eG5maHZ3', sizeClass: 'h-8 md:h-12' },
-  { name: 'PIS Movement', src: '/mitra/assets/peacemaker.png', href: 'https://www.instagram.com/pismovement?igsh=c25kNWZtNDJkcWI1', sizeClass: 'h-14 md:h-20' },
-  { name: 'Kawan Cendekia', src: '/mitra/assets/img-0338.png', href: 'https://www.instagram.com/kawancendekia?igsh=ZTlzNHhqem13MHlo', sizeClass: 'h-14 md:h-20' },
-  { name: 'Perempuan Lestari', src: '/mitra/assets/wa-image.jpg', href: 'https://www.instagram.com/perempuan.lestari?igsh=MW5uMW9tcHltYWZ5OA==', sizeClass: 'h-14 md:h-20' },
+  { name: 'Admedika', src: '/mitra/assets/admedika.png', href: 'https://www.instagram.com/admedika_ig?igsh=MW04d3hhMmYxa3pvMQ==', sizeClass: 'h-10 md:h-14 scale-110' },
+  { name: 'Bali Nggih', src: '/mitra/assets/balinggih.png', href: 'https://www.instagram.com/balinggih?igsh=MTg5MDBsZ3JvdzJqZw==', sizeClass: 'h-6 md:h-9' },
+  { name: 'Distrik Berisik', src: '/mitra/assets/blue-db.png', href: 'https://www.instagram.com/distrik_berisik?igsh=Mmk3bTN6eG5maHZ3', sizeClass: 'h-6 md:h-9' },
+  { name: 'PIS Movement', src: '/mitra/assets/peacemaker.png', href: 'https://www.instagram.com/pismovement?igsh=c25kNWZtNDJkcWI1', sizeClass: 'h-10 md:h-14' },
+  { name: 'Kawan Cendekia', src: '/mitra/assets/img-0338.png', href: 'https://www.instagram.com/kawancendekia?igsh=ZTlzNHhqem13MHlo', sizeClass: 'h-10 md:h-14' },
+  { name: 'Perempuan Lestari', src: '/mitra/assets/wa-image.jpg', href: 'https://www.instagram.com/perempuan.lestari?igsh=MW5uMW9tcHltYWZ5OA==', sizeClass: 'h-10 md:h-14' },
 ] as const;
 
 export default function TrustBar() {
   return (
-    <section className="bg-white border-y border-gray-200/60 py-4">
+    <section className="bg-white border-y border-gray-200/60 py-2">
       <div className="group relative m-auto max-w-7xl px-6">
         <div className="flex flex-col items-center md:flex-row">
-          <div className="shrink-0 py-6 md:max-w-48 md:border-r md:border-gray-200 md:pr-8">
-            <p className="text-center text-sm font-bold uppercase tracking-widest text-gray-400 md:text-end">
+          <div className="shrink-0 py-3 md:max-w-48 md:border-r md:border-gray-200 md:pr-8">
+            <p className="text-center text-xs font-bold uppercase tracking-widest text-gray-400 md:text-end">
               Dipercaya Oleh
             </p>
           </div>
-          <div className="relative py-8 md:w-[calc(100%-12rem)]">
+          <div className="relative py-4 md:w-[calc(100%-12rem)]">
             <InfiniteSlider
               duration={35}
               gap={80}
@@ -29,7 +29,7 @@ export default function TrustBar() {
               draggable={true}
             >
               {PARTNERS.map((partner) => (
-                <div key={partner.name} className="flex items-center justify-center px-4 min-h-[6rem]">
+                <div key={partner.name} className="flex items-center justify-center px-4 min-h-[4rem]">
                   <a 
                     href={partner.href} 
                     target="_blank" 

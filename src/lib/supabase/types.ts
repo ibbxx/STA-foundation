@@ -63,7 +63,7 @@ export interface Database {
           donor_count: number;
           image_url: string | null;
           category: string | null;
-          status: 'draft' | 'active' | 'completed';
+          status: 'draft' | 'active' | 'completed' | 'upcoming';
           collaborators: any[] | null;
           created_at: string;
           updated_at: string;
@@ -83,7 +83,7 @@ export interface Database {
           donor_count?: number;
           image_url?: string | null;
           category?: string | null;
-          status?: 'draft' | 'active' | 'completed';
+          status?: 'draft' | 'active' | 'completed' | 'upcoming';
           collaborators?: any[] | null;
           created_at?: string;
           updated_at?: string;
@@ -103,7 +103,7 @@ export interface Database {
           donor_count?: number;
           image_url?: string | null;
           category?: string | null;
-          status?: 'draft' | 'active' | 'completed';
+          status?: 'draft' | 'active' | 'completed' | 'upcoming';
           collaborators?: any[] | null;
           created_at?: string;
           updated_at?: string;
@@ -382,7 +382,7 @@ export type Campaign = {
   banner_url: string;
   category_id: string;
   category_name?: string;
-  status: 'draft' | 'active' | 'inactive' | 'completed';
+  status: 'draft' | 'active' | 'inactive' | 'completed' | 'upcoming';
   deadline: string;
   is_featured: boolean;
   created_at: string;

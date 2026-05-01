@@ -175,9 +175,9 @@ export default function Home() {
                     >
                       <Link
                         to={`/campaigns/${hero.slug}`}
-                        className="group flex h-full flex-col overflow-hidden rounded-2xl border border-gray-100 bg-white transition-all duration-300 hover:shadow-xl hover:shadow-gray-200/50"
+                        className="group flex h-full flex-col lg:flex-row overflow-hidden rounded-2xl border border-gray-100 bg-white transition-all duration-300 hover:shadow-xl hover:shadow-gray-200/50"
                       >
-                        <div className="relative aspect-[16/9] overflow-hidden lg:aspect-auto lg:flex-1">
+                        <div className="relative aspect-[16/9] overflow-hidden lg:aspect-auto lg:w-[55%]">
                           <img
                             src={hero.thumbnail_url}
                             alt={hero.title}
@@ -186,7 +186,7 @@ export default function Home() {
                           />
                           <div className="absolute inset-0 bg-gray-900/5" />
                         </div>
-                        <div className="flex flex-col p-6 sm:p-8">
+                        <div className="flex flex-col justify-center p-6 sm:p-8 lg:flex-1">
                           <div className="mb-6 space-y-3">
                             <h3 className="text-xl font-bold leading-tight text-gray-900 transition-colors group-hover:text-emerald-800 sm:text-2xl">
                               {hero.title}

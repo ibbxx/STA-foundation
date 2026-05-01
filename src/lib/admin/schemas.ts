@@ -34,7 +34,7 @@ export const campaignManagerSchema = z
     end_date: z.string().trim().min(1, 'Tanggal akhir wajib diisi.'),
     description: z.string().trim().min(1, 'Deskripsi campaign wajib diisi.'),
     is_featured: z.boolean(),
-    status: z.enum(['draft', 'active', 'completed']),
+    status: z.enum(['draft', 'active', 'completed', 'upcoming']),
     collaborators: z.array(
       z.object({
         id: z.string(),
