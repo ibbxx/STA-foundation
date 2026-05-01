@@ -5,7 +5,7 @@ import type { LngLatBoundsLike } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { ArrowRight, MapPinned, X, Layers, Maximize2, Navigation } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import type { EventMapLocation } from '../../lib/public-events';
+import type { EventMapLocation } from '../../lib/public/events';
 import { cn } from '../../lib/utils';
 
 // MapStyles
@@ -256,6 +256,7 @@ export default function InteractiveMap({
         touchPitch={false}
         onLoad={handleMapLoad}
         onClick={onClick}
+        attributionControl={false}
       >
         {/* Map Type Toggle */}
         {showControls && (

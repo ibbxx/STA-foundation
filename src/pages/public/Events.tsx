@@ -2,9 +2,10 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { ArrowRight, Compass, MapPinned, Sparkles } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import InteractiveMap from '../../components/shared/InteractiveMap';
 import { logError } from '../../lib/error-logger';
-import { supabase } from '../../lib/supabase';
-import { fetchImpactMapLocations, type EventMapLocation } from '../../lib/public-events';
+import { supabase } from '../../lib/supabase/types';
+import { fetchImpactMapLocations, type EventMapLocation } from '../../lib/public/events';
 import { cn } from '../../lib/utils';
 
 const fadeUp = {
@@ -162,6 +163,39 @@ export default function Events() {
               <p className="mt-1 text-xs font-medium uppercase tracking-[0.16em] text-gray-500">{stat.label}</p>
             </div>
           ))}
+        </div>
+      </section>
+
+      <section className="py-12 sm:py-16">
+        <div className="mx-auto max-w-7xl px-5 sm:px-6 lg:px-8">
+          {error ? (
+            <div className="rounded-3xl border border-red-100 bg-white px-6 py-8 text-sm text-red-600 shadow-sm">
+              {error}
+            </div>
+          ) : (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.98 }}
+              whileInView={{ opacity: 1, scale: 1 }}
+              viewport={{ once: true, margin: '-60px' }}
+              transition={{ duration: 0.6 }}
+              className="overflow-hidden rounded-3xl bg-white shadow-[0_20px_60px_-30px_rgba(17,24,39,0.18)]"
+            >
+              <InteractiveMap
+                locations={locations}
+                className="w-full aspect-video sm:aspect-[2/1] lg:aspect-[2.5/1]"
+                scrollWheelZoom={true}
+                useFallbackLocations={false}
+                viewportMode="fit-indonesia"
+                emptyTitle={loading ? 'Memuat data event...' : 'Belum ada titik event yang dipublikasikan'}
+                emptyDescription={
+                  loading
+                    ? 'Peta akan otomatis terisi setelah data berhasil dimuat.'
+                    : ''
+                }
+                onLocationSelect={(location) => setSelectedLocationId(location.id)}
+              />
+            </motion.div>
+          )}
         </div>
       </section>
 

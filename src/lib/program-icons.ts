@@ -1,5 +1,5 @@
 import { GraduationCap, Hammer, LucideIcon, Search } from 'lucide-react';
-import { ProgramContent } from './supabase';
+import { ProgramContent } from './supabase/types';
 
 const PROGRAM_ICONS: Record<ProgramContent['icon_name'], LucideIcon> = {
   search: Search,

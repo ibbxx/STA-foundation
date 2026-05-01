@@ -1,4 +1,4 @@
-import { ProgramContent } from './supabase';
+import { ProgramContent } from './supabase/types';
 
 export const PROGRAMS: ProgramContent[] = [
   {
@@ -63,4 +63,57 @@ export const PROGRAMS: ProgramContent[] = [
 export function getProgramBySlug(slug?: string) {
   if (!slug) return null;
   return PROGRAMS.find((program) => program.slug === slug) ?? null;
+}
+
+/**
+ * Parsed detail data stored as JSON inside ProgramRow.content.
+ */
+export type ProgramDetailData = {
+  hero_image_url: string;
+  home_slider_image: string;
+  overview: string;
+  stage_label: string;
+  stage_value: string;
+  focus_areas: string[];
+  gallery_images: string[];
+  body_content: string;
+};
+
+const EMPTY_DETAIL: ProgramDetailData = {
+  hero_image_url: '',
+  home_slider_image: '',
+  overview: '',
+  stage_label: '',
+  stage_value: '',
+  focus_areas: [],
+  gallery_images: [],
+  body_content: '',
+};
+
+/**
+ * Parse the JSON content field of a ProgramRow into typed detail data.
+ * Returns EMPTY_DETAIL if the content is not valid JSON.
+ */
+export function parseProgramContent(content: string | null | undefined): ProgramDetailData {
+  if (!content) return EMPTY_DETAIL;
+
+  try {
+    if (content.startsWith('{') || content.startsWith('[')) {
+      const parsed = JSON.parse(content);
+      return {
+        hero_image_url: parsed.hero_image_url || '',
+        home_slider_image: parsed.home_slider_image || '',
+        overview: parsed.overview || '',
+        stage_label: parsed.stage_label || '',
+        stage_value: parsed.stage_value || '',
+        focus_areas: Array.isArray(parsed.focus_areas) ? parsed.focus_areas : [],
+        gallery_images: Array.isArray(parsed.gallery_images) ? parsed.gallery_images : [],
+        body_content: parsed.body_content || '',
+      };
+    }
+  } catch {
+    // Not valid JSON, return empty
+  }
+
+  return EMPTY_DETAIL;
 }

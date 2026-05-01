@@ -5,21 +5,24 @@ import { useForm } from 'react-hook-form';
 import AdminModal from '../../components/admin/AdminModal';
 import AdminHeroManager from '../../components/admin/AdminHeroManager';
 import AdminOtherPagesHero from '../../components/admin/AdminOtherPagesHero';
-import { adminProgramSchema, programIconOptions, type AdminProgramValues } from '../../lib/admin-schemas';
-import { formatAdminDate } from '../../lib/admin-helpers';
-import { deleteProgram, fetchProgramRows, insertProgram, updateProgram, fetchSiteContentRows, upsertSiteContent } from '../../lib/admin-repository';
+import { adminProgramSchema, programIconOptions, type AdminProgramValues } from '../../lib/admin/schemas';
+import { formatAdminDate } from '../../lib/admin/helpers';
+import { deleteProgram, fetchProgramRows, insertProgram, updateProgram, fetchSiteContentRows, upsertSiteContent } from '../../lib/admin/repository';
 import {
   buildProgramSummary,
   defaultProgramValues,
   filterPrograms,
   toProgramPayload,
 } from '../../lib/admin-view-models';
-import { uploadAdminImage } from '../../lib/supabase-storage';
+import { uploadAdminImage } from '../../lib/supabase/storage';
 import { getProgramIcon } from '../../lib/program-icons';
 import { logError } from '../../lib/error-logger';
-import { ProgramRow } from '../../lib/supabase';
+import { ProgramRow } from '../../lib/supabase/types';
 import { cn } from '../../lib/utils';
 import RichTextEditor from '../../components/admin/campaigns/RichTextEditor';
+import { parseProgramContent } from '../../lib/programs';
+import { DEFAULT_PROGRAMS_HEADER, DEFAULT_CTA_DATA } from '../../lib/constants';
+import type { ProgramsHeaderData, CtaData } from '../../lib/constants';
 
 export default function AdminContent() {
   const [programs, setPrograms] = useState<ProgramRow[]>([]);
@@ -33,25 +36,13 @@ export default function AdminContent() {
 
   // Header Config State
   const [headerModalOpen, setHeaderModalOpen] = useState(false);
-  const [headerData, setHeaderData] = useState({
-    label: 'INISIATIF UTAMA',
-    title: 'Program Kami',
-    description: 'Tiga pilar inisiatif yang kami rancang untuk menciptakan ekosistem pendidikan yang inklusif, layak, dan berkelanjutan.'
-  });
+  const [headerData, setHeaderData] = useState<ProgramsHeaderData>({ ...DEFAULT_PROGRAMS_HEADER });
   const [savingHeader, setSavingHeader] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
 
   // CTA Config State
   const [ctaModalOpen, setCtaModalOpen] = useState(false);
-  const [ctaData, setCtaData] = useState({
-    title: 'Bergabunglah untuk Masa Depan yang Lebih Cerah',
-    description: 'Setiap kontribusi Anda, sekecil apapun, adalah harapan bagi ribuan saudara kita. Mari bersama membangun Indonesia yang lebih baik.',
-    primaryButtonText: 'Laporkan Sekolah',
-    primaryButtonLink: '/laporkan',
-    secondaryButtonText: 'Hubungi Kami',
-    secondaryButtonLink: '/kontak',
-    imageUrl: ''
-  });
+  const [ctaData, setCtaData] = useState<CtaData>({ ...DEFAULT_CTA_DATA });
   const [savingCta, setSavingCta] = useState(false);
 
   const handleUploadImage = async (e: React.ChangeEvent<HTMLInputElement>, fieldName: 'hero_image_url' | 'home_slider_image') => {
@@ -63,7 +54,7 @@ export default function AdminContent() {
       const url = await uploadAdminImage(file, 'programs');
       setValue(fieldName, url, { shouldDirty: true, shouldValidate: true });
       if (oldUrl) {
-        import('../../lib/supabase-storage').then(m => m.deleteFilesFromStorage([oldUrl]));
+        import('../../lib/supabase/storage').then(m => m.deleteFilesFromStorage([oldUrl]));
       }
     } catch (err) {
       alert('Gagal mengunggah gambar. Pastikan ukuran file tidak terlalu besar.');
@@ -81,7 +72,7 @@ export default function AdminContent() {
       const url = await uploadAdminImage(file, 'general');
       setCtaData(prev => ({ ...prev, imageUrl: url }));
       if (oldUrl) {
-        import('../../lib/supabase-storage').then(m => m.deleteFilesFromStorage([oldUrl]));
+        import('../../lib/supabase/storage').then(m => m.deleteFilesFromStorage([oldUrl]));
       }
     } catch (err) {
       alert('Gagal mengunggah gambar.');
@@ -147,9 +138,9 @@ export default function AdminContent() {
         try {
           const parsed = typeof headerRow.value === 'string' ? JSON.parse(headerRow.value) : headerRow.value;
           setHeaderData({
-            label: parsed.label || 'INISIATIF UTAMA',
-            title: parsed.title || 'Program Kami',
-            description: parsed.description || 'Tiga pilar inisiatif yang kami rancang untuk menciptakan ekosistem pendidikan yang inklusif, layak, dan berkelanjutan.'
+            label: parsed.label || DEFAULT_PROGRAMS_HEADER.label,
+            title: parsed.title || DEFAULT_PROGRAMS_HEADER.title,
+            description: parsed.description || DEFAULT_PROGRAMS_HEADER.description,
           });
         } catch (e) {
           console.error("Gagal parse header data", e);
@@ -166,13 +157,13 @@ export default function AdminContent() {
         try {
           const parsed = typeof ctaRow.value === 'string' ? JSON.parse(ctaRow.value) : ctaRow.value;
           setCtaData({
-            title: parsed.title || 'Bergabunglah untuk Masa Depan yang Lebih Cerah',
-            description: parsed.description || 'Setiap kontribusi Anda, sekecil apapun, adalah harapan bagi ribuan saudara kita. Mari bersama membangun Indonesia yang lebih baik.',
-            primaryButtonText: parsed.primaryButtonText || 'Laporkan Sekolah',
-            primaryButtonLink: parsed.primaryButtonLink || '/laporkan',
-            secondaryButtonText: parsed.secondaryButtonText || 'Hubungi Kami',
-            secondaryButtonLink: parsed.secondaryButtonLink || '/kontak',
-            imageUrl: parsed.imageUrl || ''
+            title: parsed.title || DEFAULT_CTA_DATA.title,
+            description: parsed.description || DEFAULT_CTA_DATA.description,
+            primaryButtonText: parsed.primaryButtonText || DEFAULT_CTA_DATA.primaryButtonText,
+            primaryButtonLink: parsed.primaryButtonLink || DEFAULT_CTA_DATA.primaryButtonLink,
+            secondaryButtonText: parsed.secondaryButtonText || DEFAULT_CTA_DATA.secondaryButtonText,
+            secondaryButtonLink: parsed.secondaryButtonLink || DEFAULT_CTA_DATA.secondaryButtonLink,
+            imageUrl: parsed.imageUrl || DEFAULT_CTA_DATA.imageUrl,
           });
         } catch (e) {
           console.error("Gagal parse CTA data", e);
@@ -189,45 +180,21 @@ export default function AdminContent() {
 
   useEffect(() => {
     if (mode === 'edit' && editingProgram) {
-      let hero_image_url = '';
-      let home_slider_image = '';
-      let overview = '';
-      let stage_label = '';
-      let stage_value = '';
-      let focus_areas = '';
-      let gallery_images = '';
-      let body_content = editingProgram.content ?? '';
-
-      // Coba parse content sebagai JSON
-      try {
-        if (editingProgram.content && (editingProgram.content.startsWith('{') || editingProgram.content.startsWith('['))) {
-          const parsed = JSON.parse(editingProgram.content);
-          hero_image_url = parsed.hero_image_url || '';
-          home_slider_image = parsed.home_slider_image || '';
-          overview = parsed.overview || '';
-          stage_label = parsed.stage_label || '';
-          stage_value = parsed.stage_value || '';
-          focus_areas = Array.isArray(parsed.focus_areas) ? parsed.focus_areas.join('\n') : '';
-          gallery_images = Array.isArray(parsed.gallery_images) ? parsed.gallery_images.join('\n') : '';
-          body_content = parsed.body_content || '';
-        }
-      } catch (e) {
-        // Bukan JSON, biarkan as is
-      }
+      const detail = parseProgramContent(editingProgram.content);
 
       reset({
         slug: editingProgram.slug,
         title: editingProgram.title,
         description: editingProgram.description,
         icon_name: editingProgram.icon_name,
-        hero_image_url,
-        home_slider_image,
-        overview,
-        stage_label,
-        stage_value,
-        focus_areas,
-        gallery_images,
-        content: body_content,
+        hero_image_url: detail.hero_image_url,
+        home_slider_image: detail.home_slider_image,
+        overview: detail.overview,
+        stage_label: detail.stage_label,
+        stage_value: detail.stage_value,
+        focus_areas: detail.focus_areas.join('\n'),
+        gallery_images: detail.gallery_images.join('\n'),
+        content: detail.body_content,
       });
       return;
     }
@@ -293,20 +260,11 @@ export default function AdminContent() {
 
     setDeletingId(program.id);
 
-    // Kumpulkan URL gambar untuk dihapus dari storage
     const urlsToDelete: string[] = [];
-    try {
-      if (program.content && (program.content.startsWith('{') || program.content.startsWith('['))) {
-        const parsed = JSON.parse(program.content);
-        if (parsed.hero_image_url) urlsToDelete.push(parsed.hero_image_url);
-        if (parsed.home_slider_image) urlsToDelete.push(parsed.home_slider_image);
-        if (Array.isArray(parsed.gallery_images)) {
-          urlsToDelete.push(...parsed.gallery_images);
-        }
-      }
-    } catch (e) {
-      // Abaikan jika bukan JSON
-    }
+    const detail = parseProgramContent(program.content);
+    if (detail.hero_image_url) urlsToDelete.push(detail.hero_image_url);
+    if (detail.home_slider_image) urlsToDelete.push(detail.home_slider_image);
+    if (detail.gallery_images.length > 0) urlsToDelete.push(...detail.gallery_images);
 
     const { error: deleteError } = await deleteProgram(program.id);
 
@@ -320,7 +278,7 @@ export default function AdminContent() {
     }
 
     if (urlsToDelete.length > 0) {
-      import('../../lib/supabase-storage').then(m => m.deleteFilesFromStorage(urlsToDelete).catch(err => logError('AdminContent.deleteStorage', err)));
+      import('../../lib/supabase/storage').then(m => m.deleteFilesFromStorage(urlsToDelete).catch(err => logError('AdminContent.deleteStorage', err)));
     }
 
     setDeletingId(null);

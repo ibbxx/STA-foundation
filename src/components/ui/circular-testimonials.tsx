@@ -181,9 +181,9 @@ export const CircularTestimonials = ({
 
   return (
     <div className="testimonial-container relative w-full max-w-7xl px-4 py-8">
-      <div className="testimonial-grid grid gap-12 md:gap-20 md:grid-cols-2">
+      <div className="testimonial-grid grid gap-6 md:gap-20 md:grid-cols-2">
         {/* Images */}
-        <div className="image-container relative w-full h-[300px] md:h-[400px] lg:h-[500px]" style={{ perspective: '1000px' }} ref={imageContainerRef}>
+        <div className="image-container relative w-full h-[220px] sm:h-[260px] md:h-[400px] lg:h-[500px]" style={{ perspective: '1000px' }} ref={imageContainerRef}>
           {testimonials.map((testimonial, index) => (
             <img
               key={testimonial.src + index}
@@ -196,7 +196,7 @@ export const CircularTestimonials = ({
           ))}
         </div>
         {/* Content */}
-        <div className="testimonial-content flex flex-col justify-center space-y-8">
+        <div className="testimonial-content flex flex-col justify-center space-y-4 md:space-y-8">
           <AnimatePresence mode="wait">
             <motion.div
               key={activeIndex}
@@ -205,7 +205,7 @@ export const CircularTestimonials = ({
               animate="animate"
               exit="exit"
               transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-              className="space-y-6"
+              className="space-y-3 md:space-y-6"
             >
               <div className="space-y-2">
                 <h3
@@ -222,7 +222,7 @@ export const CircularTestimonials = ({
                 </p>
               </div>
               
-              <div className="min-h-[120px]">
+              <div className="min-h-[80px] md:min-h-[120px]">
                 <motion.p
                   className="quote leading-relaxed font-light"
                   style={{ color: colorTestimony, fontSize: fontSizeQuote }}

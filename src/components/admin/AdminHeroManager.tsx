@@ -14,7 +14,7 @@ import {
   saveHeroContent,
   type HeroSlide,
 } from '../../lib/admin-hero';
-import { uploadAdminImage } from '../../lib/supabase-storage';
+import { uploadAdminImage } from '../../lib/supabase/storage';
 import { logError } from '../../lib/error-logger';
 
 /* ─────────── Single Slide Card (Inline Edit) ─────────── */
@@ -189,7 +189,7 @@ export default function AdminHeroManager() {
     // Delete from storage
     const slide = slides.find((s) => s.id === id);
     if (slide && slide.imageUrl) {
-      import('../../lib/supabase-storage').then((m) => {
+      import('../../lib/supabase/storage').then((m) => {
         m.deleteFilesFromStorage([slide.imageUrl]).catch(err => logError('AdminHeroManager.deleteStorage', err));
       });
     }
@@ -209,7 +209,7 @@ export default function AdminHeroManager() {
 
       // Delete old image from storage
       if (oldUrl) {
-        import('../../lib/supabase-storage').then((m) => {
+        import('../../lib/supabase/storage').then((m) => {
           m.deleteFilesFromStorage([oldUrl]).catch(err => logError('AdminHeroManager.deleteOldStorage', err));
         });
       }

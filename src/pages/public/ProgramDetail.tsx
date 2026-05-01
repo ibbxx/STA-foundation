@@ -4,8 +4,8 @@ import { ArrowLeft, ArrowRight, CheckCircle2, Users, Globe, Target, Loader2 } fr
 import { Link, useParams } from 'react-router-dom';
 import { getProgramIcon } from '../../lib/program-icons';
 import { getProgramBySlug, PROGRAMS } from '../../lib/programs';
-import { fetchHomeProgramsContent, type HomeProgramSlide } from '../../lib/admin-home-programs';
-import { supabase } from '../../lib/supabase';
+import { fetchHomeProgramsContent, type HomeProgramSlide } from '../../lib/admin/home-programs';
+import { supabase } from '../../lib/supabase/types';
 
 export default function ProgramDetail() {
   const { slug } = useParams();

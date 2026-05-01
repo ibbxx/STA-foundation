@@ -13,8 +13,8 @@ import {
   fetchHomeProgramsContent,
   saveHomeProgramsContent,
   type HomeProgramSlide,
-} from '../../lib/admin-home-programs';
-import { uploadAdminImage } from '../../lib/supabase-storage';
+} from '../../lib/admin/home-programs';
+import { uploadAdminImage } from '../../lib/supabase/storage';
 import { logError } from '../../lib/error-logger';
 
 function ProgramSlideCard({
@@ -221,7 +221,7 @@ export default function AdminHomeProgramsManager() {
     if (slide) {
       const urlsToDelete = [slide.imageUrl, slide.heroImageUrl].filter(Boolean) as string[];
       if (urlsToDelete.length > 0) {
-        import('../../lib/supabase-storage').then((m) => {
+        import('../../lib/supabase/storage').then((m) => {
           m.deleteFilesFromStorage(urlsToDelete).catch(err => logError('AdminHomeProgramsManager.deleteStorage', err));
         });
       }
@@ -241,7 +241,7 @@ export default function AdminHomeProgramsManager() {
       updateSlide(slideId, targetField, url);
 
       if (oldUrl) {
-        import('../../lib/supabase-storage').then((m) => {
+        import('../../lib/supabase/storage').then((m) => {
           m.deleteFilesFromStorage([oldUrl]).catch(err => logError('AdminHomeProgramsManager.deleteOldStorage', err));
         });
       }

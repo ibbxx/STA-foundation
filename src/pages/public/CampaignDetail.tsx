@@ -22,8 +22,8 @@ import {
   fetchPublicCampaignDetail,
   getCampaignPrimaryImage,
   getDaysLeft,
-} from '../../lib/public-campaigns';
-import { Campaign, CampaignUpdateRow } from '../../lib/supabase';
+} from '../../lib/public/campaigns';
+import { Campaign, CampaignUpdateRow } from '../../lib/supabase/types';
 import { calculateProgress, formatCurrency, formatLongDate } from '../../lib/utils';
 import { sanitizeHTML } from '../../lib/sanitize';
 

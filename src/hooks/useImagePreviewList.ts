@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import type { ImagePreviewItem } from '../lib/image-preview';
-import { toQueuedImageItems } from '../lib/admin-campaign-utils';
+import { toQueuedImageItems } from '../lib/admin/campaign-utils';
 
 /**
  * Revoke all object URLs for queued items to prevent memory leaks.

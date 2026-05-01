@@ -1,0 +1,135 @@
+import React from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { ArrowRight } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { cn } from '../../lib/utils';
+import { fetchHeroContent, DEFAULT_HERO_SLIDES, type HeroSlide } from '../../lib/admin-hero';
+import { logError } from '../../lib/error-logger';
+
+export default function HeroSlideshow() {
+  const [heroSlides, setHeroSlides] = React.useState<HeroSlide[]>(DEFAULT_HERO_SLIDES);
+  const [currentSlideIndex, setCurrentSlideIndex] = React.useState(0);
+
+  // Fetch hero slides from Supabase
+  React.useEffect(() => {
+    fetchHeroContent()
+      .then((content) => {
+        if (content.slides.length > 0) {
+          setHeroSlides(content.slides);
+        }
+      })
+      .catch((err) => logError('HeroSlideshow.fetchHeroContent', err));
+  }, []);
+
+  // Auto-advance slideshow (every 6 seconds)
+  React.useEffect(() => {
+    if (heroSlides.length <= 1) return;
+
+    const interval = setInterval(() => {
+      setCurrentSlideIndex((prev) => (prev + 1) % heroSlides.length);
+    }, 6000);
+
+    return () => clearInterval(interval);
+  }, [heroSlides.length]);
+
+  const currentSlide = heroSlides[currentSlideIndex] ?? heroSlides[0];
+
+  return (
+    <section className="relative min-h-screen">
+      {/* Background image with crossfade transition */}
+      <AnimatePresence mode="popLayout">
+        <motion.div
+          key={currentSlide.id}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 1.2, ease: 'easeInOut' }}
+          className="absolute inset-0 overflow-hidden"
+        >
+          {currentSlide.videoUrl ? (
+            <video
+              src={currentSlide.videoUrl}
+              autoPlay
+              muted
+              loop
+              playsInline
+              className="size-full object-cover"
+            />
+          ) : currentSlide.imageUrl ? (
+            <img
+              src={currentSlide.imageUrl}
+              alt={currentSlide.title}
+              className="size-full object-cover"
+            />
+          ) : (
+            <div className="size-full bg-emerald-950" />
+          )}
+          <div className="absolute inset-0 bg-gradient-to-t from-gray-950 via-gray-950/60 to-gray-950/20" />
+        </motion.div>
+      </AnimatePresence>
+
+      {/* Content overlay — bottom-left, flush left on all screens */}
+      <div className="relative z-10 flex min-h-screen items-end pb-16 sm:pb-32 pt-28">
+        <div className="flex flex-col px-5 sm:px-8 lg:px-12">
+          <div className="max-w-2xl text-left">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={currentSlide.id + '-text'}
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ duration: 0.8, delay: 0.2 }}
+              >
+                <h1 className="mt-4 max-w-2xl text-balance text-2xl font-black uppercase leading-[1.1] tracking-tight text-[#F5F1E8] sm:text-3xl md:mt-8 md:text-5xl lg:mt-16 xl:text-6xl">
+                  {currentSlide.title}
+                </h1>
+                {currentSlide.subtitle && (
+                  <p className="mt-4 max-w-xl text-balance text-sm font-light leading-relaxed text-[#F5F1E8]/85 sm:mt-6 sm:text-base">
+                    {currentSlide.subtitle}
+                  </p>
+                )}
+
+                <div className="mt-8 flex flex-col items-start gap-3 sm:mt-12 sm:flex-row">
+                  <Link
+                    to="/tentang-kami"
+                    className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-[#2C5F4F] pl-6 pr-4 text-sm font-bold text-[#F5F1E8] transition-all duration-300 hover:bg-[#234A3D] md:h-12 md:text-base"
+                  >
+                    <span className="whitespace-nowrap">Pelajari Lebih Lanjut</span>
+                    <ArrowRight className="ml-1 h-4 w-4" />
+                  </Link>
+                  <a
+                    href="https://wa.me/6287882799026"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex h-11 items-center justify-center rounded-full border border-[#F5F1E8]/25 px-6 text-sm font-medium text-[#F5F1E8] transition-all duration-300 hover:bg-[#F5F1E8]/10 md:h-12 md:text-base"
+                  >
+                    <span className="whitespace-nowrap">Jadi Mitra Kolaborator</span>
+                  </a>
+                </div>
+              </motion.div>
+            </AnimatePresence>
+          </div>
+
+          {/* Slide Indicators */}
+          {heroSlides.length > 1 && (
+            <div className="mt-8 flex items-center gap-2">
+              {heroSlides.map((slide, i) => (
+                <button
+                  key={slide.id}
+                  onClick={() => setCurrentSlideIndex(i)}
+                  className={cn(
+                    'h-1.5 rounded-full transition-all duration-500',
+                    i === currentSlideIndex
+                      ? 'w-8 bg-white'
+                      : 'w-3 bg-white/40 hover:bg-white/60'
+                  )}
+                  aria-label={`Slide ${i + 1}`}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}

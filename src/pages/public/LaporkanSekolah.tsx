@@ -25,9 +25,9 @@ import {
   type ReportSchoolAssets,
   type ReportSchoolFormValues,
 } from '../../lib/report-school';
-import { checkIPRateLimit, checkIsBlacklisted, insertSchoolReport, uploadSchoolReportPhotos } from '../../lib/admin-repository';
+import { checkIPRateLimit, checkIsBlacklisted, insertSchoolReport, uploadSchoolReportPhotos } from '../../lib/admin/repository';
 import { logError } from '../../lib/error-logger';
-import { supabase } from '../../lib/supabase';
+import { supabase } from '../../lib/supabase/types';
 
 // Derive type from Zod schema to keep resolver and form in sync
 type FormValues = z.infer<typeof reportSchoolFormSchema>;

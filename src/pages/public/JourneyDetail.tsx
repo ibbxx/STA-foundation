@@ -2,7 +2,7 @@ import React from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowLeft, MapPinned, Calendar, CheckCircle2, Share2, ArrowRight } from 'lucide-react';
-import { fetchImpactMapLocations, type EventMapLocation } from '../../lib/public-events';
+import { fetchImpactMapLocations, type EventMapLocation } from '../../lib/public/events';
 import { cn } from '../../lib/utils';
 import { useShare } from '../../hooks/useShare';
 import ShareToast from '../../components/shared/ShareToast';

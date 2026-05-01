@@ -17,14 +17,14 @@ import {
   X,
   Upload
 } from 'lucide-react';
-import { adminMapLocationSchema, type AdminMapLocationValues } from '../../lib/admin-schemas';
-import { fetchSiteContentRows, upsertSiteContent } from '../../lib/admin-repository';
-import { uploadAdminImage } from '../../lib/supabase-storage';
+import { adminMapLocationSchema, type AdminMapLocationValues } from '../../lib/admin/schemas';
+import { fetchSiteContentRows, upsertSiteContent } from '../../lib/admin/repository';
+import { uploadAdminImage } from '../../lib/supabase/storage';
 import { logError } from '../../lib/error-logger';
 import AdminModal from '../../components/admin/AdminModal';
 import RichTextEditor from '../../components/admin/campaigns/RichTextEditor';
 import InteractiveMap from '../../components/shared/InteractiveMap';
-import type { EventMapLocation } from '../../lib/public-events';
+import type { EventMapLocation } from '../../lib/public/events';
 import { cn } from '../../lib/utils';
 
 export default function AdminImpactMap() {

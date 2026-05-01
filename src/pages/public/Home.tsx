@@ -1,29 +1,30 @@
 import React from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { InfiniteSlider } from '../../components/ui/infinite-slider';
-import { ProgressiveBlur } from '../../components/ui/progressive-blur';
+import { motion } from 'framer-motion';
 import {
   ArrowRight,
   HandHeart,
-  Quote,
   Heart,
   Users,
   BarChart3,
   CheckCircle2,
-  RefreshCw,
 } from 'lucide-react';
 import { CircularTestimonials } from '../../components/ui/circular-testimonials';
 import { Link } from 'react-router-dom';
-import { Campaign } from '../../lib/supabase';
+import { Campaign } from '../../lib/supabase/types';
 import { logError } from '../../lib/error-logger';
-import { fetchPublicCampaigns } from '../../lib/public-campaigns';
-import { getProgramIcon } from '../../lib/program-icons';
-import { PROGRAMS } from '../../lib/programs';
+import { fetchPublicCampaigns } from '../../lib/public/campaigns';
+import { PROGRAMS, parseProgramContent } from '../../lib/programs';
 import { formatCurrency, calculateProgress, cn } from '../../lib/utils';
-import { fetchHeroContent, DEFAULT_HERO_SLIDES, type HeroSlide } from '../../lib/admin-hero';
-import { supabase } from '../../lib/supabase';
-import InteractiveMap from '../../components/shared/InteractiveMap';
-import { fetchImpactMapLocations, type EventMapLocation } from '../../lib/public-events';
+import { supabase } from '../../lib/supabase/types';
+import { DEFAULT_PROGRAMS_HEADER, DEFAULT_CTA_DATA } from '../../lib/constants';
+import type { ProgramsHeaderData, CtaData } from '../../lib/constants';
+
+/* ── Extracted Section Components ── */
+import HeroSlideshow from '../../components/public/HeroSlideshow';
+import TrustBar from '../../components/public/TrustBar';
+import ImpactMapSection from '../../components/public/ImpactMapSection';
+import CtaSection from '../../components/public/CtaSection';
+
 /* ─────────── Animation Variants ─────────── */
 
 const fadeUp = {
@@ -40,31 +41,11 @@ export default function Home() {
   const [loadingFeaturedCampaigns, setLoadingFeaturedCampaigns] = React.useState(true);
   const [featuredCampaignError, setFeaturedCampaignError] = React.useState<string | null>(null);
 
-  // Hero Slideshow State
-  const [heroSlides, setHeroSlides] = React.useState<HeroSlide[]>(DEFAULT_HERO_SLIDES);
-  const [currentSlideIndex, setCurrentSlideIndex] = React.useState(0);
-
   // Programs State (Dynamic from Supabase)
   const [dynamicPrograms, setDynamicPrograms] = React.useState<any[]>([]);
-  const [headerData, setHeaderData] = React.useState({
-    label: 'INISIATIF UTAMA',
-    title: 'Program Kami',
-    description: 'Tiga pilar inisiatif yang kami rancang untuk menciptakan ekosistem pendidikan yang inklusif, layak, dan berkelanjutan.'
-  });
+  const [headerData, setHeaderData] = React.useState<ProgramsHeaderData>({ ...DEFAULT_PROGRAMS_HEADER });
 
-  const [ctaData, setCtaData] = React.useState({
-    title: 'Bergabunglah untuk Masa Depan yang Lebih Cerah',
-    description: 'Setiap kontribusi Anda, sekecil apapun, adalah harapan bagi ribuan saudara kita. Mari bersama membangun Indonesia yang lebih baik.',
-    primaryButtonText: 'Laporkan Sekolah',
-    primaryButtonLink: '/laporkan',
-    secondaryButtonText: 'Hubungi Kami',
-    secondaryButtonLink: '/kontak',
-    imageUrl: ''
-  });
-
-  // Map Data
-  const [mapLocations, setMapLocations] = React.useState<EventMapLocation[]>([]);
-  const [loadingMap, setLoadingMap] = React.useState(true);
+  const [ctaData, setCtaData] = React.useState<CtaData>({ ...DEFAULT_CTA_DATA });
 
   React.useEffect(() => {
     async function loadPrograms() {
@@ -72,17 +53,8 @@ export default function Home() {
         const { data } = await supabase.from('programs').select('*').order('created_at', { ascending: true });
         if (data && data.length > 0) {
           const mapped = data.map((item: any) => {
-            let detail = {};
-            try {
-              if (item.content && (item.content.startsWith('{') || item.content.startsWith('['))) {
-                detail = JSON.parse(item.content);
-              }
-            } catch (e) {}
-            
-            return {
-              ...item,
-              ...detail
-            };
+            const detail = parseProgramContent(item.content);
+            return { ...item, ...detail };
           });
           setDynamicPrograms(mapped);
         }
@@ -93,9 +65,9 @@ export default function Home() {
           const val = (siteContent as any).value;
           const parsed = typeof val === 'string' ? JSON.parse(val) : val;
           setHeaderData({
-            label: parsed.label || 'INISIATIF UTAMA',
-            title: parsed.title || 'Program Kami',
-            description: parsed.description || 'Tiga pilar inisiatif yang kami rancang untuk menciptakan ekosistem pendidikan yang inklusif, layak, dan berkelanjutan.'
+            label: parsed.label || DEFAULT_PROGRAMS_HEADER.label,
+            title: parsed.title || DEFAULT_PROGRAMS_HEADER.title,
+            description: parsed.description || DEFAULT_PROGRAMS_HEADER.description,
           });
         }
 
@@ -105,13 +77,13 @@ export default function Home() {
           const val = (ctaContent as any).value;
           const parsed = typeof val === 'string' ? JSON.parse(val) : val;
           setCtaData({
-            title: parsed.title || 'Bergabunglah untuk Masa Depan yang Lebih Cerah',
-            description: parsed.description || 'Setiap kontribusi Anda, sekecil apapun, adalah harapan bagi ribuan saudara kita. Mari bersama membangun Indonesia yang lebih baik.',
-            primaryButtonText: parsed.primaryButtonText || 'Laporkan Sekolah',
-            primaryButtonLink: parsed.primaryButtonLink || '/laporkan',
-            secondaryButtonText: parsed.secondaryButtonText || 'Hubungi Kami',
-            secondaryButtonLink: parsed.secondaryButtonLink || '/kontak',
-            imageUrl: parsed.imageUrl || ''
+            title: parsed.title || DEFAULT_CTA_DATA.title,
+            description: parsed.description || DEFAULT_CTA_DATA.description,
+            primaryButtonText: parsed.primaryButtonText || DEFAULT_CTA_DATA.primaryButtonText,
+            primaryButtonLink: parsed.primaryButtonLink || DEFAULT_CTA_DATA.primaryButtonLink,
+            secondaryButtonText: parsed.secondaryButtonText || DEFAULT_CTA_DATA.secondaryButtonText,
+            secondaryButtonLink: parsed.secondaryButtonLink || DEFAULT_CTA_DATA.secondaryButtonLink,
+            imageUrl: parsed.imageUrl || DEFAULT_CTA_DATA.imageUrl,
           });
         }
       } catch (err) {
@@ -119,21 +91,6 @@ export default function Home() {
       }
     }
     loadPrograms();
-  }, []);
-
-  React.useEffect(() => {
-    async function loadMapData() {
-      setLoadingMap(true);
-      try {
-        const locs = await fetchImpactMapLocations();
-        setMapLocations(locs);
-      } catch (err) {
-        console.error("Failed to load map locations:", err);
-      } finally {
-        setLoadingMap(false);
-      }
-    }
-    loadMapData();
   }, []);
 
   React.useEffect(() => {
@@ -166,207 +123,17 @@ export default function Home() {
     };
   }, []);
 
-  // Fetch hero slides from Supabase
-  React.useEffect(() => {
-    fetchHeroContent()
-      .then((content) => {
-        if (content.slides.length > 0) {
-          setHeroSlides(content.slides);
-        }
-      })
-      .catch((err) => logError('Home.fetchHeroContent', err));
-  }, []);
-
-  // Auto-advance slideshow (every 6 seconds)
-  React.useEffect(() => {
-    if (heroSlides.length <= 1) return;
-
-    const interval = setInterval(() => {
-      setCurrentSlideIndex((prev) => (prev + 1) % heroSlides.length);
-    }, 6000);
-
-    return () => clearInterval(interval);
-  }, [heroSlides.length]);
-
-  const currentSlide = heroSlides[currentSlideIndex] ?? heroSlides[0];
-
   return (
     <div className="overflow-hidden bg-white">
 
       {/* ═══════ 1 · HERO SLIDESHOW ═══════ */}
-      <section className="relative min-h-screen">
-        {/* Background image with crossfade transition */}
-        <AnimatePresence mode="popLayout">
-          <motion.div
-            key={currentSlide.id}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 1.2, ease: 'easeInOut' }}
-            className="absolute inset-0 overflow-hidden"
-          >
-            {currentSlide.videoUrl ? (
-              <video
-                src={currentSlide.videoUrl}
-                autoPlay
-                muted
-                loop
-                playsInline
-                className="size-full object-cover"
-              />
-            ) : currentSlide.imageUrl ? (
-              <img
-                src={currentSlide.imageUrl}
-                alt={currentSlide.title}
-                className="size-full object-cover"
-              />
-            ) : (
-              <div className="size-full bg-emerald-950" />
-            )}
-            <div className="absolute inset-0 bg-gradient-to-t from-gray-950 via-gray-950/60 to-gray-950/20" />
-          </motion.div>
-        </AnimatePresence>
-
-        {/* Content overlay — bottom-left, flush left on all screens */}
-        <div className="relative z-10 flex min-h-screen items-end pb-16 sm:pb-32 pt-28">
-          <div className="flex flex-col px-5 sm:px-8 lg:px-12">
-            <div className="max-w-2xl text-left">
-              <AnimatePresence mode="wait">
-                <motion.div
-                  key={currentSlide.id + '-text'}
-                  initial={{ opacity: 0, y: 30 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -20 }}
-                  transition={{ duration: 0.8, delay: 0.2 }}
-                >
-                  <h1 className="mt-4 max-w-2xl text-balance text-2xl font-black uppercase leading-[1.1] tracking-tight text-[#F5F1E8] sm:text-3xl md:mt-8 md:text-5xl lg:mt-16 xl:text-6xl">
-                    {currentSlide.title}
-                  </h1>
-                  {currentSlide.subtitle && (
-                    <p className="mt-4 max-w-xl text-balance text-sm font-light leading-relaxed text-[#F5F1E8]/85 sm:mt-6 sm:text-base">
-                      {currentSlide.subtitle}
-                    </p>
-                  )}
-
-                  <div className="mt-8 flex flex-col items-start gap-3 sm:mt-12 sm:flex-row">
-                    {/* HIDDEN FOR PRESENTATION MODE 
-                    <Link
-                      to="/campaigns"
-                      className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-[#2C5F4F] pl-6 pr-4 text-sm font-bold text-[#F5F1E8] transition-all duration-300 hover:bg-[#234A3D] md:h-12 md:text-base"
-                    >
-                      <span className="whitespace-nowrap">Donasi Sekarang</span>
-                      <ArrowRight className="ml-1 h-4 w-4" />
-                    </Link>
-                    */}
-                    {/* TEMPORARY CTA */}
-                    <Link
-                      to="/tentang-kami"
-                      className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-[#2C5F4F] pl-6 pr-4 text-sm font-bold text-[#F5F1E8] transition-all duration-300 hover:bg-[#234A3D] md:h-12 md:text-base"
-                    >
-                      <span className="whitespace-nowrap">Pelajari Lebih Lanjut</span>
-                      <ArrowRight className="ml-1 h-4 w-4" />
-                    </Link>
-                    <a
-                      href="https://wa.me/6287882799026"
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex h-11 items-center justify-center rounded-full border border-[#F5F1E8]/25 px-6 text-sm font-medium text-[#F5F1E8] transition-all duration-300 hover:bg-[#F5F1E8]/10 md:h-12 md:text-base"
-                    >
-                      <span className="whitespace-nowrap">Jadi Mitra Kolaborator</span>
-                    </a>
-                  </div>
-                </motion.div>
-              </AnimatePresence>
-            </div>
-
-            {/* Slide Indicators */}
-            {heroSlides.length > 1 && (
-              <div className="mt-8 flex items-center gap-2">
-                {heroSlides.map((slide, i) => (
-                  <button
-                    key={slide.id}
-                    onClick={() => setCurrentSlideIndex(i)}
-                    className={cn(
-                      'h-1.5 rounded-full transition-all duration-500',
-                      i === currentSlideIndex
-                        ? 'w-8 bg-white'
-                        : 'w-3 bg-white/40 hover:bg-white/60'
-                    )}
-                    aria-label={`Slide ${i + 1}`}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      </section>
+      <HeroSlideshow />
 
       {/* ═══════ 2 · TRUST BAR (INFINITE SLIDER) ═══════ */}
-      <section className="bg-white border-y border-gray-200/60 py-4">
-        <div className="group relative m-auto max-w-7xl px-6">
-          <div className="flex flex-col items-center md:flex-row">
-            <div className="shrink-0 py-6 md:max-w-48 md:border-r md:border-gray-200 md:pr-8">
-              <p className="text-center text-sm font-bold uppercase tracking-widest text-gray-400 md:text-end">
-                Dipercaya Oleh
-              </p>
-            </div>
-            <div className="relative py-8 md:w-[calc(100%-12rem)]">
-              <InfiniteSlider
-                duration={35}
-                gap={80}
-                stopOnHover={true}
-                draggable={true}
-              >
-                {[
-                  { name: 'Admedika', src: '/mitra/assets/admedika.png', href: 'https://www.instagram.com/admedika_ig?igsh=MW04d3hhMmYxa3pvMQ==', sizeClass: 'h-14 md:h-20 scale-110' },
-                  { name: 'Bali Nggih', src: '/mitra/assets/balinggih.png', href: 'https://www.instagram.com/balinggih?igsh=MTg5MDBsZ3JvdzJqZw==', sizeClass: 'h-8 md:h-12' },
-                  { name: 'Distrik Berisik', src: '/mitra/assets/blue-db.png', href: 'https://www.instagram.com/distrik_berisik?igsh=Mmk3bTN6eG5maHZ3', sizeClass: 'h-8 md:h-12' },
-                  { name: 'PIS Movement', src: '/mitra/assets/peacemaker.png', href: 'https://www.instagram.com/pismovement?igsh=c25kNWZtNDJkcWI1', sizeClass: 'h-14 md:h-20' },
-                  { name: 'Kawan Cendekia', src: '/mitra/assets/img-0338.png', href: 'https://www.instagram.com/kawancendekia?igsh=ZTlzNHhqem13MHlo', sizeClass: 'h-14 md:h-20' },
-                  { name: 'Perempuan Lestari', src: '/mitra/assets/wa-image.jpg', href: 'https://www.instagram.com/perempuan.lestari?igsh=MW5uMW9tcHltYWZ5OA==', sizeClass: 'h-14 md:h-20' },
-                ].map((partner) => (
-                  <div key={partner.name} className="flex items-center justify-center px-4 min-h-[6rem]">
-                    <a 
-                      href={partner.href} 
-                      target="_blank" 
-                      rel="noreferrer"
-                      className="transition-transform hover:scale-110"
-                    >
-                      <img
-                        src={partner.src}
-                        alt={`Logo ${partner.name}`}
-                        className={cn(
-                          "w-auto object-contain mix-blend-multiply origin-center",
-                          partner.sizeClass
-                        )}
-                      />
-                    </a>
-                  </div>
-                ))}
-              </InfiniteSlider>
+      <TrustBar />
 
-              {/* Edge fade masks */}
-              <div className="pointer-events-none absolute inset-y-0 left-0 w-20 bg-gradient-to-r from-white to-transparent" />
-              <div className="pointer-events-none absolute inset-y-0 right-0 w-20 bg-gradient-to-l from-white to-transparent" />
-              <ProgressiveBlur
-                className="pointer-events-none absolute left-0 top-0 h-full w-20"
-                direction="left"
-                blurIntensity={1}
-              />
-              <ProgressiveBlur
-                className="pointer-events-none absolute right-0 top-0 h-full w-20"
-                direction="right"
-                blurIntensity={1}
-              />
-            </div>
-          </div>
-        </div>
-      </section>
-
-
-
-      {/* ═══════ 4 · HAPPENING NOW — EDITORIAL BENTO ═══════ */}
-      {/* HIDDEN FOR PRESENTATION MODE */}
+      {/* ═══════ 3 · HAPPENING NOW — EDITORIAL BENTO ═══════ */}
+      {/* Hidden for presentation mode — set to true to re-enable */}
       {false && (
         <section className="bg-gray-50/50 py-16 sm:py-20">
           <div className="mx-auto max-w-7xl px-5 sm:px-6 lg:px-8">
@@ -499,8 +266,8 @@ export default function Home() {
         </section>
       )}
 
-      {/* ═══════ 5 · STATS CTA ═══════ */}
-      {/* HIDDEN FOR PRESENTATION MODE */}
+      {/* ═══════ 4 · STATS CTA ═══════ */}
+      {/* Hidden for presentation mode — set to true to re-enable */}
       {false && (
         <section className="relative overflow-hidden bg-[#1A3C32] py-20 sm:py-24">
           <div className="relative z-10 mx-auto max-w-7xl px-6 sm:px-8 lg:px-12">
@@ -514,7 +281,7 @@ export default function Home() {
               >
                 <div className="space-y-4">
                   <h2 className="text-3xl font-black leading-tight text-white sm:text-4xl lg:text-5xl">
-                    Berdonasi Bersama Kami — Simpel, Efektif, & Berdampak
+                    Berdonasi Bersama Kami — Simpel, Efektif, &amp; Berdampak
                   </h2>
                   <p className="max-w-lg text-base font-light leading-relaxed text-emerald-100/70">
                     Lebih dari 1.000 kampanye telah berhasil disalurkan dan memberikan dampak nyata kepada puluhan ribu penerima manfaat di seluruh pelosok Indonesia.
@@ -563,7 +330,7 @@ export default function Home() {
         </section>
       )}
 
-      {/* ═══════ 6 · INITIATIVES (PREMIUM CIRCULAR SLIDER) ═══════ */}
+      {/* ═══════ 5 · INITIATIVES (PREMIUM CIRCULAR SLIDER) ═══════ */}
       <section className="py-12 md:py-24 lg:py-32 bg-[#FAF9F6] overflow-hidden">
         <div className="max-w-7xl mx-auto px-5 sm:px-6 lg:px-8">
           <motion.div {...fadeUp} className="mb-8 md:mb-16 flex flex-col md:flex-row md:items-end justify-between gap-4 md:gap-6 border-b border-gray-200 pb-6 sm:pb-10">
@@ -583,7 +350,7 @@ export default function Home() {
 
           <div className="flex justify-center">
             <CircularTestimonials
-              testimonials={(dynamicPrograms.length > 0 ? dynamicPrograms : PROGRAMS).map((program, i) => {
+              testimonials={(dynamicPrograms.length > 0 ? dynamicPrograms : PROGRAMS).map((program) => {
                 return {
                   name: program.title,
                   designation: program.stage_value || 'Program STA',
@@ -611,101 +378,11 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ═══════ 7 · INTERACTIVE IMPACT MAP ═══════ */}
-      <section className="py-12 md:py-20 bg-white">
-        <div className="max-w-7xl mx-auto px-5 sm:px-6 lg:px-8">
-          <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 mb-8 md:mb-12">
-            <motion.div {...fadeUp} className="max-w-2xl">
-              <p className="text-emerald-700 font-bold uppercase tracking-[0.2em] text-xs mb-3 flex items-center gap-3">
-                <span className="w-8 h-[2px] bg-emerald-600"></span>
-                Peta Dampak
-              </p>
-              <h2 className="text-2xl sm:text-3xl md:text-4xl font-black text-gray-900 leading-tight tracking-tight">
-                Jejak Aksi Nyata Kami
-              </h2>
-              <p className="mt-3 md:mt-4 text-gray-600 text-sm md:text-lg leading-relaxed font-light">
-                Eksplorasi sebaran kegiatan Sekolah Tanah Air di berbagai penjuru Indonesia. 
-                Klik titik lokasi untuk melihat detail aksi yang telah dilakukan.
-              </p>
-            </motion.div>
-            <motion.div {...fadeUp} transition={{ delay: 0.1 }}>
-              <Link
-                to="/events"
-                className="inline-flex items-center gap-2 text-sm font-bold text-emerald-700 hover:text-emerald-900 transition-colors group"
-              >
-                Lihat Semua Lokasi
-                <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-              </Link>
-            </motion.div>
-          </div>
+      {/* ═══════ 6 · INTERACTIVE IMPACT MAP ═══════ */}
+      <ImpactMapSection />
 
-          <motion.div
-            initial={{ opacity: 0, scale: 0.98 }}
-            whileInView={{ opacity: 1, scale: 1 }}
-            viewport={{ once: true, margin: '-60px' }}
-            transition={{ duration: 0.8 }}
-            className="relative rounded-[2rem] overflow-hidden shadow-2xl shadow-gray-200/50 border border-gray-100"
-          >
-            <InteractiveMap 
-              locations={mapLocations}
-              height="min(500px, 70vh)"
-              className="w-full"
-              useFallbackLocations={true}
-              viewportMode="fit-indonesia"
-              scrollWheelZoom={false}
-            />
-            {loadingMap && (
-              <div className="absolute inset-0 z-30 flex items-center justify-center bg-white/40 backdrop-blur-sm">
-                <div className="flex flex-col items-center gap-3">
-                  <RefreshCw className="h-8 w-8 text-emerald-600 animate-spin" />
-                  <p className="text-xs font-bold text-emerald-900 uppercase tracking-widest">Memetakan Dampak...</p>
-                </div>
-              </div>
-            )}
-          </motion.div>
-        </div>
-      </section>
-      <section className="py-8 sm:py-14 md:py-16 lg:py-20">
-        <div className="max-w-7xl mx-auto px-5 sm:px-6 lg:px-8">
-          <div className="grid lg:grid-cols-2 gap-0 rounded-2xl sm:rounded-[1.5rem] md:rounded-[2rem] overflow-hidden shadow-xl shadow-gray-200/30">
-            {/* Text */}
-            <div className="relative order-2 flex flex-col justify-center overflow-hidden bg-emerald-700 p-6 sm:p-10 md:p-14 lg:order-1 lg:p-16">
-              <div className="absolute top-0 right-0 w-40 sm:w-48 h-40 sm:h-48 bg-emerald-500/20 rounded-full blur-3xl pointer-events-none" />
-              <div className="absolute bottom-0 left-0 w-28 sm:w-32 h-28 sm:h-32 bg-teal-800/20 rounded-full blur-2xl pointer-events-none" />
-              <div className="relative z-10 space-y-4 sm:space-y-5">
-                <Quote size={28} className="text-emerald-400/40" />
-                <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-white leading-tight">
-                  {ctaData.title}
-                </h2>
-                <p className="text-emerald-100/75 text-sm sm:text-base leading-relaxed">
-                  {ctaData.description}
-                </p>
-                <div className="flex flex-col sm:flex-row gap-3 pt-2">
-                  <Link to={ctaData.primaryButtonLink} className="bg-white text-emerald-700 px-6 sm:px-7 py-3 sm:py-3.5 rounded-full font-bold hover:bg-emerald-50 transition-all text-center text-sm shadow-lg">
-                    {ctaData.primaryButtonText}
-                  </Link>
-                  <Link to={ctaData.secondaryButtonLink} className="bg-emerald-800/60 text-white px-6 sm:px-7 py-3 sm:py-3.5 rounded-full font-bold hover:bg-emerald-800 transition-all text-center text-sm border border-emerald-600/40">
-                    {ctaData.secondaryButtonText}
-                  </Link>
-                </div>
-              </div>
-            </div>
-
-            <div className="relative aspect-[16/10] lg:aspect-auto order-1 lg:order-2 bg-emerald-800/10">
-              {ctaData.imageUrl && (
-                <img
-                  src={ctaData.imageUrl}
-                  alt={ctaData.title}
-                  className="w-full h-full object-cover"
-                  loading="lazy"
-                  decoding="async"
-                />
-              )}
-              <div className="absolute inset-0 bg-gradient-to-l from-transparent to-emerald-700/5" />
-            </div>
-          </div>
-        </div>
-      </section>
+      {/* ═══════ 7 · CTA ═══════ */}
+      <CtaSection data={ctaData} />
     </div>
   );
 }

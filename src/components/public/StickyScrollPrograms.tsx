@@ -1,6 +1,6 @@
 import React, { useRef, Component, ErrorInfo, ReactNode } from 'react';
 import { motion, useScroll, useTransform, type MotionValue, mix } from 'framer-motion';
-import type { HomeProgramSlide } from '../../lib/admin-home-programs';
+import type { HomeProgramSlide } from '../../lib/admin/home-programs';
 
 class ErrorBoundary extends React.Component<{ children: ReactNode }, { hasError: boolean, error: Error | null }> {
   public state: { hasError: boolean, error: Error | null };
