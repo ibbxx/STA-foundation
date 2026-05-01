@@ -58,6 +58,7 @@ import {
   DonationRow,
 } from '../../lib/supabase';
 import { cn, formatCurrency } from '../../lib/utils';
+import { sanitizeHTML } from '../../lib/sanitize';
 
 export default function AdminCampaigns() {
   const [campaigns, setCampaigns] = useState<CampaignRow[]>([]);
@@ -1087,7 +1088,7 @@ export default function AdminCampaigns() {
                             ) : null}
                             <div
                               className="prose prose-sm max-w-none leading-relaxed text-gray-700 [&_img]:hidden [&_p]:my-0 [&_h2]:text-sm [&_h2]:font-bold [&_h3]:text-sm [&_h3]:font-bold"
-                              dangerouslySetInnerHTML={{ __html: update.content }}
+                              dangerouslySetInnerHTML={{ __html: sanitizeHTML(update.content) }}
                             />
                           </div>
                         </div>

@@ -9,11 +9,9 @@ interface SecureTurnstileProps {
 }
 
 /**
- * Kunci Dummy Resmi Cloudflare yang 100% selalu berhasil (Passes) di domain manapun.
- * Sangat berguna sebagai fallback darurat jika konfigurasi domain Vercel/Cloudflare bermasalah,
- * agar flow pelaporan tidak terblokir permanen bagi pengguna.
+ * Kunci utama dari Dashboard Cloudflare Turnstile.
+ * Digunakan untuk widget captcha pada form pelaporan.
  */
-const CLOUDFLARE_DUMMY_KEY = '1x00000000000000000000AA';
 const USER_SITE_KEY = '0x4AAAAAADDxv-_d95-X9IVJ';
 
 declare global {
@@ -37,7 +35,7 @@ export function SecureTurnstile({ onSuccess, onError, siteKey, theme = 'light' }
   // 1. Dapatkan kunci utama (Prioritas: User Key > Env > Prop > Dummy)
   // Kita utamakan USER_SITE_KEY yang sudah pasti benar dari Cloudflare Dashboard Anda
   const envKey = import.meta.env.VITE_TURNSTILE_SITE_KEY;
-  const primaryKey = USER_SITE_KEY || siteKey || envKey || CLOUDFLARE_DUMMY_KEY;
+  const primaryKey = USER_SITE_KEY || siteKey || envKey;
   
   // Gunakan state untuk melacak kunci mana yang sedang dicoba
   const [activeSiteKey, setActiveSiteKey] = useState<string>(primaryKey);
@@ -159,18 +157,10 @@ export function SecureTurnstile({ onSuccess, onError, siteKey, theme = 'light' }
           <span className="text-xl mb-1">🛡️</span>
           <p className="text-xs font-bold text-rose-800">Verifikasi Keamanan Terganggu</p>
           <p className="text-[10px] text-rose-600 mt-1">{debugMsg}</p>
-          <button 
-            type="button"
-            onClick={() => {
-              // Paksa fallback jika user klik coba lagi
-              setActiveSiteKey(CLOUDFLARE_DUMMY_KEY);
-            }}
-            className="mt-2 text-[10px] bg-rose-100 hover:bg-rose-200 text-rose-800 font-bold py-1 px-3 rounded-full transition-colors"
-          >
-            Gunakan Jalur Cadangan
-          </button>
+          <p className="text-[10px] text-gray-500 mt-2">Coba muat ulang halaman atau nonaktifkan Ad-Blocker Anda.</p>
         </div>
       )}
+
     </div>
   );
 }

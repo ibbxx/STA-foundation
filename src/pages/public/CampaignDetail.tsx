@@ -25,6 +25,7 @@ import {
 } from '../../lib/public-campaigns';
 import { Campaign, CampaignUpdateRow } from '../../lib/supabase';
 import { calculateProgress, formatCurrency, formatLongDate } from '../../lib/utils';
+import { sanitizeHTML } from '../../lib/sanitize';
 
 
 
@@ -274,7 +275,7 @@ export default function CampaignDetail() {
                 {activeTab === 'deskripsi' ? (
                   <div
                     className="prose prose-sm prose-emerald max-w-none text-gray-700 leading-relaxed font-light"
-                    dangerouslySetInnerHTML={{ __html: campaign.full_description }}
+                    dangerouslySetInnerHTML={{ __html: sanitizeHTML(campaign.full_description) }}
                   />
                 ) : null}
 
@@ -310,7 +311,7 @@ export default function CampaignDetail() {
                             ) : null}
                             <div
                               className="prose prose-sm prose-emerald max-w-none text-gray-600 leading-relaxed font-light [&_p]:!my-0"
-                              dangerouslySetInnerHTML={{ __html: update.content }}
+                              dangerouslySetInnerHTML={{ __html: sanitizeHTML(update.content) }}
                             />
                           </div>
                         </div>
