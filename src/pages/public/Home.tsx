@@ -161,8 +161,8 @@ export default function Home() {
                 <h3 className="text-base font-bold text-gray-900">Belum ada campaign</h3>
               </div>
             ) : (
-              <div className="grid grid-cols-12 gap-2 sm:gap-6 lg:items-stretch">
-                {/* Main Featured Campaign - Spans 7 cols */}
+              <div className="grid grid-cols-1 gap-6 lg:grid-cols-12 lg:items-stretch">
+                {/* Main Featured Campaign */}
                 {featuredCampaigns[0] && (() => {
                   const hero = featuredCampaigns[0];
                   const progress = calculateProgress(hero.current_amount, hero.target_amount);
@@ -172,13 +172,13 @@ export default function Home() {
                       whileInView={{ opacity: 1, y: 0 }}
                       viewport={{ once: true }}
                       transition={{ duration: 0.5 }}
-                      className="col-span-7 lg:col-span-7 xl:col-span-8"
+                      className="lg:col-span-7 xl:col-span-8"
                     >
                       <Link
                         to={`/campaigns/${hero.slug}`}
-                        className="group flex h-full flex-col overflow-hidden rounded-xl border border-gray-100 bg-white transition-all duration-300 hover:shadow-lg"
+                        className="group flex h-full flex-col lg:flex-row overflow-hidden rounded-2xl border border-gray-100 bg-white transition-all duration-300 hover:shadow-xl hover:shadow-gray-200/50"
                       >
-                        <div className="relative aspect-[4/5] sm:aspect-video overflow-hidden lg:aspect-auto lg:w-full lg:h-64">
+                        <div className="relative aspect-[16/9] overflow-hidden lg:aspect-auto lg:w-[55%]">
                           <img
                             src={hero.thumbnail_url}
                             alt={hero.title}
@@ -187,18 +187,21 @@ export default function Home() {
                           />
                           <div className="absolute inset-0 bg-gray-900/5" />
                         </div>
-                        <div className="flex flex-col justify-center p-2 sm:p-7 flex-1">
-                          <div className="mb-1 sm:mb-4">
-                            <h3 className="text-[10px] sm:text-xl font-bold leading-tight text-gray-900 line-clamp-2 transition-colors group-hover:text-emerald-800">
+                        <div className="flex flex-col justify-center p-4 sm:p-7 lg:flex-1">
+                          <div className="mb-3 sm:mb-5 space-y-1 sm:space-y-2">
+                            <h3 className="text-base sm:text-xl font-bold leading-tight text-gray-900 transition-colors group-hover:text-emerald-800">
                               {hero.title}
                             </h3>
+                            <p className="line-clamp-2 text-[11px] sm:text-sm leading-relaxed text-gray-500 font-light">
+                              {hero.short_description}
+                            </p>
                           </div>
-                          <div className="mt-auto space-y-1.5 sm:space-y-4 pt-1.5 sm:pt-4 border-t border-gray-50">
-                            <div className="flex items-center justify-between text-[8px] sm:text-xs font-bold uppercase tracking-wider">
-                              <span className="text-emerald-800 truncate">{formatCurrency(hero.current_amount)}</span>
+                          <div className="mt-auto space-y-4 pt-4 border-t border-gray-50">
+                            <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider">
+                              <span className="text-emerald-800">{formatCurrency(hero.current_amount)}</span>
                               <span className="text-gray-400">{progress}%</span>
                             </div>
-                            <div className="h-1 sm:h-1.5 w-full overflow-hidden rounded-full bg-gray-100">
+                            <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-100">
                               <div
                                 className="h-full rounded-full bg-emerald-700 transition-all duration-1000"
                                 style={{ width: `${progress}%` }}
@@ -211,8 +214,8 @@ export default function Home() {
                   );
                 })()}
 
-                {/* Side Campaigns Grid - Spans 5 cols */}
-                <div className="col-span-5 lg:col-span-5 xl:col-span-4 flex flex-col gap-2 sm:gap-4">
+                {/* Side Campaigns Grid */}
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:col-span-5 lg:grid-cols-1 xl:col-span-4">
                   {featuredCampaigns.slice(1, 4).map((campaign, index) => {
                     const progress = calculateProgress(campaign.current_amount, campaign.target_amount);
                     return (
@@ -222,13 +225,12 @@ export default function Home() {
                         whileInView={{ opacity: 1, y: 0 }}
                         viewport={{ once: true }}
                         transition={{ delay: 0.1 * index, duration: 0.5 }}
-                        className="flex-1"
                       >
                         <Link
                           to={`/campaigns/${campaign.slug}`}
-                          className="group flex h-full items-center gap-2 sm:gap-4 overflow-hidden rounded-xl border border-gray-50 bg-white p-1.5 sm:p-3 transition-all duration-300 hover:shadow-md"
+                          className="group flex h-full items-center gap-4 overflow-hidden rounded-xl border border-gray-50 bg-white p-3 transition-all duration-300 hover:shadow-lg hover:shadow-gray-200/30"
                         >
-                          <div className="relative aspect-square w-12 shrink-0 overflow-hidden rounded-lg bg-gray-100 sm:w-24">
+                          <div className="relative aspect-square w-20 shrink-0 overflow-hidden rounded-lg bg-gray-100 sm:w-24">
                             <img
                               src={campaign.thumbnail_url}
                               alt={campaign.title}
@@ -236,18 +238,18 @@ export default function Home() {
                               referrerPolicy="no-referrer"
                             />
                           </div>
-                          <div className="flex min-w-0 flex-1 flex-col justify-center">
-                            <h4 className="mb-0.5 line-clamp-2 text-[9px] font-bold leading-snug text-gray-900 transition-colors group-hover:text-emerald-800 sm:text-sm">
+                          <div className="flex min-w-0 flex-1 flex-col">
+                            <h4 className="mb-2 line-clamp-2 text-xs font-bold leading-snug text-gray-900 transition-colors group-hover:text-emerald-800 sm:text-sm">
                               {campaign.title}
                             </h4>
-                            <div className="mt-auto space-y-1 sm:space-y-2">
-                              <div className="h-0.5 sm:h-1 w-full overflow-hidden rounded-full bg-gray-50">
+                            <div className="mt-auto space-y-2">
+                              <div className="h-1 w-full overflow-hidden rounded-full bg-gray-50">
                                 <div
                                   className="h-full rounded-full bg-emerald-700/60"
                                   style={{ width: `${progress}%` }}
                                 />
                               </div>
-                              <div className="hidden sm:flex items-center justify-between text-[10px] font-bold">
+                              <div className="flex items-center justify-between text-[10px] font-bold">
                                 <span className="text-emerald-800">{formatCurrency(campaign.current_amount)}</span>
                                 <span className="text-gray-400">{progress}%</span>
                               </div>
