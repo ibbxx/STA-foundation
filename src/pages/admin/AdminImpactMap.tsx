@@ -22,6 +22,7 @@ import { fetchSiteContentRows, upsertSiteContent } from '../../lib/admin-reposit
 import { uploadAdminImage } from '../../lib/supabase-storage';
 import { logError } from '../../lib/error-logger';
 import AdminModal from '../../components/admin/AdminModal';
+import RichTextEditor from '../../components/admin/campaigns/RichTextEditor';
 import InteractiveMap from '../../components/shared/InteractiveMap';
 import type { EventMapLocation } from '../../lib/public-events';
 import { cn } from '../../lib/utils';
@@ -614,16 +615,13 @@ export default function AdminImpactMap() {
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-sm font-medium text-slate-700">Konten Detail Journey (Cerita Lengkap)</label>
-            <textarea
-              {...register('fullContent')}
-              rows={6}
-              placeholder="Ceritakan perjalanan lengkap di lokasi ini..."
-              className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:ring-1 focus:ring-zinc-900 outline-none bg-white min-h-[120px]"
+            <RichTextEditor
+              label="Konten Detail Journey (Cerita Lengkap)"
+              value={watch('fullContent')}
+              onChange={(val) => setValue('fullContent', val, { shouldValidate: true })}
+              error={errors.fullContent?.message}
+              hint="Isi cerita lengkap yang akan muncul di halaman detail perjalanan. Mendukung baris baru, tebal, miring, dan list."
             />
-            <p className="text-[10px] text-slate-400">
-              Isi cerita lengkap yang akan muncul di halaman detail perjalanan. Mendukung baris baru.
-            </p>
           </div>
 
           <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-4">

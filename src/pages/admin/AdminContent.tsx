@@ -19,6 +19,7 @@ import { getProgramIcon } from '../../lib/program-icons';
 import { logError } from '../../lib/error-logger';
 import { ProgramRow } from '../../lib/supabase';
 import { cn } from '../../lib/utils';
+import RichTextEditor from '../../components/admin/campaigns/RichTextEditor';
 
 export default function AdminContent() {
   const [programs, setPrograms] = useState<ProgramRow[]>([]);
@@ -818,15 +819,15 @@ export default function AdminContent() {
               {errors.gallery_images && <p className="text-xs text-red-600">{errors.gallery_images.message}</p>}
             </label>
 
-            <label className="block space-y-1.5">
-              <span className="text-sm font-medium text-slate-700">Catatan Internal / Konten Tambahan (Opsional)</span>
-              <textarea
-                rows={3}
-                {...register('content')}
-                placeholder="Tambahkan informasi tambahan jika diperlukan..."
-                className="w-full px-3 py-2.5 text-sm bg-white border border-slate-200 rounded-xl focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 outline-none transition-all placeholder:text-slate-400"
+            <div className="space-y-1.5">
+              <RichTextEditor
+                label="Catatan Internal / Konten Tambahan (Opsional)"
+                value={watch('content')}
+                onChange={(val) => setValue('content', val, { shouldValidate: true })}
+                error={errors.content?.message}
+                hint="Tambahkan informasi tambahan jika diperlukan..."
               />
-            </label>
+            </div>
           </div>
         </form>
       </AdminModal>
