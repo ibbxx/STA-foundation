@@ -30,8 +30,8 @@ export const campaignManagerSchema = z
     title: z.string().trim().min(1, 'Title wajib diisi.'),
     category_id: z.string().trim().min(1, 'Kategori wajib dipilih.'),
     target_amount: z.number().min(1, 'Target dana wajib diisi.'),
-    start_date: z.string().trim().min(1, 'Tanggal mulai wajib diisi.'),
-    end_date: z.string().trim().min(1, 'Tanggal akhir wajib diisi.'),
+    start_date: z.string().trim().optional().or(z.literal('')),
+    end_date: z.string().trim().optional().or(z.literal('')),
     description: z.string().trim().min(1, 'Deskripsi campaign wajib diisi.'),
     is_featured: z.boolean(),
     status: z.enum(['draft', 'active', 'completed', 'upcoming']),
@@ -46,9 +46,35 @@ export const campaignManagerSchema = z
       })
     ),
   })
-  .refine((values) => new Date(values.end_date) >= new Date(values.start_date), {
-    path: ['end_date'],
-    message: 'Tanggal akhir harus lebih besar atau sama dengan tanggal mulai.',
+  .superRefine((values, ctx) => {
+    // Tanggal wajib jika statusnya active atau completed
+    if (values.status === 'active' || values.status === 'completed') {
+      if (!values.start_date) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Tanggal mulai wajib diisi untuk campaign aktif.',
+          path: ['start_date'],
+        });
+      }
+      if (!values.end_date) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Tanggal akhir wajib diisi untuk campaign aktif.',
+          path: ['end_date'],
+        });
+      }
+    }
+
+    // Validasi urutan tanggal hanya jika keduanya terisi
+    if (values.start_date && values.end_date) {
+      if (new Date(values.end_date) < new Date(values.start_date)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Tanggal akhir harus lebih besar atau sama dengan tanggal mulai.',
+          path: ['end_date'],
+        });
+      }
+    }
   });
 
 export type CampaignManagerValues = z.infer<typeof campaignManagerSchema>;

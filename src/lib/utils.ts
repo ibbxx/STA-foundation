@@ -35,10 +35,14 @@ export function calculateProgress(current: number, target: number) {
 /**
  * Memformat string tanggal menjadi format panjang Indonesia (contoh: "25 April 2026").
  */
-export function formatLongDate(value: string) {
+export function formatLongDate(value?: string | null) {
+  if (!value) return 'TBA';
+  const date = new Date(value);
+  if (isNaN(date.getTime())) return 'TBA';
+  
   return new Intl.DateTimeFormat('id-ID', {
     day: 'numeric',
     month: 'long',
     year: 'numeric',
-  }).format(new Date(value));
+  }).format(date);
 }
