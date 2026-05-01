@@ -44,6 +44,16 @@ function renderWithSuspense(children: React.ReactNode) {
   return <Suspense fallback={<RouteLoader />}>{children}</Suspense>;
 }
 
+function ScrollToTop() {
+  const location = useLocation();
+
+  React.useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+  }, [location.pathname]);
+
+  return null;
+}
+
 /**
  * Komponen pembungkus (wrapper) untuk halaman-halaman publik.
  * Navbar publik bersifat fixed, jadi seluruh halaman publik memakai spacer
@@ -67,6 +77,7 @@ function PublicLayout({ children }: { children: React.ReactNode }) {
 export default function App() {
   return (
     <Router>
+      <ScrollToTop />
       <Routes>
         {/* Rute-rute Publik */}
         <Route path="/" element={renderWithSuspense(<PublicLayout><Home /></PublicLayout>)} />
