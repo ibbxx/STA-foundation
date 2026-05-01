@@ -18,7 +18,7 @@
     "@marsidev/react-turnstile": "^1.5.0",
     "@radix-ui/react-slot": "^1.2.4",
     "@supabase/supabase-js": "^2.99.2",
-    "@tiptap/extension-image": "^3.22.4",
+    "@tiptap/extension-image": "^3.22.5",
     "@tiptap/extension-link": "^3.22.5",
     "@tiptap/extension-placeholder": "^3.22.5",
     "@tiptap/extension-underline": "^3.22.5",
