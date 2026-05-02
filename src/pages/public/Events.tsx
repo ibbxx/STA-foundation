@@ -168,23 +168,23 @@ export default function Events() {
         </div>
       </section>
 
-      <section className="py-12 sm:py-16">
-        <div className="mx-auto max-w-7xl px-5 sm:px-6 lg:px-8">
+      <section className="py-8 sm:py-12 bg-white">
+        <div className="mx-auto w-full max-w-[1600px] px-0 sm:px-6 lg:px-8">
           {error ? (
-            <div className="rounded-3xl border border-red-100 bg-white px-6 py-8 text-sm text-red-600 shadow-sm">
+            <div className="mx-5 rounded-3xl border border-red-100 bg-white px-6 py-8 text-sm text-red-600 shadow-sm">
               {error}
             </div>
           ) : (
             <motion.div
-              initial={{ opacity: 0, scale: 0.98 }}
-              whileInView={{ opacity: 1, scale: 1 }}
-              viewport={{ once: true, margin: '-60px' }}
-              transition={{ duration: 0.6 }}
-              className="overflow-hidden rounded-3xl bg-white shadow-[0_20px_60px_-30px_rgba(17,24,39,0.18)]"
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.8 }}
+              className="relative overflow-hidden sm:rounded-[2.5rem] bg-gray-900 shadow-2xl"
             >
               <InteractiveMap
                 locations={locations}
-                className="w-full aspect-video sm:aspect-[2/1] lg:aspect-[2.5/1]"
+                className="w-full h-[65vh] sm:h-[70vh] min-h-[450px] sm:min-h-[600px]"
                 scrollWheelZoom={true}
                 useFallbackLocations={false}
                 viewportMode="fit-indonesia"

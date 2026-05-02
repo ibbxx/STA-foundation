@@ -1,10 +1,11 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
-import Map, { Marker, Popup } from 'react-map-gl/maplibre';
+import React, { useEffect, useRef, useState } from 'react';
+import Map, { Marker } from 'react-map-gl/maplibre';
 import type { MapRef } from '@vis.gl/react-maplibre';
 import type { LngLatBoundsLike } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { ArrowRight, MapPinned, X, Layers, Maximize2, Plus, Minus } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import type { EventMapLocation } from '../../lib/public/events';
 import { cn } from '../../lib/utils';
 
@@ -136,7 +137,6 @@ export default function InteractiveMap({
   };
 
   useEffect(() => {
-    // Hanya lakukan fitBounds otomatis jika tidak ada marker yang sedang dipilih (popupInfo === null)
     if (!mapReady || viewportMode !== 'fit-indonesia' || popupInfo) return;
     mapRef.current?.fitBounds(INDONESIA_BOUNDS, { padding: 16, duration: 300 });
   }, [mapReady, viewportMode, popupInfo]);
@@ -144,7 +144,6 @@ export default function InteractiveMap({
   useEffect(() => {
     if (!mapReady || viewportMode !== 'fit-indonesia') return;
     const onResize = () => {
-      // Jangan paksa kembali ke view Indonesia jika user sedang melihat detail titik
       if (popupInfo) return;
       mapRef.current?.fitBounds(INDONESIA_BOUNDS, { padding: 16, duration: 0 });
     };
@@ -172,20 +171,6 @@ export default function InteractiveMap({
         </div>
       )}
 
-      {/* Global CSS Override for MapLibre Popup */}
-      <style>{`
-        .cinematic-popup .maplibregl-popup-content {
-          background: transparent !important;
-          padding: 0 !important;
-          box-shadow: none !important;
-          border: none !important;
-        }
-        .cinematic-popup .maplibregl-popup-tip {
-          border-top-color: rgba(17, 24, 39, 0.95) !important;
-          border-bottom-color: rgba(17, 24, 39, 0.95) !important;
-        }
-      `}</style>
-
       {/* ── MapLibre Map ──────────────────────────────────────────────────── */}
       <Map
         ref={mapRef}
@@ -193,9 +178,10 @@ export default function InteractiveMap({
         maxBounds={popupInfo ? undefined : INDONESIA_BOUNDS}
         style={{ width: '100%', height: '100%' }}
         mapStyle={(mapStyle === 'satellite' ? ESRI_SATELLITE_STYLE : ESRI_STREETS_STYLE) as any}
-        scrollZoom={true}
+        scrollZoom={false}
         dragRotate={false}
         touchPitch={false}
+        cooperativeGestures={true}
         onLoad={handleMapLoad}
         onClick={onClick}
         attributionControl={false}
@@ -254,14 +240,13 @@ export default function InteractiveMap({
             onClick={e => {
               e.originalEvent.stopPropagation();
               e.originalEvent.preventDefault();
-              
-              // Smart-center: Gunakan pixel offset [0, 80] agar titik lokasi selalu
-              // berada sedikit di bawah pusat layar, memberi ruang tetap bagi popup.
+
+              // Saat marker diklik, pusatkan peta ke marker tersebut
               if (mapRef.current) {
                 mapRef.current.flyTo({
                   center: [loc.longitude, loc.latitude],
-                  offset: [0, 80],
-                  zoom: 7,
+                  offset: [0, 0],
+                  zoom: 8,
                   duration: 800,
                   essential: true
                 });
@@ -280,50 +265,57 @@ export default function InteractiveMap({
             </div>
           </Marker>
         ))}
+      </Map>
 
-        {/* ── Native Popup (Anchored to Coordinates) ───────────────────── */}
+      {/* ── Centered Floating Card Overlay ─────────────────────────────────────── */}
+      <AnimatePresence>
         {popupInfo && (
-          <Popup
-            longitude={popupInfo.longitude}
-            latitude={popupInfo.latitude}
-            anchor="bottom"
-            offset={25}
-            onClose={() => setPopupInfo(null)}
-            closeButton={false}
-            focusAfterOpen={false}
-            className="z-50 cinematic-popup"
+          <motion.div
+            key={popupInfo.id}
+            initial={{ opacity: 0, scale: 0.5 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.5 }}
+            transition={{ type: 'spring', stiffness: 350, damping: 28 }}
+            className="absolute inset-0 z-50 flex items-center justify-center pointer-events-none p-4"
           >
-            <div className="w-56 overflow-hidden rounded-xl border border-white/10 bg-gray-900/95 shadow-2xl backdrop-blur-xl">
-              {/* Close Button Inside Card */}
-              <button
-                onClick={() => setPopupInfo(null)}
-                className="absolute right-2 top-2 z-10 rounded-full bg-black/40 p-1.5 text-white/80 backdrop-blur-md transition-colors hover:bg-black/80 hover:text-white"
-              >
-                <X className="h-3 w-3" />
-              </button>
+            <div className="pointer-events-auto relative">
+              {/* Card */}
+              <div className="w-64 overflow-hidden rounded-xl border border-white/10 bg-gray-900/95 shadow-2xl backdrop-blur-xl">
+                {/* Close Button */}
+                <button
+                  onClick={() => setPopupInfo(null)}
+                  className="absolute right-2 top-2 z-10 rounded-full bg-black/40 p-1.5 text-white/80 backdrop-blur-md transition-colors hover:bg-black/80 hover:text-white"
+                >
+                  <X className="h-3 w-3" />
+                </button>
 
-              {/* Image */}
-              <div className="relative h-32 w-full overflow-hidden bg-gray-800">
-                <img src={popupInfo.imageUrl} alt={popupInfo.title} className="h-full w-full object-cover opacity-90 transition-opacity hover:opacity-100" />
-                <div className="absolute inset-0 bg-gradient-to-t from-gray-900/90 to-transparent" />
-                <div className="absolute bottom-2 left-2 rounded-md bg-emerald-500/90 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white backdrop-blur-sm shadow-sm">
-                  {popupInfo.status}
+                {/* Image */}
+                <div className="relative h-32 w-full overflow-hidden bg-gray-800">
+                  <img
+                    src={popupInfo.imageUrl}
+                    alt={popupInfo.title}
+                    className="h-full w-full object-cover opacity-90 transition-opacity hover:opacity-100"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-gray-900/90 to-transparent" />
+                  <div className="absolute bottom-2 left-2 rounded-md bg-emerald-500/90 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white backdrop-blur-sm shadow-sm">
+                    {popupInfo.status}
+                  </div>
+                </div>
+
+                {/* Body Content */}
+                <div className="p-3">
+                  <h3 className="mb-0.5 line-clamp-2 text-[13px] font-bold leading-snug text-white">{popupInfo.title}</h3>
+                  {popupInfo.locationLabel && (
+                    <p className="mb-1.5 text-[9px] font-bold uppercase tracking-[0.15em] text-emerald-400">{popupInfo.locationLabel}</p>
+                  )}
+                  <p className="mb-3 line-clamp-2 text-[11px] leading-relaxed text-gray-300">{popupInfo.description}</p>
+                  <MapActionButton location={popupInfo} />
                 </div>
               </div>
-
-              {/* Body Content */}
-              <div className="p-3">
-                <h3 className="mb-0.5 line-clamp-2 text-[13px] font-bold leading-snug text-white">{popupInfo.title}</h3>
-                {popupInfo.locationLabel && (
-                  <p className="mb-1.5 text-[9px] font-bold uppercase tracking-[0.15em] text-emerald-400">{popupInfo.locationLabel}</p>
-                )}
-                <p className="mb-3 line-clamp-2 text-[11px] leading-relaxed text-gray-300">{popupInfo.description}</p>
-                <MapActionButton location={popupInfo} />
-              </div>
             </div>
-          </Popup>
+          </motion.div>
         )}
-      </Map>
+      </AnimatePresence>
     </div>
   );
 }

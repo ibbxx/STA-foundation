@@ -286,7 +286,7 @@ export default function Home() {
                     Berdonasi Bersama Kami — <span className="text-emerald-400">Simpel & Berdampak</span>
                   </h2>
                   <p className="max-w-lg text-xs sm:text-sm font-light text-emerald-100/70 leading-relaxed">
-                    Lebih dari 1.000 kampanye telah berhasil disalurkan dan memberikan dampak nyata kepada puluhan ribu penerima manfaat di seluruh penjuru tanah air.
+                    Donasi Anda telah disalurkan melalui kampanye kami dan memberikan dampak nyata kepada ribuan penerima manfaat di beberapa pelosok tanah air.
                   </p>
                 </div>
                 <Link
@@ -299,14 +299,15 @@ export default function Home() {
               </div>
 
               {/* Stats Grid - Spans 2 cols */}
-              <div className="lg:col-span-2 grid grid-cols-2 gap-4">
+              <div className="lg:col-span-2 grid grid-cols-2 gap-3 sm:gap-4">
                 {[
-                  { label: "Penerima Manfaat", value: "15k+", icon: Users },
-                  { label: "Wilayah Dampak", value: "24", icon: Globe },
-                  { label: "Kampanye Selesai", value: "1.2k", icon: CheckCircle2 },
+                  { label: "Dana Terkumpul", value: "Rp 250 Jt+", icon: BarChart3 },
+                  { label: "Penerima Manfaat", value: "500", icon: Users },
+                  { label: "Lokasi", value: "5", icon: Globe },
+                  { label: "Kampanye Selesai", value: "5", icon: CheckCircle2 },
                   { label: "Mitra Kolaborasi", value: "9", icon: Heart }
                 ].map((stat, i) => (
-                  <div key={i} className="bg-white/5 border border-white/10 rounded-xl p-4 transition-colors hover:bg-white/10">
+                  <div key={i} className={cn("bg-white/5 border border-white/10 rounded-xl p-4 transition-colors hover:bg-white/10", i === 0 ? "col-span-2" : "")}>
                     <stat.icon size={16} className="text-emerald-400 mb-2" />
                     <div className="space-y-0.5">
                       <p className="text-lg font-black text-white leading-none">{stat.value}</p>

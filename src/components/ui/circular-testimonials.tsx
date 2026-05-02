@@ -135,7 +135,7 @@ export const CircularTestimonials = ({
     const isActive = index === activeIndex;
     const isLeft = (activeIndex - 1 + testimonialsLength) % testimonialsLength === index;
     const isRight = (activeIndex + 1) % testimonialsLength === index;
-    
+
     if (isActive) {
       return {
         zIndex: 3,
@@ -221,7 +221,7 @@ export const CircularTestimonials = ({
                   {activeTestimonial.designation}
                 </p>
               </div>
-              
+
               <div className="min-h-[80px] md:min-h-[120px]">
                 <motion.p
                   className="quote leading-relaxed font-light"
@@ -255,11 +255,11 @@ export const CircularTestimonials = ({
 
               {activeTestimonial.href && (
                 <motion.div
-                   initial={{ opacity: 0, x: -10 }}
-                   animate={{ opacity: 1, x: 0 }}
-                   transition={{ delay: 0.5 }}
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.5 }}
                 >
-                  <a 
+                  <a
                     href={activeTestimonial.href}
                     className="inline-flex items-center gap-2 px-6 py-3 bg-emerald-600 text-white rounded-full font-bold text-sm hover:bg-emerald-700 transition-colors shadow-lg shadow-emerald-100"
                   >
@@ -269,7 +269,7 @@ export const CircularTestimonials = ({
               )}
             </motion.div>
           </AnimatePresence>
-          
+
           <div className="arrow-buttons flex gap-4 pt-4">
             <button
               className="arrow-button prev-button w-12 h-12 rounded-full flex items-center justify-center transition-all duration-300 border border-transparent shadow-md"
