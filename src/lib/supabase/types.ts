@@ -283,6 +283,100 @@ export interface Database {
           updated_at?: string;
         };
       };
+      volunteer_programs: {
+        Row: {
+          id: string;
+          slug: string;
+          title: string;
+          location: string;
+          image_url: string | null;
+          timeline: Json;
+          requirements: Json;
+          description: string | null;
+          show_in_hero: boolean;
+          status: 'open' | 'closed' | 'ongoing';
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          slug: string;
+          title: string;
+          location: string;
+          image_url?: string | null;
+          timeline?: Json;
+          requirements?: Json;
+          description?: string | null;
+          show_in_hero?: boolean;
+          status?: 'open' | 'closed' | 'ongoing';
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          slug?: string;
+          title?: string;
+          location?: string;
+          image_url?: string | null;
+          timeline?: Json;
+          requirements?: Json;
+          description?: string | null;
+          show_in_hero?: boolean;
+          status?: 'open' | 'closed' | 'ongoing';
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      volunteer_registrations: {
+        Row: {
+          id: string;
+          program_id: string;
+          nama_lengkap: string;
+          email: string;
+          whatsapp: string;
+          whatsapp_emergency: string;
+          alamat: string;
+          tanggal_lahir: string;
+          size_baju: string;
+          riwayat_penyakit: string | null;
+          bukti_dp_url: string | null;
+          bukti_follow_url: string | null;
+          status: 'pending' | 'verified' | 'rejected';
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          program_id: string;
+          nama_lengkap: string;
+          email: string;
+          whatsapp: string;
+          whatsapp_emergency: string;
+          alamat: string;
+          tanggal_lahir: string;
+          size_baju: string;
+          riwayat_penyakit?: string | null;
+          bukti_dp_url?: string | null;
+          bukti_follow_url?: string | null;
+          status?: 'pending' | 'verified' | 'rejected';
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          program_id?: string;
+          nama_lengkap?: string;
+          email?: string;
+          whatsapp?: string;
+          whatsapp_emergency?: string;
+          alamat?: string;
+          tanggal_lahir?: string;
+          size_baju?: string;
+          riwayat_penyakit?: string | null;
+          bukti_dp_url?: string | null;
+          bukti_follow_url?: string | null;
+          status?: 'pending' | 'verified' | 'rejected';
+          created_at?: string;
+        };
+      };
     };
     Views: {
       public_campaign_donations: {
@@ -365,6 +459,14 @@ export type SpammerBlacklistInsert = Database['public']['Tables']['spammer_black
 export type SiteContentRow = Database['public']['Tables']['site_content']['Row'];
 export type SiteContentInsert = Database['public']['Tables']['site_content']['Insert'];
 export type SiteContentUpdate = Database['public']['Tables']['site_content']['Update'];
+
+export type VolunteerProgramRow = Database['public']['Tables']['volunteer_programs']['Row'];
+export type VolunteerProgramInsert = Database['public']['Tables']['volunteer_programs']['Insert'];
+export type VolunteerProgramUpdate = Database['public']['Tables']['volunteer_programs']['Update'];
+
+export type VolunteerRegistrationRow = Database['public']['Tables']['volunteer_registrations']['Row'];
+export type VolunteerRegistrationInsert = Database['public']['Tables']['volunteer_registrations']['Insert'];
+export type VolunteerRegistrationUpdate = Database['public']['Tables']['volunteer_registrations']['Update'];
 
 /**
  * View-model lama untuk halaman publik yang masih memakai mock data.

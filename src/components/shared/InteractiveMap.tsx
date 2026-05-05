@@ -276,11 +276,11 @@ export default function InteractiveMap({
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.5 }}
             transition={{ type: 'spring', stiffness: 350, damping: 28 }}
-            className="absolute inset-0 z-50 flex items-center justify-center pointer-events-none p-4"
+            className="absolute inset-0 z-50 flex items-center justify-center p-4 pointer-events-none"
           >
             <div className="pointer-events-auto relative">
               {/* Card */}
-              <div className="w-64 overflow-hidden rounded-xl border border-white/10 bg-gray-900/95 shadow-2xl backdrop-blur-xl">
+              <div className="w-[85vw] sm:w-64 overflow-hidden rounded-xl border border-white/10 bg-gray-900/95 shadow-2xl backdrop-blur-xl">
                 {/* Close Button */}
                 <button
                   onClick={() => setPopupInfo(null)}

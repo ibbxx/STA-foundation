@@ -4,21 +4,50 @@ import { ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { cn } from '../../lib/utils';
 import { fetchHeroContent, DEFAULT_HERO_SLIDES, type HeroSlide } from '../../lib/admin-hero';
+import { fetchHeroVolunteerPrograms } from '../../lib/admin/repository';
+import type { VolunteerProgramRow } from '../../lib/supabase/types';
 import { logError } from '../../lib/error-logger';
 
+/** Extended slide type — adds optional CTA fields for auto-injected EduXplore slides */
+interface DisplaySlide extends HeroSlide {
+  buttonText?: string;
+  buttonLink?: string;
+}
+
 export default function HeroSlideshow() {
-  const [heroSlides, setHeroSlides] = React.useState<HeroSlide[]>(DEFAULT_HERO_SLIDES);
+  const [heroSlides, setHeroSlides] = React.useState<DisplaySlide[]>(DEFAULT_HERO_SLIDES);
   const [currentSlideIndex, setCurrentSlideIndex] = React.useState(0);
 
-  // Fetch hero slides from Supabase
+  // Fetch hero slides from Supabase + auto-inject EduXplore programs
   React.useEffect(() => {
-    fetchHeroContent()
-      .then((content) => {
-        if (content.slides.length > 0) {
-          setHeroSlides(content.slides);
+    async function loadSlides() {
+      try {
+        const [heroContent, volunteerRes] = await Promise.all([
+          fetchHeroContent(),
+          fetchHeroVolunteerPrograms(),
+        ]);
+
+        // Convert active volunteer programs to slide format with CTA
+        const volunteerSlides: DisplaySlide[] = ((volunteerRes.data || []) as VolunteerProgramRow[]).map((p) => ({
+          id: `eduxplore-${p.id}`,
+          title: p.title.toUpperCase(),
+          subtitle: p.description || '',
+          imageUrl: p.image_url || '',
+          buttonText: 'Daftar EduXplore',
+          buttonLink: `/eduxplore/${p.slug}`,
+        }));
+
+        // EduXplore slides go first (priority), then admin-managed slides
+        const combined: DisplaySlide[] = [...volunteerSlides, ...heroContent.slides];
+        if (combined.length > 0) {
+          setHeroSlides(combined);
         }
-      })
-      .catch((err) => logError('HeroSlideshow.fetchHeroContent', err));
+      } catch (err) {
+        logError('HeroSlideshow.loadSlides', err);
+      }
+    }
+
+    loadSlides();
   }, []);
 
   // Auto-advance slideshow (every 6 seconds)
@@ -90,13 +119,23 @@ export default function HeroSlideshow() {
                 )}
 
                 <div className="mt-8 flex flex-col items-start gap-3 sm:mt-12 sm:flex-row">
-                  <Link
-                    to="/campaigns"
-                    className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-[#2C5F4F] pl-6 pr-4 text-sm font-bold text-[#F5F1E8] transition-all duration-300 hover:bg-[#234A3D] md:h-12 md:text-base"
-                  >
-                    <span className="whitespace-nowrap">Donasi Sekarang</span>
-                    <ArrowRight className="ml-1 h-4 w-4" />
-                  </Link>
+                  {currentSlide.buttonText && currentSlide.buttonLink ? (
+                    <Link
+                      to={currentSlide.buttonLink}
+                      className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-emerald-600 pl-6 pr-4 text-sm font-bold text-white transition-all duration-300 hover:bg-emerald-500 md:h-12 md:text-base shadow-lg shadow-emerald-900/50"
+                    >
+                      <span className="whitespace-nowrap">{currentSlide.buttonText}</span>
+                      <ArrowRight className="ml-1 h-4 w-4" />
+                    </Link>
+                  ) : (
+                    <Link
+                      to="/campaigns"
+                      className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-[#2C5F4F] pl-6 pr-4 text-sm font-bold text-[#F5F1E8] transition-all duration-300 hover:bg-[#234A3D] md:h-12 md:text-base"
+                    >
+                      <span className="whitespace-nowrap">Donasi Sekarang</span>
+                      <ArrowRight className="ml-1 h-4 w-4" />
+                    </Link>
+                  )}
                   <Link
                     to="/laporkan"
                     className="inline-flex h-11 items-center justify-center rounded-full bg-white px-6 text-sm font-bold text-[#2C5F4F] transition-all duration-300 hover:bg-white/90 md:h-12 md:text-base"

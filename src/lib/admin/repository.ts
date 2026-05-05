@@ -7,6 +7,10 @@ import type {
   SpammerBlacklistInsert,
   SiteContentInsert,
   SiteContentUpdate,
+  VolunteerProgramInsert,
+  VolunteerProgramUpdate,
+  VolunteerRegistrationInsert,
+  VolunteerRegistrationUpdate,
 } from '../supabase/types';
 import { supabase } from '../supabase/types';
 
@@ -244,4 +248,92 @@ export function addToBlacklist(payload: SpammerBlacklistInsert) {
   return supabase
     .from('spammer_blacklist')
     .insert(payload as never);
+}
+
+// ── Volunteer Programs ──
+
+export function fetchVolunteerPrograms() {
+  return supabase
+    .from('volunteer_programs')
+    .select('*')
+    .order('created_at', { ascending: false });
+}
+
+export function fetchHeroVolunteerPrograms() {
+  return supabase
+    .from('volunteer_programs')
+    .select('*')
+    .eq('show_in_hero', true)
+    .eq('status', 'open')
+    .order('created_at', { ascending: false });
+}
+
+export function fetchVolunteerProgramBySlug(slug: string) {
+  return supabase
+    .from('volunteer_programs')
+    .select('*')
+    .eq('slug', slug)
+    .single();
+}
+
+export function saveVolunteerProgram(payload: VolunteerProgramInsert, programId?: string) {
+  return programId
+    ? supabase.from('volunteer_programs').update(payload as never).eq('id', programId).select('*').single()
+    : supabase.from('volunteer_programs').insert(payload as never).select('*').single();
+}
+
+export function deleteVolunteerProgram(programId: string) {
+  return supabase.from('volunteer_programs').delete().eq('id', programId);
+}
+
+// ── Volunteer Registrations ──
+
+export async function uploadVolunteerFile(
+  file: File,
+  prefix: 'dp' | 'follow',
+): Promise<string> {
+  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+  const filePath = `${prefix}/${Date.now()}_${safeName}`;
+
+  const { error } = await supabase.storage
+    .from('volunteer-assets')
+    .upload(filePath, file, { cacheControl: '3600', upsert: false });
+
+  if (error) throw error;
+
+  const { data } = supabase.storage.from('volunteer-assets').getPublicUrl(filePath);
+  return data.publicUrl;
+}
+
+export function insertVolunteerRegistration(payload: VolunteerRegistrationInsert) {
+  return supabase
+    .from('volunteer_registrations')
+    .insert(payload as never)
+    .select('*')
+    .single();
+}
+
+export function fetchVolunteerRegistrationsByProgram(programId: string) {
+  return supabase
+    .from('volunteer_registrations')
+    .select('*')
+    .eq('program_id', programId)
+    .order('created_at', { ascending: false });
+}
+
+export function fetchAllVolunteerRegistrations() {
+  return supabase
+    .from('volunteer_registrations')
+    .select('*')
+    .order('created_at', { ascending: false });
+}
+
+export function updateVolunteerRegistrationStatus(
+  id: string,
+  update: VolunteerRegistrationUpdate,
+) {
+  return supabase
+    .from('volunteer_registrations')
+    .update(update as never)
+    .eq('id', id);
 }

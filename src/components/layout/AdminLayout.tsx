@@ -34,6 +34,7 @@ const menuItems: AdminNavItem[] = [
   { name: 'Manajemen Konten', path: '/admin/content', icon: BookText },
   { name: 'Donatur', path: '/admin/donors', icon: Users },
   { name: 'Donasi', path: '/admin/transactions', icon: Banknote },
+  { name: 'Pendaftar Volunteer', path: '/admin/eduxplore', icon: Users },
   { name: 'Peta Dampak', path: '/admin/impact-map', icon: MapPinned },
   { name: 'Laporan Sekolah', path: '/admin/school-reports', icon: Building2 },
 ];

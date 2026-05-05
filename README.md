@@ -1,68 +1,119 @@
 # Sekolah Tanah Air (STA) Platform
 
-Sekolah Tanah Air merupakan sebuah platform digital penggalangan dana (crowdfunding) dan pergerakan kolaboratif. Fokus utama dari platform ini adalah memfasilitasi donasi untuk pembangunan sarana pendidikan, pemenuhan kebutuhan non-fisik (seperti pelatihan guru dan buku bacaan), serta menginisiasi pemerataan pendidikan berbasis kearifan lokal di berbagai daerah di wilayah Indonesia.
+Sekolah Tanah Air merupakan sebuah platform digital penggalangan dana (crowdfunding) dan pergerakan kolaboratif yang bertujuan untuk meningkatkan kualitas pendidikan di daerah terpencil Indonesia. Platform ini memfasilitasi donasi untuk pembangunan fisik, pelatihan guru, hingga pemerataan akses pendidikan berbasis kearifan lokal.
 
-Lebih dari sekadar portal donatur, platform ini menghadirkan sistem pelaporan bagi relawan di daerah agar dapat memetakan sekolah-sekolah yang tertinggal dan memfasilitasi komunikasi langsung dengan administrator lewat sistem WhatsApp otomatis.
+Lebih dari sekadar portal donasi, STA mengintegrasikan sistem pelaporan berbasis lapangan bagi relawan dan panel manajemen konten yang komprehensif bagi administrator.
 
-## Arsitektur Teknis dan Teknologi Pendukung
+---
 
-Aplikasi ini dikembangkan dengan pendekatan modern "Mobile-first", berfokus pada pengalaman pengguna yang ringan, mulus, dan responsif pada setiap perangkat.
+## 🚀 Teknologi Utama
 
-- Framework Utama: React 18 menggunakan ekosistem Vite.
-- Bahasa Pemrograman: TypeScript (Strict mode enabled) guna menjamin keamanan pengetikan data pada form dan state management.
-- Styling: Tailwind CSS (Utility-first framework) dengan styling spesifik pada lapisan global (global.css).
-- Manajemen State & Rekayasa Formulir: React Hook Form. Digunakan pada setiap halaman berbasis input, memungkinkan re-rendering minimal.
-- Validasi Skema Data: Zod. Menyediakan proteksi data yang akurat (seperti mencegah pengguna melampaui batas centang opsi atau memasukkan format kontak yang salah).
-- Backend as a Service (BaaS): Supabase. Dimanfaatkan untuk layanan autentikasi (jika diperlukan kedepannya) dan PostgreSQL database untuk penyimpanan data formulir serta manajemen konten aplikasi.
-- Transisi dan Micro-Interactions: Framer Motion.
-- Ikonografi: Lucide React.
+Aplikasi ini dibangun dengan standar modern untuk performa tinggi dan pengalaman pengguna yang premium:
 
-## Anatomi Fitur Inti
+- **Frontend Core**: [React 19](https://react.dev/) & [Vite 6](https://vitejs.dev/)
+- **Styling**: [Tailwind CSS 4](https://tailwindcss.com/) (dengan dukungan native CSS variables & performa build lebih cepat)
+- **Bahasa**: [TypeScript](https://www.typescriptlang.org/) (Strict mode)
+- **Backend as a Service**: [Supabase](https://supabase.com/) (PostgreSQL, Auth, & Storage)
+- **Pemetaan**: [MapLibre GL](https://maplibre.org/) & [React Map GL](https://visgl.github.io/react-map-gl/)
+- **Animasi**: [Framer Motion](https://www.framer.com/motion/)
+- **Manajemen Form**: React Hook Form & [Zod](https://zod.dev/)
+- **Rich Text Editor**: [Tiptap](https://tiptap.dev/) (digunakan pada Admin Panel)
+- **Keamanan**: Cloudflare Turnstile
 
-1. Halaman Campaign (Crowdfunding Module)
-   Sistem penjelahan kampanye yang aktif dikurasi. Pengguna bisa memantau progres pendanaan, target dana, dan detail narasi sekolah yang bersangkutan. UI diformat dengan Sticky Action Bar untuk merampingkan alur interaksi menuju proses pembayaran/donasi, khususnya saat diakses menggunakan smartphone.
+---
 
-2. Modul Laporkan Sekolah (3-Step Wizard)
-   Fitur esensial yang memungkinkan siapapun berkontribusi sebagai pemberi informasi lapangan. Modul ini dirombak menjadi 3 tahap berurutan guna menekan risiko information overload bagi pengisi formulir:
-   - Tahap 1 (Pelapor): Fokus pada integrasi identitas relawan dan pengecekan apakah mereka bertindak sebagai fasilitator langsung. Jika tidak, aplikasi menyajikan logika percabangan untuk meminta kontak penanggung jawab alternatif.
-   - Tahap 2 (Sekolah): Penjaringan informasi dasar profil sekolah, jumlah murid, hingga spesifikasi titik koordinat atau Google Maps.
-   - Tahap 3 (Kebutuhan): Pelapor mengalokasikan prioritas kebutuhan darurat (Maksimal 3 untuk Fisik & Non-Fisik) serta fitur lampiran foto lapangan.
+## ✨ Fitur Utama
 
-3. Sistem Draft Lokal
-   Sistem pelaporan sekolah otomatis disinkronkan ke dalam `localStorage`. Apabila perangkat pelapor terputus koneksi atau tak sengaja menutup browser, isi field sebelumnya tidak akan terhapus. Saat berhasil disubmit, skrip akan membersihkan draft tersebut dan menyulap data menjadi text-encoded WhatsApp URL menuju kontak admin STA.
+### 1. Ekosistem Publik
+- **Crowdfunding & Journey**: Penelusuran kampanye pendidikan yang transparan. Fitur **"Journey"** memungkinkan donatur melihat dampak nyata melalui peta interaktif.
+- **Laporkan Sekolah (3-Step Wizard)**: Alur pelaporan sekolah yang intuitif bagi relawan, dilengkapi dengan validasi lokasi dan kebutuhan (Fisik/Non-Fisik).
+- **Leaderboard & Donasi**: Sistem apresiasi bagi donatur dan kemudahan pembayaran (terintegrasi dengan sistem WhatsApp/Manual confirmation).
+- **Interactive Impact Map**: Visualisasi persebaran sekolah yang telah dibantu dan yang sedang membutuhkan bantuan di seluruh Indonesia.
 
-4. Halaman Tentang Kami (Visi & Misi)
-   Halaman yang memuat informasi komprehensif organisasi, yang terdiri dari nilai-nilai inti, deretan mitra/partner penggerak, serta filosofi desain pergerakan Sekolah Tanah Air.
+### 2. Admin Panel (Manajemen Konten)
+- **Dashboard**: Ringkasan statistik donasi, jumlah laporan, dan kampanye aktif.
+- **Content Manager**: Manajemen Hero Section (Banner), program utama, FAQ, dan event secara dinamis.
+- **Campaign & Transaction**: Verifikasi transaksi donasi dan pengelolaan detail kampanye.
+- **School Report Review**: Manajemen data sekolah yang dilaporkan oleh relawan untuk divalidasi menjadi kampanye aktif.
+- **Asset Management**: Pengelolaan file gambar dan media dengan optimasi kompresi otomatis.
 
-## Layout dan Struktur Direktori Codebase
+---
 
-- `/src/components`: Berisi komponen-komponen re-usable seperti Navbar, Footer, Logo, hingga modul spesifik `CampaignCard`.
-- `/src/components/report-school`: Merupakan komponen-komponen mandiri yang membentuk 3 langkah form "Laporkan Sekolah" (`Step1Reporter`, `Step2School`, `Step3Needs`, beserta komponen navigasinya).
-- `/src/pages`: Komponen setingkat-halaman (Home, About, Campaigns, LaporkanSekolah) yang disusun pada routing.
-- `/src/lib`: Menyimpan fungsi logika terpusat (`report-school.ts`). Ekstensinya menampung skema validasi Zod, data enum konstan, dan helper formatter.
+## 🌊 Alur Kerja Sistem
 
-## Panduan Instalasi Lokal
+Platform ini beroperasi melalui tiga alur utama yang saling terintegrasi:
 
-Spesifikasi environment: Disarankan menggunakan Node.js (versi 18.x atau yang lebih tinggi).
+### 1. Alur Pelaporan (Relawan)
+Relawan mengidentifikasi sekolah yang membutuhkan bantuan melalui **3-Step Wizard**. Data yang disubmit akan masuk ke database dan memicu pembuatan pesan konfirmasi otomatis ke WhatsApp Admin untuk validasi cepat.
 
-1. Kloning dan Masuk ke Direktori Proyek
-   Tempatkan source code ke dalam mesin lokal Anda, lalu masuk ke direktori utama aplikasi.
+### 2. Alur Manajemen (Admin)
+Admin meninjau laporan masuk di **Admin Panel**. Laporan yang valid dikonversi menjadi kampanye aktif. Admin juga memiliki kontrol penuh untuk memperbarui konten situs (Hero banner, statistik, FAQ) secara dinamis.
 
-2. Proses Instalasi Dependensi
-   Jalankan perintah instalasi paket modul.
+### 3. Alur Donasi & Dampak (Donatur)
+Donatur memilih kampanye dan melakukan donasi. Setelah verifikasi admin, progres dana kampanye akan diperbarui secara real-time. Donatur dapat melihat dampak dari kontribusi mereka melalui **Journey Detail** dan **Peta Interaktif**.
+
+---
+
+## 📁 Struktur Proyek
+
+```text
+src/
+├── components/
+│   ├── admin/      # Komponen khusus panel admin
+│   ├── public/     # Komponen UI publik (Navbar, Footer, Hero, dll)
+│   └── shared/     # Komponen umum (Button, Input, Modal)
+├── pages/
+│   ├── admin/      # Halaman manajemen (Dashboard, Content, Reports)
+│   └── public/     # Halaman utama (Home, About, Journey, Campaigns)
+├── lib/
+│   ├── admin/      # Logika bisnis & repository admin
+│   ├── public/     # Logika bisnis & repository publik
+│   ├── supabase/   # Konfigurasi & client Supabase
+│   └── utils/      # Helper functions & constants
+└── types/          # Definisi tipe data TypeScript
+```
+
+---
+
+## 🛠️ Panduan Instalasi
+
+### Prasyarat
+- Node.js (Versi 20.x atau lebih tinggi sangat disarankan)
+- NPM atau PNPM
+
+### Langkah-langkah
+1. **Clone repositori**:
+   ```bash
+   git clone [url-repo]
+   cd sekolah-tanah-air
+   ```
+
+2. **Instal dependensi**:
    ```bash
    npm install
    ```
 
-3. Registrasi Konfigurasi Environment (Supabase dll)
-   Duplikasi atau buat file lokal bernama `.env` di direktori teratas (root) berdasarkan pola parameter di `.env.example`.
-   Contoh parameter krusial:
-   `VITE_SUPABASE_URL=...`
-   `VITE_SUPABASE_ANON_KEY=...`
+3. **Konfigurasi Environment**:
+   Salin `.env.example` menjadi `.env` dan isi variabel yang diperlukan:
+   ```env
+   VITE_SUPABASE_URL=your_supabase_url
+   VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+   VITE_TURNSTILE_SITE_KEY=your_cloudflare_turnstile_key
+   ```
 
-4. Jalankan Server Development
-   Setelah dependensi dan environment dipasang utuh, jalankan Vite di environment lokal:
+4. **Jalankan aplikasi**:
    ```bash
    npm run dev
    ```
-   Aplikasi standar pengembangan akan berjalan dan memonitor perubahan file secara real-time pada `http://localhost:5173/`.
+   Aplikasi akan berjalan di `http://localhost:3000`.
+
+---
+
+## 🤝 Kontribusi
+
+Kami menerima kontribusi dalam bentuk pelaporan bug, saran fitur, atau pull request. Pastikan untuk mengikuti standar penulisan kode TypeScript dan melakukan linting sebelum melakukan submit.
+
+---
+
+**Sekolah Tanah Air** - *Membangun Harapan dari Setiap Sudut Negeri.*
+

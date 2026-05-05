@@ -5,6 +5,7 @@ import { useForm } from 'react-hook-form';
 import AdminModal from '../../components/admin/AdminModal';
 import AdminHeroManager from '../../components/admin/AdminHeroManager';
 import AdminOtherPagesHero from '../../components/admin/AdminOtherPagesHero';
+import AdminVolunteerPrograms from '../../components/admin/AdminVolunteerPrograms';
 import { adminProgramSchema, programIconOptions, type AdminProgramValues } from '../../lib/admin/schemas';
 import { formatAdminDate } from '../../lib/admin/helpers';
 import { deleteProgram, fetchProgramRows, insertProgram, updateProgram, fetchSiteContentRows, upsertSiteContent } from '../../lib/admin/repository';
@@ -381,6 +382,9 @@ export default function AdminContent() {
         <AdminHeroManager />
         <AdminOtherPagesHero />
       </div>
+
+      {/* ═══════ SECTION: PROGRAM VOLUNTEER (EDUXPLORE) ═══════ */}
+      <AdminVolunteerPrograms />
 
       {/* ═══════ SECTION: PROGRAM STA ═══════ */}
       <div className="space-y-6">

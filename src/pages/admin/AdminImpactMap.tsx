@@ -29,7 +29,8 @@ import RichTextEditor from '../../components/admin/campaigns/RichTextEditor';
 import InteractiveMap from '../../components/shared/InteractiveMap';
 import type { EventMapLocation } from '../../lib/public/events';
 import { cn } from '../../lib/utils';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
+import { compressImage } from '../../lib/image-compression';
 
 export default function AdminImpactMap() {
   const [locations, setLocations] = useState<EventMapLocation[]>([]);
@@ -185,29 +186,58 @@ export default function AdminImpactMap() {
     }
   };
 
-  const handleUploadImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+  const handleUploadImage = async (e: React.ChangeEvent<HTMLInputElement> | React.DragEvent) => {
+    let file: File | undefined;
+    
+    if ('files' in e.target && e.target.files) {
+      file = e.target.files[0];
+    } else if ('dataTransfer' in e) {
+      e.preventDefault();
+      file = e.dataTransfer.files[0];
+    }
+
     if (!file) return;
+    
     try {
       setUploadingImage(true);
-      const url = await uploadAdminImage(file, 'general');
+      // Kompres gambar sebelum upload
+      const compressed = await compressImage(file);
+      const url = await uploadAdminImage(compressed, 'general');
       setValue('imageUrl', url, { shouldDirty: true, shouldValidate: true });
     } catch (err) {
+      logError('AdminImpactMap.handleUploadImage', err);
       alert('Gagal mengunggah gambar.');
     } finally {
       setUploadingImage(false);
     }
   };
 
-  const handleUploadGallery = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
+  const handleUploadGallery = async (e: React.ChangeEvent<HTMLInputElement> | React.DragEvent) => {
+    let files: File[] = [];
+    
+    if (e.type === 'change' && (e.target as HTMLInputElement).files) {
+      files = Array.from((e.target as HTMLInputElement).files || []);
+    } else if (e.type === 'drop') {
+      e.preventDefault();
+      files = Array.from((e as React.DragEvent).dataTransfer.files || []);
+    }
+
     if (files.length === 0) return;
+    
     try {
       setUploadingGallery(true);
-      const uploadPromises = files.map(file => uploadAdminImage(file as File, 'general'));
+      
+      // Kompres semua gambar secara paralel
+      const compressionPromises = files.map(file => compressImage(file));
+      const compressedFiles = await Promise.all(compressionPromises);
+      
+      // Upload ke Supabase
+      const uploadPromises = compressedFiles.map(file => uploadAdminImage(file, 'general'));
       const urls = await Promise.all(uploadPromises);
+      
       setValue('images', [...galleryImages, ...urls], { shouldDirty: true, shouldValidate: true });
     } catch (err) {
+      logError('AdminImpactMap.handleUploadGallery', err);
       alert('Gagal mengunggah beberapa gambar.');
     } finally {
       setUploadingGallery(false);
@@ -366,7 +396,7 @@ export default function AdminImpactMap() {
 
         <div className="p-4">
           {activeTab === 'map' ? (
-            <div className="relative aspect-video sm:aspect-[2.5/1] rounded-2xl overflow-hidden bg-slate-100 border border-slate-200">
+            <div className="relative h-[450px] sm:h-auto sm:aspect-[2.5/1] rounded-2xl overflow-hidden bg-slate-100 border border-slate-200">
               <InteractiveMap 
                 locations={filteredLocations} 
                 height="100%" 
@@ -495,28 +525,87 @@ export default function AdminImpactMap() {
 
           <div className="space-y-4">
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Visual & Dokumentasi</label>
-              <div className="relative aspect-video rounded-xl overflow-hidden bg-slate-100 border border-slate-200 group">
-                <img src={watch('imageUrl') || 'https://via.placeholder.com/400x225?text=Preview+Gambar'} className="w-full h-full object-cover" />
-                <label className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
-                  <Upload className="text-white" size={24} />
-                  <input type="file" accept="image/*" className="hidden" onChange={handleUploadImage} />
-                </label>
+              <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Visual Utama</label>
+              <div 
+                onDragOver={(e) => { e.preventDefault(); e.currentTarget.classList.add('border-emerald-500', 'bg-emerald-50/30'); }}
+                onDragLeave={(e) => { e.preventDefault(); e.currentTarget.classList.remove('border-emerald-500', 'bg-emerald-50/30'); }}
+                onDrop={(e) => {
+                  e.currentTarget.classList.remove('border-emerald-500', 'bg-emerald-50/30');
+                  handleUploadImage(e as any);
+                }}
+                className="relative aspect-video rounded-xl overflow-hidden bg-slate-50 border-2 border-dashed border-slate-200 group transition-all"
+              >
+                {watch('imageUrl') ? (
+                  <>
+                    <img src={watch('imageUrl')} className="w-full h-full object-cover" />
+                    <div className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+                      <Upload className="text-white mb-2" size={24} />
+                      <span className="text-white text-[10px] font-bold uppercase">Ganti Gambar</span>
+                    </div>
+                  </>
+                ) : (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-400">
+                    <Upload size={28} className="mb-2 opacity-20" />
+                    <p className="text-[10px] font-bold uppercase tracking-wider">Drop Gambar Utama</p>
+                  </div>
+                )}
+                
+                <input type="file" accept="image/*" className="absolute inset-0 opacity-0 cursor-pointer" onChange={handleUploadImage} disabled={uploadingImage} />
+                
+                {uploadingImage && (
+                  <div className="absolute inset-0 bg-white/80 backdrop-blur-sm flex flex-col items-center justify-center z-20">
+                    <RefreshCw className="animate-spin text-emerald-600 mb-2" size={20} />
+                    <span className="text-[10px] font-bold text-emerald-800 uppercase tracking-widest">Mengompres...</span>
+                  </div>
+                )}
               </div>
             </div>
 
             <div className="space-y-2">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Galeri Tambahan</label>
-              <div className="grid grid-cols-4 gap-2">
-                {galleryImages.map((url, idx) => (
-                  <div key={idx} className="relative aspect-square rounded-lg overflow-hidden border border-slate-100">
-                    <img src={url} className="w-full h-full object-cover" />
-                    <button type="button" onClick={() => removeGalleryImage(url)} className="absolute top-0.5 right-0.5 p-0.5 bg-rose-500 text-white rounded-full"><X size={8} /></button>
-                  </div>
-                ))}
-                <label className="flex aspect-square items-center justify-center rounded-lg border border-dashed border-slate-300 hover:border-emerald-500 cursor-pointer">
-                  <Plus size={16} className="text-slate-400" />
-                  <input type="file" multiple accept="image/*" className="hidden" onChange={handleUploadGallery} />
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Galeri Tambahan (Dokumentasi)</label>
+              <div 
+                onDragOver={(e) => { e.preventDefault(); e.currentTarget.classList.add('border-emerald-500', 'bg-emerald-50/30'); }}
+                onDragLeave={(e) => { e.preventDefault(); e.currentTarget.classList.remove('border-emerald-500', 'bg-emerald-50/30'); }}
+                onDrop={(e) => {
+                  e.currentTarget.classList.remove('border-emerald-500', 'bg-emerald-50/30');
+                  handleUploadGallery(e as any);
+                }}
+                className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2"
+              >
+                <AnimatePresence>
+                  {galleryImages.map((url, idx) => (
+                    <motion.div 
+                      key={url} 
+                      initial={{ opacity: 0, scale: 0.8 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.8 }}
+                      className="relative aspect-square rounded-lg overflow-hidden border border-slate-100 group"
+                    >
+                      <img src={url} className="w-full h-full object-cover" />
+                      <button 
+                        type="button" 
+                        onClick={() => removeGalleryImage(url)} 
+                        className="absolute top-1 right-1 p-1 bg-rose-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
+                      >
+                        <X size={10} />
+                      </button>
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
+                
+                <label className={cn(
+                  "flex aspect-square flex-col items-center justify-center rounded-lg border-2 border-dashed border-slate-200 transition-all cursor-pointer relative",
+                  uploadingGallery ? "bg-slate-50 border-slate-200 cursor-wait" : "hover:border-emerald-500 hover:bg-emerald-50/30"
+                )}>
+                  {uploadingGallery ? (
+                    <RefreshCw className="animate-spin text-emerald-600" size={16} />
+                  ) : (
+                    <>
+                      <Plus size={16} className="text-slate-400" />
+                      <span className="text-[8px] font-bold text-slate-400 uppercase mt-1">Tambah</span>
+                    </>
+                  )}
+                  <input type="file" multiple accept="image/*" className="absolute inset-0 opacity-0 cursor-pointer" onChange={handleUploadGallery} disabled={uploadingGallery} />
                 </label>
               </div>
             </div>

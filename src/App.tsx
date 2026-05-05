@@ -20,6 +20,7 @@ const LaporkanSekolah = lazy(() => import('./pages/public/LaporkanSekolah'));
 const Contact = lazy(() => import('./pages/public/Contact'));
 const Leaderboard = lazy(() => import('./pages/public/Leaderboard'));
 const JourneyDetail = lazy(() => import('./pages/public/JourneyDetail'));
+const EduxploreDetailView = lazy(() => import('./pages/public/EduxploreDetailView'));
 
 /* ── Admin Pages ── */
 const AdminLogin = lazy(() => import('./pages/admin/AdminLogin'));
@@ -27,6 +28,7 @@ const AdminLayout = lazy(() => import('./components/layout/AdminLayout'));
 const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'));
 const AdminCampaigns = lazy(() => import('./pages/admin/AdminCampaigns'));
 const AdminDonors = lazy(() => import('./pages/admin/AdminDonors'));
+const AdminEduxplore = lazy(() => import('./pages/admin/AdminEduxplore'));
 const AdminTransactions = lazy(() => import('./pages/admin/AdminTransactions'));
 const AdminSchoolReports = lazy(() => import('./pages/admin/AdminSchoolReports'));
 const AdminContent = lazy(() => import('./pages/admin/AdminContent'));
@@ -94,6 +96,7 @@ export default function App() {
         <Route path="/laporkan" element={renderWithSuspense(<PublicLayout><LaporkanSekolah /></PublicLayout>)} />
         <Route path="/kontak" element={renderWithSuspense(<PublicLayout><Contact /></PublicLayout>)} />
         <Route path="/leaderboard" element={renderWithSuspense(<PublicLayout><Leaderboard /></PublicLayout>)} />
+        <Route path="/eduxplore/:slug" element={renderWithSuspense(<PublicLayout><EduxploreDetailView /></PublicLayout>)} />
         <Route path="/admin/login" element={renderWithSuspense(<GuestRoute><AdminLogin /></GuestRoute>)} />
 
         {/* Rute-rute Panel Admin */}
@@ -101,6 +104,7 @@ export default function App() {
           <Route index element={renderWithSuspense(<AdminDashboard />)} />
           <Route path="campaigns" element={renderWithSuspense(<AdminCampaigns />)} />
           <Route path="donors" element={renderWithSuspense(<AdminDonors />)} />
+          <Route path="eduxplore" element={renderWithSuspense(<AdminEduxplore />)} />
           <Route path="transactions" element={renderWithSuspense(<AdminTransactions />)} />
           <Route path="school-reports" element={renderWithSuspense(<AdminSchoolReports />)} />
           <Route path="content" element={renderWithSuspense(<AdminContent />)} />

@@ -299,7 +299,7 @@ export default function Home() {
               </div>
 
               {/* Stats Grid - Spans 2 cols */}
-              <div className="lg:col-span-2 grid grid-cols-2 gap-3 sm:gap-4">
+              <div className="lg:col-span-2 grid grid-cols-2 gap-2 sm:gap-4">
                 {[
                   { label: "Dana Terkumpul", value: "Rp 250 Jt+", icon: BarChart3 },
                   { label: "Penerima Manfaat", value: "500", icon: Users },
