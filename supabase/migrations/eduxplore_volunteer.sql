@@ -34,6 +34,7 @@ CREATE TABLE IF NOT EXISTS public.volunteer_registrations (
   riwayat_penyakit text,
   bukti_dp_url text,
   bukti_follow_url text,
+  foto_id_url text,
   status text NOT NULL DEFAULT 'pending' CHECK (status = ANY (ARRAY['pending','verified','rejected'])),
   created_at timestamp with time zone NOT NULL DEFAULT timezone('utc', now()),
   CONSTRAINT volunteer_registrations_pkey PRIMARY KEY (id)
