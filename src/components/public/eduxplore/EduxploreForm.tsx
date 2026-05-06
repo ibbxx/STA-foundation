@@ -161,7 +161,7 @@ export default function EduxploreForm({ programId, programTitle, isOpen }: Props
   }
 
   return (
-    <section id="form-pendaftaran" className="py-16 sm:py-24 bg-white">
+    <section id="form-pendaftaran" className="py-10 sm:py-24 bg-white">
       <div className="max-w-2xl mx-auto px-5 md:px-8">
         <AnimatePresence mode="wait">
           {isSuccess ? (
@@ -174,7 +174,7 @@ export default function EduxploreForm({ programId, programTitle, isOpen }: Props
               exit={{ opacity: 0 }}
             >
               {/* Section Header */}
-              <div className="text-center mb-10 sm:mb-14">
+              <div className="text-center mb-8 sm:mb-14">
                 <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-emerald-600 mb-3">
                   Formulir Pendaftaran
                 </p>

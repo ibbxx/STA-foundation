@@ -31,7 +31,7 @@ export default function EduxploreHero({ program }: Props) {
         <div className="absolute inset-0 z-0 bg-gradient-to-br from-emerald-950 via-gray-900 to-gray-950" />
       )}
 
-      <div className="relative z-10 w-full max-w-7xl mx-auto px-5 md:px-8 pb-12 md:pb-0 pt-24 md:pt-32">
+      <div className="relative z-10 w-full max-w-7xl mx-auto px-5 md:px-8 pb-6 md:pb-0 pt-20 md:pt-32">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
