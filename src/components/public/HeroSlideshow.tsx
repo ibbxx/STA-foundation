@@ -109,8 +109,27 @@ export default function HeroSlideshow() {
                 exit={{ opacity: 0, y: -20 }}
                 transition={{ duration: 0.8, delay: 0.2 }}
               >
-                <h1 className="mt-4 max-w-2xl text-balance text-2xl font-black uppercase leading-[1.1] tracking-tight text-[#F5F1E8] sm:text-3xl md:mt-8 md:text-5xl lg:mt-16 xl:text-6xl">
-                  {currentSlide.title}
+                <h1 className="mt-4 max-w-2xl text-balance font-black uppercase leading-[1.1] tracking-tight text-[#F5F1E8] md:mt-8 lg:mt-16">
+                  {(() => {
+                    const match = currentSlide.title.match(/^(EDUXPLORE\s+#\d+)\s+(.*)$/i);
+                    if (match) {
+                      return (
+                        <>
+                          <span className="block text-3xl sm:text-4xl md:text-6xl xl:text-7xl mb-1 md:mb-2 text-[#F5F1E8]">
+                            {match[1]}
+                          </span>
+                          <span className="block text-lg sm:text-xl md:text-3xl xl:text-4xl text-emerald-400 font-bold">
+                            {match[2]}
+                          </span>
+                        </>
+                      );
+                    }
+                    return (
+                      <span className="block text-2xl sm:text-3xl md:text-5xl xl:text-6xl">
+                        {currentSlide.title}
+                      </span>
+                    );
+                  })()}
                 </h1>
                 {currentSlide.subtitle && (
                   <p className="mt-4 max-w-xl text-balance text-sm font-light leading-relaxed text-[#F5F1E8]/85 sm:mt-6 sm:text-base">

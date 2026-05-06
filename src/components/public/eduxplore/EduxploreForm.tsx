@@ -144,9 +144,10 @@ export default function EduxploreForm({ programId, programTitle, isOpen }: Props
       setTimeout(() => {
         window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
       }, 2500);
-    } catch (err) {
+    } catch (err: any) {
       logError('EduxploreForm.onSubmit', err);
-      setErrorMsg('Terjadi kesalahan. Silakan coba lagi.');
+      const msg = err?.message || 'Terjadi kesalahan yang tidak diketahui.';
+      setErrorMsg(`Gagal mengirim pendaftaran: ${msg}`);
       setIsSubmitting(false);
     }
   });
@@ -162,7 +163,7 @@ export default function EduxploreForm({ programId, programTitle, isOpen }: Props
   }
 
   return (
-    <section id="form-pendaftaran" className="py-10 sm:py-24 bg-white">
+    <section id="form-pendaftaran" className="relative z-10 py-10 sm:py-24 bg-white">
       <div className="max-w-2xl mx-auto px-5 md:px-8">
         <AnimatePresence mode="wait">
           {isSuccess ? (

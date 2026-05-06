@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Edit2, Plus, Trash2, RefreshCw, AlertCircle, CheckCircle2 } from 'lucide-react';
 
 import AdminModal from './AdminModal';
+import RichTextEditor from './campaigns/RichTextEditor';
 import {
   fetchVolunteerPrograms,
   saveVolunteerProgram,
@@ -56,8 +57,8 @@ export default function AdminVolunteerPrograms() {
     handleSubmit,
     reset,
     setValue,
-    watch,
-    formState: { errors, isSubmitting },
+    control,
+    formState: { isSubmitting },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues,
@@ -96,13 +97,15 @@ export default function AdminVolunteerPrograms() {
 
     try {
       const parsedTimeline = (Array.isArray(program.timeline) ? program.timeline : JSON.parse(program.timeline as string)) as VolunteerTimelineItem[];
-      timelineText = parsedTimeline.map(t => `${t.date}|${t.label}`).join('\n');
-    } catch (e) { }
+      const items = parsedTimeline.map(t => `<li><strong>${t.date}</strong> — ${t.label}</li>`).join('');
+      timelineText = `<ul>${items}</ul>`;
+    } catch (e) {}
 
     try {
       const parsedReq = (Array.isArray(program.requirements) ? program.requirements : JSON.parse(program.requirements as string)) as string[];
-      reqText = parsedReq.join('\n');
-    } catch (e) { }
+      const items = parsedReq.map(r => `<li>${r}</li>`).join('');
+      reqText = `<ul>${items}</ul>`;
+    } catch (e) {}
 
     reset({
       title: program.title,
@@ -137,23 +140,52 @@ export default function AdminVolunteerPrograms() {
     }
   };
 
+  function htmlToTimelineItems(html: string): VolunteerTimelineItem[] {
+    const div = document.createElement('div');
+    div.innerHTML = html;
+    const items: VolunteerTimelineItem[] = [];
+    div.querySelectorAll('li').forEach(li => {
+      const text = li.textContent?.trim() || '';
+      const sep = text.includes('—') ? '—' : '|';
+      const parts = text.split(sep);
+      if (parts.length >= 2) {
+        items.push({ date: parts[0].trim(), label: parts.slice(1).join(sep).trim() });
+      } else if (text) {
+        items.push({ date: text, label: '' });
+      }
+    });
+    if (items.length === 0 && html) {
+      const plain = html.replace(/<[^>]+>/g, '\n').trim();
+      plain.split('\n').filter(l => l.trim()).forEach(line => {
+        const parts = line.split('|');
+        items.push({ date: parts[0]?.trim() || '', label: parts[1]?.trim() || '' });
+      });
+    }
+    return items;
+  }
+
+  function htmlToRequirements(html: string): string[] {
+    const div = document.createElement('div');
+    div.innerHTML = html;
+    const reqs: string[] = [];
+    div.querySelectorAll('li').forEach(li => {
+      const text = li.textContent?.trim();
+      if (text) reqs.push(text);
+    });
+    if (reqs.length === 0 && html) {
+      const plain = html.replace(/<[^>]+>/g, '\n').trim();
+      plain.split('\n').filter(l => l.trim()).forEach(l => reqs.push(l.trim()));
+    }
+    return reqs;
+  }
+
   async function onSubmit(values: FormValues) {
     setError(null);
     setNotice(null);
 
     try {
-      const timeline: VolunteerTimelineItem[] = (values.timeline_text || '')
-        .split('\n')
-        .filter(line => line.trim() !== '')
-        .map(line => {
-          const parts = line.split('|');
-          return { date: parts[0]?.trim() || '', label: parts[1]?.trim() || '' };
-        });
-
-      const requirements = (values.requirements_text || '')
-        .split('\n')
-        .map(r => r.trim())
-        .filter(r => r !== '');
+      const timeline = htmlToTimelineItems(values.timeline_text || '');
+      const requirements = htmlToRequirements(values.requirements_text || '');
 
       const payload = {
         title: values.title,
@@ -265,7 +297,7 @@ export default function AdminVolunteerPrograms() {
         open={mode !== null}
         onClose={closeModal}
         title={mode === 'edit' ? 'Edit EduXplore' : 'Tambah EduXplore'}
-        widthClassName="max-w-2xl"
+        widthClassName="max-w-3xl"
         footer={(
           <>
             <button type="button" onClick={closeModal} className="px-4 py-2 text-sm text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50">Batal</button>
@@ -276,6 +308,8 @@ export default function AdminVolunteerPrograms() {
         )}
       >
         <form id="volunteer-form" onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+
+          {/* Row 1: Judul & Slug */}
           <div className="grid grid-cols-2 gap-4">
             <label className="block">
               <span className="text-sm font-medium text-slate-700">Judul Program</span>
@@ -287,6 +321,7 @@ export default function AdminVolunteerPrograms() {
             </label>
           </div>
 
+          {/* Row 2: Lokasi & Status */}
           <div className="grid grid-cols-2 gap-4">
             <label className="block">
               <span className="text-sm font-medium text-slate-700">Lokasi</span>
@@ -302,11 +337,21 @@ export default function AdminVolunteerPrograms() {
             </label>
           </div>
 
-          <label className="block">
-            <span className="text-sm font-medium text-slate-700">Deskripsi Singkat</span>
-            <textarea {...register('description')} rows={3} className="mt-1 w-full px-3 py-2 text-sm border border-slate-200 rounded-lg" />
-          </label>
+          {/* Deskripsi — Rich Text */}
+          <Controller
+            name="description"
+            control={control}
+            render={({ field }) => (
+              <RichTextEditor
+                label="Deskripsi Program"
+                hint="Tuliskan deskripsi singkat program ini."
+                value={field.value || ''}
+                onChange={field.onChange}
+              />
+            )}
+          />
 
+          {/* Gambar Banner */}
           <label className="block">
             <span className="text-sm font-medium text-slate-700">Gambar Banner (Hero)</span>
             <div className="mt-1 flex gap-2">
@@ -318,18 +363,33 @@ export default function AdminVolunteerPrograms() {
             </div>
           </label>
 
-          <div className="grid grid-cols-2 gap-4">
-            <label className="block">
-              <span className="text-sm font-medium text-slate-700">Timeline (1 per baris)</span>
-              <p className="text-[10px] text-slate-500 mb-1">Format: Tanggal | Nama Kegiatan</p>
-              <textarea {...register('timeline_text')} rows={5} placeholder="12 Mei 2026 | Briefing&#10;13 Mei 2026 | Berangkat" className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg font-mono" />
-            </label>
-            <label className="block">
-              <span className="text-sm font-medium text-slate-700">Persyaratan (1 per baris)</span>
-              <p className="text-[10px] text-slate-500 mb-1">Tulis satu syarat per baris</p>
-              <textarea {...register('requirements_text')} rows={5} placeholder="Follow Instagram STA&#10;Membayar DP" className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg font-mono" />
-            </label>
-          </div>
+          {/* Timeline — Rich Text */}
+          <Controller
+            name="timeline_text"
+            control={control}
+            render={({ field }) => (
+              <RichTextEditor
+                label="Timeline Kegiatan"
+                hint="Gunakan bullet/numbered list. Format tiap item: Tanggal — Nama Kegiatan (contoh: 12 Mei 2026 — Briefing)"
+                value={field.value || ''}
+                onChange={field.onChange}
+              />
+            )}
+          />
+
+          {/* Persyaratan — Rich Text */}
+          <Controller
+            name="requirements_text"
+            control={control}
+            render={({ field }) => (
+              <RichTextEditor
+                label="Persyaratan Pendaftaran"
+                hint="Gunakan bullet list untuk setiap syarat pendaftaran."
+                value={field.value || ''}
+                onChange={field.onChange}
+              />
+            )}
+          />
 
           {/* Toggle Hero Beranda */}
           <label className="flex items-start gap-3 p-4 rounded-xl border-2 border-dashed border-emerald-200 bg-emerald-50/50 cursor-pointer hover:border-emerald-300 transition-colors">

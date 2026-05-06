@@ -1,7 +1,20 @@
 /**
  * Utility untuk kompresi gambar di sisi klien (browser).
- * Meniru logika Python: resize max-width 1920px, konversi ke WebP, kualitas 80%.
+ * Meniru logika Python: resize max-width 1920px, konversi ke WebP (fallback JPEG), kualitas 80%.
  */
+
+/** Deteksi apakah browser mendukung encoding WebP via canvas */
+const supportsWebP = (() => {
+  try {
+    const canvas = document.createElement('canvas');
+    canvas.width = 1;
+    canvas.height = 1;
+    return canvas.toDataURL('image/webp').startsWith('data:image/webp');
+  } catch {
+    return false;
+  }
+})();
+
 export async function compressImage(file: File): Promise<File> {
   // Jika bukan gambar, kembalikan file asli
   if (!file.type.startsWith('image/')) {
@@ -38,22 +51,38 @@ export async function compressImage(file: File): Promise<File> {
         // Gambar ke canvas
         ctx.drawImage(img, 0, 0, width, height);
 
-        // Export ke WebP dengan kualitas 0.8 (80%)
+        // Pilih format output: WebP jika didukung, JPEG sebagai fallback
+        const outputType = supportsWebP ? 'image/webp' : 'image/jpeg';
+        const ext = supportsWebP ? '.webp' : '.jpg';
+
         canvas.toBlob(
           (blob) => {
             if (!blob) {
+              // Fallback: jika encoding gagal total, coba JPEG sebagai last resort
+              if (outputType === 'image/webp') {
+                canvas.toBlob(
+                  (jpegBlob) => {
+                    if (!jpegBlob) return resolve(file);
+                    const fileName = file.name.replace(/\.[^.]+$/, '') + '.jpg';
+                    resolve(new File([jpegBlob], fileName, { type: 'image/jpeg', lastModified: Date.now() }));
+                  },
+                  'image/jpeg',
+                  0.8,
+                );
+                return;
+              }
               return resolve(file);
             }
             // Buat file baru dari blob
-            const fileName = file.name.replace(/\.[^.]+$/, '') + '.webp';
+            const fileName = file.name.replace(/\.[^.]+$/, '') + ext;
             const compressedFile = new File([blob], fileName, {
-              type: 'image/webp',
+              type: outputType,
               lastModified: Date.now(),
             });
             resolve(compressedFile);
           },
-          'image/webp',
-          0.8
+          outputType,
+          0.8,
         );
       };
       img.onerror = (err) => reject(err);

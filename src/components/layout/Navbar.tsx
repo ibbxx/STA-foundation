@@ -63,14 +63,14 @@ export default function Navbar() {
         backdropFilter: isSolid ? "blur(12px)" : "blur(0px)",
       }}
       transition={{ duration: 0.3 }}
-      className="fixed top-0 left-0 right-0 z-50 border-b"
+      className={`fixed top-0 left-0 right-0 z-50 border-b ${!isSolid && !mobileMenuOpen ? 'pointer-events-none' : ''}`}
       style={{
         borderBottomColor: isSolid ? "rgba(17, 24, 39, 0.08)" : "transparent",
       }}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      <nav className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-12">
+      <nav className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-12 pointer-events-auto">
         <div className="flex h-16 items-center justify-between sm:h-20">
           {/* Logo / Brand Name */}
           <Link

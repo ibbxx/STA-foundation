@@ -293,7 +293,10 @@ export async function uploadVolunteerFile(
   prefix: 'dp' | 'follow' | 'id_card',
 ): Promise<string> {
   const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-  const filePath = `${prefix}/${Date.now()}_${safeName}`;
+  const uniqueId = typeof crypto !== 'undefined' && crypto.randomUUID
+    ? crypto.randomUUID().slice(0, 8)
+    : Math.random().toString(36).slice(2, 10);
+  const filePath = `${prefix}/${Date.now()}_${uniqueId}_${safeName}`;
 
   const { error } = await supabase.storage
     .from('volunteer-assets')
@@ -306,11 +309,11 @@ export async function uploadVolunteerFile(
 }
 
 export function insertVolunteerRegistration(payload: VolunteerRegistrationInsert) {
+  // Tidak menggunakan .select() agar anon tidak membutuhkan SELECT policy.
+  // RLS hanya memerlukan INSERT policy untuk operasi ini.
   return supabase
     .from('volunteer_registrations')
-    .insert(payload as never)
-    .select('*')
-    .single();
+    .insert(payload as never);
 }
 
 export function fetchVolunteerRegistrationsByProgram(programId: string) {

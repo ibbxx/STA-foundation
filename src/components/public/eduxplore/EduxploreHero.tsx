@@ -12,7 +12,7 @@ export default function EduxploreHero({ program }: Props) {
   };
 
   return (
-    <section className="relative min-h-[100svh] w-full flex flex-col justify-end md:justify-center overflow-hidden bg-gray-900">
+    <section className="relative min-h-[100svh] w-full flex flex-col justify-end md:justify-center overflow-clip bg-gray-900">
       {/* Background */}
       {program.image_url && (
         <div className="absolute inset-0 z-0">
@@ -53,8 +53,27 @@ export default function EduxploreHero({ program }: Props) {
             </span>
           </motion.div>
 
-          <h1 className="text-[20px] sm:text-3xl md:text-5xl lg:text-6xl font-black text-white leading-[1.2] tracking-tight mb-4 md:mb-6">
-            {program.title}
+          <h1 className="font-black text-white leading-[1.2] tracking-tight mb-4 md:mb-6">
+            {(() => {
+              const match = program.title.match(/^(EDUXPLORE\s+#\d+)\s+(.*)$/i);
+              if (match) {
+                return (
+                  <>
+                    <span className="block text-[28px] sm:text-4xl md:text-6xl lg:text-7xl mb-1 md:mb-2 text-white">
+                      {match[1]}
+                    </span>
+                    <span className="block text-[16px] sm:text-2xl md:text-3xl lg:text-4xl text-emerald-400 font-bold">
+                      {match[2]}
+                    </span>
+                  </>
+                );
+              }
+              return (
+                <span className="block text-[20px] sm:text-3xl md:text-5xl lg:text-6xl">
+                  {program.title}
+                </span>
+              );
+            })()}
           </h1>
 
           {program.description && (

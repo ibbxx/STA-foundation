@@ -1,6 +1,8 @@
 import { useEditor, EditorContent, type Editor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Link from '@tiptap/extension-link';
+import { TextStyle } from '@tiptap/extension-text-style';
+import { Extension } from '@tiptap/core';
 import {
   Bold,
   Italic,
@@ -13,10 +15,61 @@ import {
   Redo,
   Link as LinkIcon,
   Minus,
+  CaseSensitive,
 } from 'lucide-react';
-import { logError } from '../../../lib/error-logger';
 import { cn } from '../../../lib/utils';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+
+/* ──────────────────── FontSize Extension ──────────────────── */
+
+const FontSize = Extension.create({
+  name: 'fontSize',
+  addGlobalAttributes() {
+    return [
+      {
+        types: ['textStyle'],
+        attributes: {
+          fontSize: {
+            default: null,
+            parseHTML: (element) => element.style.fontSize?.replace('px', '') || null,
+            renderHTML: (attributes) => {
+              if (!attributes.fontSize) return {};
+              return { style: `font-size: ${attributes.fontSize}px` };
+            },
+          },
+        },
+      },
+    ];
+  },
+  addCommands() {
+    return {
+      setFontSize:
+        (fontSize: string) =>
+        ({ chain }: any) => {
+          return chain().setMark('textStyle', { fontSize }).run();
+        },
+      unsetFontSize:
+        () =>
+        ({ chain }: any) => {
+          return chain().setMark('textStyle', { fontSize: null }).unsetMark('textStyle').run();
+        },
+    } as any;
+  },
+});
+
+/* ──────────────────── Font Size Options ──────────────────── */
+
+const FONT_SIZES = [
+  { label: 'Kecil', value: '12' },
+  { label: 'Normal', value: '16' },
+  { label: 'Sedang', value: '20' },
+  { label: 'Besar', value: '28' },
+  { label: 'XL', value: '36' },
+  { label: 'XXL', value: '48' },
+  { label: '3XL', value: '64' },
+];
+
+/* ──────────────────── Types ──────────────────── */
 
 type RichTextEditorProps = {
   label: string;
@@ -49,9 +102,6 @@ function ToolbarBtn({
       title={title}
       tabIndex={-1}
       onMouseDown={(e) => {
-        // Critical: prevent the button from stealing focus from the editor.
-        // Without this, the selection inside the editor is lost before
-        // the onClick handler runs, so formatting commands have nothing to apply.
         e.preventDefault();
         e.stopPropagation();
         onAction();
@@ -74,7 +124,6 @@ function Divider() {
 /* ──────────────────── Menu Bar ──────────────────── */
 
 function MenuBar({ editor }: { editor: Editor }) {
-  // Force re-render on every transaction so active states update
   const [, setTick] = useState(0);
 
   useEffect(() => {
@@ -94,6 +143,19 @@ function MenuBar({ editor }: { editor: Editor }) {
     editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
   };
 
+  // Get current font size from selection
+  const currentFontSize = editor.getAttributes('textStyle').fontSize || '';
+
+  const handleFontSizeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    e.preventDefault();
+    const size = e.target.value;
+    if (!size) {
+      (editor.chain().focus() as any).unsetFontSize().run();
+    } else {
+      (editor.chain().focus() as any).setFontSize(size).run();
+    }
+  };
+
   return (
     <div className="flex flex-wrap items-center gap-1 border-b border-gray-200 bg-gray-50/50 px-3 py-2">
       <ToolbarBtn title="Bold" onAction={() => editor.chain().focus().toggleBold().run()} active={editor.isActive('bold')}>
@@ -102,6 +164,27 @@ function MenuBar({ editor }: { editor: Editor }) {
       <ToolbarBtn title="Italic" onAction={() => editor.chain().focus().toggleItalic().run()} active={editor.isActive('italic')}>
         <Italic size={16} />
       </ToolbarBtn>
+
+      <Divider />
+
+      {/* Font Size Dropdown */}
+      <div className="flex items-center gap-1" title="Ukuran Font">
+        <CaseSensitive size={15} className="text-gray-500 shrink-0" />
+        <select
+          tabIndex={-1}
+          value={currentFontSize}
+          onMouseDown={(e) => e.stopPropagation()}
+          onChange={handleFontSizeChange}
+          className="h-7 rounded border border-gray-200 bg-white px-1.5 text-xs text-gray-700 outline-none hover:border-gray-300 focus:border-zinc-900 cursor-pointer"
+        >
+          <option value="">— Ukuran —</option>
+          {FONT_SIZES.map((fs) => (
+            <option key={fs.value} value={fs.value}>
+              {fs.label} ({fs.value}px)
+            </option>
+          ))}
+        </select>
+      </div>
 
       <Divider />
 
@@ -155,11 +238,9 @@ export default function RichTextEditor({
   onChange,
   className,
 }: RichTextEditorProps) {
-  // Stable ref for onChange to prevent editor re-creation
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
 
-  // Guard: skip external sync when the change originated from editor itself
   const isUpdatingFromEditor = useRef(false);
 
   const editor = useEditor({
@@ -169,15 +250,15 @@ export default function RichTextEditor({
         openOnClick: false,
         HTMLAttributes: { class: 'text-zinc-900 underline' },
       }),
+      TextStyle,
+      FontSize,
     ],
     content: value,
-    // Tiptap v3: render synchronously for immediate availability
     immediatelyRender: true,
-    // Tiptap v3: we handle re-renders ourselves via the transaction listener in MenuBar
     shouldRerenderOnTransaction: false,
     editorProps: {
       attributes: {
-        class: 'tiptap-editor focus:outline-none min-h-[220px] px-4 py-4',
+        class: 'tiptap-editor focus:outline-none min-h-[180px] px-4 py-4',
       },
     },
     onUpdate: ({ editor: e }) => {
@@ -186,7 +267,6 @@ export default function RichTextEditor({
     },
   });
 
-  // External sync: only when value changes from outside (form reset, campaign switch)
   useEffect(() => {
     if (isUpdatingFromEditor.current) {
       isUpdatingFromEditor.current = false;
