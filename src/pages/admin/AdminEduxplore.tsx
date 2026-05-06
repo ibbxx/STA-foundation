@@ -142,6 +142,11 @@ export default function AdminEduxplore() {
                             <ExternalLink size={12} /> Bukti Follow
                           </a>
                         )}
+                        {reg.foto_id_url && (
+                          <a href={reg.foto_id_url} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-xs text-blue-600 hover:underline">
+                            <ExternalLink size={12} /> Foto ID Card
+                          </a>
+                        )}
                       </td>
                       <td className="px-6 py-4">
                         <span className={`inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-full ${

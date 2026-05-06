@@ -294,6 +294,7 @@ export interface Database {
           requirements: Json;
           description: string | null;
           show_in_hero: boolean;
+          external_link: string | null;
           status: 'open' | 'closed' | 'ongoing';
           created_at: string;
           updated_at: string;
@@ -308,6 +309,7 @@ export interface Database {
           requirements?: Json;
           description?: string | null;
           show_in_hero?: boolean;
+          external_link?: string | null;
           status?: 'open' | 'closed' | 'ongoing';
           created_at?: string;
           updated_at?: string;
@@ -322,6 +324,7 @@ export interface Database {
           requirements?: Json;
           description?: string | null;
           show_in_hero?: boolean;
+          external_link?: string | null;
           status?: 'open' | 'closed' | 'ongoing';
           created_at?: string;
           updated_at?: string;
@@ -341,6 +344,7 @@ export interface Database {
           riwayat_penyakit: string | null;
           bukti_dp_url: string | null;
           bukti_follow_url: string | null;
+          foto_id_url: string | null;
           status: 'pending' | 'verified' | 'rejected';
           created_at: string;
         };
@@ -357,6 +361,7 @@ export interface Database {
           riwayat_penyakit?: string | null;
           bukti_dp_url?: string | null;
           bukti_follow_url?: string | null;
+          foto_id_url?: string | null;
           status?: 'pending' | 'verified' | 'rejected';
           created_at?: string;
         };
@@ -373,6 +378,7 @@ export interface Database {
           riwayat_penyakit?: string | null;
           bukti_dp_url?: string | null;
           bukti_follow_url?: string | null;
+          foto_id_url?: string | null;
           status?: 'pending' | 'verified' | 'rejected';
           created_at?: string;
         };

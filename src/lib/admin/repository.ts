@@ -290,7 +290,7 @@ export function deleteVolunteerProgram(programId: string) {
 
 export async function uploadVolunteerFile(
   file: File,
-  prefix: 'dp' | 'follow',
+  prefix: 'dp' | 'follow' | 'id_card',
 ): Promise<string> {
   const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
   const filePath = `${prefix}/${Date.now()}_${safeName}`;

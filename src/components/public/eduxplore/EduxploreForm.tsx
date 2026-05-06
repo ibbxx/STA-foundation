@@ -32,7 +32,7 @@ interface Props {
 
 export default function EduxploreForm({ programId, programTitle, isOpen }: Props) {
   const [draftValues] = useState(() => loadEduxploreDraft());
-  const [assets, setAssets] = useState<EduxploreAssets>({ bukti_dp: null, bukti_follow_ig: null });
+  const [assets, setAssets] = useState<EduxploreAssets>({ bukti_dp: null, bukti_follow_ig: null, foto_id_card: null });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
@@ -92,6 +92,10 @@ export default function EduxploreForm({ programId, programTitle, isOpen }: Props
       setErrorMsg('Bukti follow IG wajib diunggah.');
       return;
     }
+    if (!assets.foto_id_card) {
+      setErrorMsg('Foto (Utk ID Card) wajib diunggah.');
+      return;
+    }
 
     setIsSubmitting(true);
     setErrorMsg(null);
@@ -100,10 +104,12 @@ export default function EduxploreForm({ programId, programTitle, isOpen }: Props
       // 1. Compress & Upload files
       const compressedDp = await compressImage(assets.bukti_dp);
       const compressedFollow = await compressImage(assets.bukti_follow_ig);
+      const compressedId = await compressImage(assets.foto_id_card);
 
-      const [dpUrl, followUrl] = await Promise.all([
+      const [dpUrl, followUrl, idUrl] = await Promise.all([
         uploadVolunteerFile(compressedDp, 'dp'),
         uploadVolunteerFile(compressedFollow, 'follow'),
+        uploadVolunteerFile(compressedId, 'id_card'),
       ]);
 
       // 2. Insert registration
@@ -119,6 +125,7 @@ export default function EduxploreForm({ programId, programTitle, isOpen }: Props
         riwayat_penyakit: values.riwayat_penyakit || null,
         bukti_dp_url: dpUrl,
         bukti_follow_url: followUrl,
+        foto_id_url: idUrl,
         status: 'pending',
       });
 
@@ -277,7 +284,7 @@ export default function EduxploreForm({ programId, programTitle, isOpen }: Props
                 </div>
 
                 {/* File Uploads */}
-                <div className="grid sm:grid-cols-2 gap-4">
+                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {/* Bukti DP */}
                   <div>
                     <label className="block text-sm font-bold text-gray-700 mb-1.5">Bukti DP *</label>
@@ -335,6 +342,37 @@ export default function EduxploreForm({ programId, programTitle, isOpen }: Props
                           accept="image/*"
                           className="hidden"
                           onChange={handleFileChange('bukti_follow_ig')}
+                        />
+                      </label>
+                    )}
+                  </div>
+
+                  {/* Foto ID Card */}
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-1.5">Foto (Utk ID Card) *</label>
+                    {assets.foto_id_card ? (
+                      <div className="relative flex items-center gap-3 p-3 bg-emerald-50 border border-emerald-200 rounded-xl">
+                        <ImageIcon size={16} className="text-emerald-600 flex-shrink-0" />
+                        <span className="text-xs text-emerald-800 font-medium truncate flex-1">
+                          {assets.foto_id_card.name}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => removeFile('foto_id_card')}
+                          className="w-6 h-6 rounded-full bg-emerald-200 text-emerald-700 flex items-center justify-center hover:bg-emerald-300 transition-colors"
+                        >
+                          <X size={12} />
+                        </button>
+                      </div>
+                    ) : (
+                      <label className="flex items-center gap-3 p-3 border-2 border-dashed border-gray-200 rounded-xl cursor-pointer hover:border-emerald-400 hover:bg-emerald-50/50 transition-all">
+                        <Upload size={16} className="text-gray-400" />
+                        <span className="text-xs text-gray-500">Upload foto</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={handleFileChange('foto_id_card')}
                         />
                       </label>
                     )}

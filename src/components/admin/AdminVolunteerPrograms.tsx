@@ -93,7 +93,7 @@ export default function AdminVolunteerPrograms() {
 
     let timelineText = '';
     let reqText = '';
-    
+
     try {
       const parsedTimeline = (Array.isArray(program.timeline) ? program.timeline : JSON.parse(program.timeline as string)) as VolunteerTimelineItem[];
       timelineText = parsedTimeline.map(t => `${t.date}|${t.label}`).join('\n');
@@ -181,10 +181,10 @@ export default function AdminVolunteerPrograms() {
 
   async function handleDelete(program: VolunteerProgramRow) {
     if (!window.confirm(`Hapus program "${program.title}"? Semua pendaftar terkait juga akan terhapus!`)) return;
-    
+
     setError(null);
     setNotice(null);
-    
+
     const { error: delError } = await deleteVolunteerProgram(program.id);
     if (delError) {
       setError(delError.message);

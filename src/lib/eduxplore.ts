@@ -60,6 +60,7 @@ export type EduxploreFormValues = z.infer<typeof eduxploreFormSchema>;
 export interface EduxploreAssets {
   bukti_dp: File | null;
   bukti_follow_ig: File | null;
+  foto_id_card: File | null;
 }
 
 // ── Default Values ──
@@ -126,7 +127,7 @@ export function buildEduxploreWhatsAppMessage(
     `• Size Baju: ${values.size_baju}`,
     `• Riwayat Penyakit: ${values.riwayat_penyakit || 'Tidak ada'}`,
     '',
-    'Bukti DP dan bukti follow IG telah diunggah melalui portal STA.',
+    'Bukti DP, bukti follow IG, dan foto ID card telah diunggah melalui portal STA.',
     '',
     'Mohon konfirmasinya. Terima kasih!',
   ].join('\n');
