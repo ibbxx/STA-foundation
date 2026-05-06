@@ -127,7 +127,7 @@ export function buildEduxploreWhatsAppMessage(
     `• Size Baju: ${values.size_baju}`,
     `• Riwayat Penyakit: ${values.riwayat_penyakit || 'Tidak ada'}`,
     '',
-    'Bukti DP, bukti follow IG, dan foto ID card telah diunggah melalui portal STA.',
+    'Bukti DP, bukti follow IG, dan pas foto (untuk ID Card) telah diunggah melalui portal STA.',
     '',
     'Mohon konfirmasinya. Terima kasih!',
   ].join('\n');

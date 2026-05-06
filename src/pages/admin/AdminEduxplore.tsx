@@ -184,7 +184,7 @@ export default function AdminEduxplore() {
                           )}
                           {reg.foto_id_url && (
                             <a href={reg.foto_id_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-lg text-[11px] font-medium transition-colors border border-purple-100 w-full sm:w-auto">
-                              <ExternalLink size={12} className="shrink-0" /> ID Card
+                              <ExternalLink size={12} className="shrink-0" /> Pas Foto (ID Card)
                             </a>
                           )}
                         </div>

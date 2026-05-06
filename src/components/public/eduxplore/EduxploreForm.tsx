@@ -93,7 +93,7 @@ export default function EduxploreForm({ programId, programTitle, isOpen }: Props
       return;
     }
     if (!assets.foto_id_card) {
-      setErrorMsg('Foto (Utk ID Card) wajib diunggah.');
+      setErrorMsg('Pas Foto (untuk ID Card) wajib diunggah.');
       return;
     }
 
@@ -131,6 +131,7 @@ export default function EduxploreForm({ programId, programTitle, isOpen }: Props
 
       if (insertError) {
         logError('EduxploreForm.insertRegistration', insertError);
+        throw insertError;
       }
 
       // 3. Success
@@ -347,9 +348,9 @@ export default function EduxploreForm({ programId, programTitle, isOpen }: Props
                     )}
                   </div>
 
-                  {/* Foto ID Card */}
+                  {/* Pas Foto */}
                   <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-1.5">Foto (Utk ID Card) *</label>
+                    <label className="block text-sm font-bold text-gray-700 mb-1.5">Pas Foto (untuk ID Card) *</label>
                     {assets.foto_id_card ? (
                       <div className="relative flex items-center gap-3 p-3 bg-emerald-50 border border-emerald-200 rounded-xl">
                         <ImageIcon size={16} className="text-emerald-600 flex-shrink-0" />
