@@ -289,8 +289,8 @@ export default function AdminEduxplore() {
           ) : (
             <div className="flex-1 overflow-y-auto divide-y divide-slate-100">
               {filtered.map(reg => (
-                <div key={reg.id} className={`w-full flex items-center hover:bg-slate-50 transition-colors ${selected?.id === reg.id ? 'bg-emerald-50/50 border-l-2 border-emerald-500' : ''}`}>
-                  <div className="pl-4 py-4 flex items-center h-full">
+                <div key={reg.id} className={`w-full flex items-stretch hover:bg-slate-50 transition-colors ${selected?.id === reg.id ? 'bg-emerald-50/50 border-l-2 border-emerald-500' : ''}`}>
+                  <div className="pl-4 flex items-center justify-center">
                     <input 
                       type="checkbox" 
                       checked={selectedIds.includes(reg.id)}
@@ -300,24 +300,24 @@ export default function AdminEduxplore() {
                   </div>
                   <button
                     onClick={() => setSelected(reg)}
-                    className="flex-1 text-left px-3 py-4 flex items-center gap-3"
+                    className="flex-1 text-left px-3 py-4 flex items-center gap-3 overflow-hidden min-w-0"
                   >
                     {/* Avatar */}
                     <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
                       {(reg.nama_lengkap || '?')[0].toUpperCase()}
                     </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="text-sm font-semibold text-slate-900 truncate">{reg.nama_lengkap}</p>
-                      <span className={`inline-flex text-[10px] font-bold px-2 py-0.5 rounded-full border flex-shrink-0 ${statusBadge(reg.status)}`}>
-                        {statusLabel(reg.status)}
-                      </span>
+                    <div className="flex-1 min-w-0 overflow-hidden">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-sm font-semibold text-slate-900 truncate">{reg.nama_lengkap}</p>
+                        <span className={`inline-flex text-[10px] font-bold px-2 py-0.5 rounded-full border flex-shrink-0 ${statusBadge(reg.status)}`}>
+                          {statusLabel(reg.status)}
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-500 truncate mt-0.5">{reg.bidang_diminati || reg.email}</p>
+                      <p className="text-[10px] text-slate-400 mt-1">{formatAdminDate(reg.created_at)}</p>
                     </div>
-                    <p className="text-xs text-slate-500 truncate mt-0.5">{reg.bidang_diminati || reg.email}</p>
-                    <p className="text-[10px] text-slate-400 mt-1">{formatAdminDate(reg.created_at)}</p>
-                  </div>
-                  <ChevronRight size={14} className="text-slate-300 flex-shrink-0 mr-4" />
-                </button>
+                    <ChevronRight size={14} className="text-slate-300 flex-shrink-0 pr-1" />
+                  </button>
               </div>
               ))}
             </div>
