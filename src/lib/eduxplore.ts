@@ -37,13 +37,13 @@ export interface VolunteerProgramData {
 
 // ── Zod Schema ──
 
-const phoneRegex = /^(?:\+62|62|0)8\d{7,13}$/;
+const phoneRegex = /^08\d{7,13}$/;
 const waSchema = z
   .string()
   .min(1, 'Nomor WhatsApp wajib diisi')
   .refine(
     (v) => phoneRegex.test(v.replace(/[\s-]/g, '')),
-    'Nomor WhatsApp tidak valid',
+    'Nomor WhatsApp harus diawali dengan angka 0 (contoh: 0812...)',
   );
 
 export const eduxploreFormSchema = z.object({
