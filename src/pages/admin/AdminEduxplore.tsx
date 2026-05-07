@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { fetchAllVolunteerRegistrations, fetchVolunteerPrograms, updateVolunteerRegistrationStatus } from '../../lib/admin/repository';
+import { fetchAllVolunteerRegistrations, fetchVolunteerPrograms, updateVolunteerRegistrationStatus, deleteVolunteerRegistrations } from '../../lib/admin/repository';
 import type { VolunteerRegistrationRow, VolunteerProgramRow } from '../../lib/supabase/types';
 import { formatAdminDate } from '../../lib/admin/helpers';
 import {
   Loader2, RefreshCw, CheckCircle2, XCircle, Search, ExternalLink,
   Download, MessageCircle, UserCheck, Clock, Users, ChevronRight,
   X, MapPin, Phone, Mail, Cake, Shirt, BookOpen, Target, AlertCircle,
-  FileImage, Filter, FileSpreadsheet
+  FileImage, Filter, FileSpreadsheet, Trash2
 } from 'lucide-react';
 import { logError } from '../../lib/error-logger';
 import * as XLSX from 'xlsx';
@@ -21,6 +21,7 @@ export default function AdminEduxplore() {
   const [selectedStatus, setSelectedStatus] = useState<StatusFilter>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [selected, setSelected] = useState<VolunteerRegistrationRow | null>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [updating, setUpdating] = useState(false);
 
   async function loadData() {
@@ -54,6 +55,38 @@ export default function AdminEduxplore() {
       setUpdating(false);
     }
   }
+
+  const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.checked) {
+      setSelectedIds(filtered.map(r => r.id));
+    } else {
+      setSelectedIds([]);
+    }
+  };
+
+  const handleSelectRow = (id: string, checked: boolean) => {
+    if (checked) {
+      setSelectedIds(prev => [...prev, id]);
+    } else {
+      setSelectedIds(prev => prev.filter(i => i !== id));
+    }
+  };
+
+  const handleDeleteSelected = async () => {
+    if (!confirm(`Apakah Anda yakin ingin menghapus ${selectedIds.length} data pendaftar? Tindakan ini tidak dapat dibatalkan.`)) return;
+    setUpdating(true);
+    try {
+      const { error } = await deleteVolunteerRegistrations(selectedIds);
+      if (error) throw error;
+      setRegistrations(prev => prev.filter(r => !selectedIds.includes(r.id)));
+      if (selected && selectedIds.includes(selected.id)) setSelected(null);
+      setSelectedIds([]);
+    } catch (err) {
+      alert('Gagal menghapus data.');
+    } finally {
+      setUpdating(false);
+    }
+  };
 
   const filtered = registrations.filter(r => {
     if (selectedProgram !== 'all' && r.program_id !== selectedProgram) return false;
@@ -220,7 +253,26 @@ export default function AdminEduxplore() {
           </div>
 
           <div className="flex items-center justify-between px-4 py-2.5 border-b border-slate-100 bg-white">
-            <span className="text-xs font-semibold text-slate-500">{filtered.length} Pendaftar</span>
+            <div className="flex items-center gap-3">
+              <input 
+                type="checkbox" 
+                checked={filtered.length > 0 && selectedIds.length === filtered.length}
+                onChange={handleSelectAll}
+                className="w-4 h-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-600"
+              />
+              <span className="text-xs font-semibold text-slate-500">
+                {selectedIds.length > 0 ? `${selectedIds.length} Dipilih` : `${filtered.length} Pendaftar`}
+              </span>
+            </div>
+            {selectedIds.length > 0 && (
+              <button 
+                onClick={handleDeleteSelected}
+                disabled={updating}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-lg transition-colors disabled:opacity-50"
+              >
+                <Trash2 size={14} /> Hapus
+              </button>
+            )}
           </div>
 
           {/* List */}
@@ -237,15 +289,23 @@ export default function AdminEduxplore() {
           ) : (
             <div className="flex-1 overflow-y-auto divide-y divide-slate-100">
               {filtered.map(reg => (
-                <button
-                  key={reg.id}
-                  onClick={() => setSelected(reg)}
-                  className={`w-full text-left px-4 py-4 flex items-center gap-3 hover:bg-slate-50 transition-colors ${selected?.id === reg.id ? 'bg-emerald-50/50 border-l-2 border-emerald-500' : ''}`}
-                >
-                  {/* Avatar */}
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
-                    {(reg.nama_lengkap || '?')[0].toUpperCase()}
+                <div key={reg.id} className={`w-full flex items-center hover:bg-slate-50 transition-colors ${selected?.id === reg.id ? 'bg-emerald-50/50 border-l-2 border-emerald-500' : ''}`}>
+                  <div className="pl-4 py-4 flex items-center h-full">
+                    <input 
+                      type="checkbox" 
+                      checked={selectedIds.includes(reg.id)}
+                      onChange={(e) => handleSelectRow(reg.id, e.target.checked)}
+                      className="w-4 h-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-600"
+                    />
                   </div>
+                  <button
+                    onClick={() => setSelected(reg)}
+                    className="flex-1 text-left px-3 py-4 flex items-center gap-3"
+                  >
+                    {/* Avatar */}
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+                      {(reg.nama_lengkap || '?')[0].toUpperCase()}
+                    </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2">
                       <p className="text-sm font-semibold text-slate-900 truncate">{reg.nama_lengkap}</p>
@@ -256,8 +316,9 @@ export default function AdminEduxplore() {
                     <p className="text-xs text-slate-500 truncate mt-0.5">{reg.bidang_diminati || reg.email}</p>
                     <p className="text-[10px] text-slate-400 mt-1">{formatAdminDate(reg.created_at)}</p>
                   </div>
-                  <ChevronRight size={14} className="text-slate-300 flex-shrink-0" />
+                  <ChevronRight size={14} className="text-slate-300 flex-shrink-0 mr-4" />
                 </button>
+              </div>
               ))}
             </div>
           )}

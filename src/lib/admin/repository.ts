@@ -340,3 +340,10 @@ export function updateVolunteerRegistrationStatus(
     .update(update as never)
     .eq('id', id);
 }
+
+export function deleteVolunteerRegistrations(ids: string[]) {
+  return supabase
+    .from('volunteer_registrations')
+    .delete()
+    .in('id', ids);
+}
