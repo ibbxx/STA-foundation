@@ -47,15 +47,16 @@ export default function EduxploreForm({ programId, programTitle, isOpen }: Props
   } = useForm<EduxploreFormValues>({
     resolver: zodResolver(eduxploreFormSchema),
     defaultValues: draftValues,
-    mode: 'onChange',
+    mode: 'onTouched',
   });
 
-  const formValues = watch();
-
-  // Persist draft
+  // Persist draft tanpa memicu re-render di setiap ketikan (mengurangi lag)
   useEffect(() => {
-    if (!isSuccess) persistEduxploreDraft(formValues);
-  }, [formValues, isSuccess]);
+    const subscription = watch((value) => {
+      if (!isSuccess) persistEduxploreDraft(value as EduxploreFormValues);
+    });
+    return () => subscription.unsubscribe();
+  }, [watch, isSuccess]);
 
   // File handler
   const handleFileChange = (key: keyof EduxploreAssets) => (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -196,7 +197,7 @@ export default function EduxploreForm({ programId, programTitle, isOpen }: Props
                     {...register('nama_lengkap')}
                     type="text"
                     placeholder="Nama lengkap Anda"
-                    className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-colors"
                   />
                   {errors.nama_lengkap && <p className="text-xs text-red-500 mt-1">{errors.nama_lengkap.message}</p>}
                 </div>
@@ -208,7 +209,7 @@ export default function EduxploreForm({ programId, programTitle, isOpen }: Props
                     {...register('email')}
                     type="email"
                     placeholder="email@contoh.com"
-                    className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-colors"
                   />
                   {errors.email && <p className="text-xs text-red-500 mt-1">{errors.email.message}</p>}
                 </div>
@@ -221,7 +222,7 @@ export default function EduxploreForm({ programId, programTitle, isOpen }: Props
                       {...register('whatsapp')}
                       type="tel"
                       placeholder="08xxxxxxxxxx"
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all"
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-colors"
                     />
                     {errors.whatsapp && <p className="text-xs text-red-500 mt-1">{errors.whatsapp.message}</p>}
                   </div>
@@ -231,7 +232,7 @@ export default function EduxploreForm({ programId, programTitle, isOpen }: Props
                       {...register('whatsapp_emergency')}
                       type="tel"
                       placeholder="08xxxxxxxxxx"
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all"
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-colors"
                     />
                     {errors.whatsapp_emergency && <p className="text-xs text-red-500 mt-1">{errors.whatsapp_emergency.message}</p>}
                   </div>
@@ -244,7 +245,7 @@ export default function EduxploreForm({ programId, programTitle, isOpen }: Props
                     {...register('alamat')}
                     rows={2}
                     placeholder="Alamat lengkap Anda"
-                    className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all resize-none"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-colors resize-none"
                   />
                   {errors.alamat && <p className="text-xs text-red-500 mt-1">{errors.alamat.message}</p>}
                 </div>
@@ -256,7 +257,7 @@ export default function EduxploreForm({ programId, programTitle, isOpen }: Props
                     <input
                       {...register('tanggal_lahir')}
                       type="date"
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all"
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-colors"
                     />
                     {errors.tanggal_lahir && <p className="text-xs text-red-500 mt-1">{errors.tanggal_lahir.message}</p>}
                   </div>
@@ -264,7 +265,7 @@ export default function EduxploreForm({ programId, programTitle, isOpen }: Props
                     <label className="block text-sm font-bold text-gray-700 mb-1.5">Ukuran Baju *</label>
                     <select
                       {...register('size_baju')}
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all bg-white"
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-colors bg-white"
                     >
                       <option value="">Pilih ukuran</option>
                       {SIZE_OPTIONS.map((size) => (
@@ -282,7 +283,7 @@ export default function EduxploreForm({ programId, programTitle, isOpen }: Props
                     {...register('pendidikan')}
                     type="text"
                     placeholder="Contoh: S1 Pendidikan Biologi - Universitas Hasanuddin"
-                    className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-colors"
                   />
                   {errors.pendidikan && <p className="text-xs text-red-500 mt-1">{errors.pendidikan.message}</p>}
                 </div>
@@ -292,7 +293,7 @@ export default function EduxploreForm({ programId, programTitle, isOpen }: Props
                   <label className="block text-sm font-bold text-gray-700 mb-1.5">Bidang yang Diminati *</label>
                   <select
                     {...register('bidang_diminati')}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all bg-white"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-colors bg-white"
                   >
                     <option value="">Pilih bidang</option>
                     {BIDANG_OPTIONS.map((option) => (
@@ -311,7 +312,7 @@ export default function EduxploreForm({ programId, programTitle, isOpen }: Props
                     {...register('riwayat_penyakit')}
                     rows={2}
                     placeholder="Tuliskan jika ada riwayat penyakit..."
-                    className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all resize-none"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-colors resize-none"
                   />
                 </div>
 
@@ -335,7 +336,7 @@ export default function EduxploreForm({ programId, programTitle, isOpen }: Props
                         </button>
                       </div>
                     ) : (
-                      <label className="flex items-center gap-3 p-3 border-2 border-dashed border-gray-200 rounded-xl cursor-pointer hover:border-emerald-400 hover:bg-emerald-50/50 transition-all">
+                      <label className="flex items-center gap-3 p-3 border-2 border-dashed border-gray-200 rounded-xl cursor-pointer hover:border-emerald-400 hover:bg-emerald-50/50 transition-colors">
                         <Upload size={16} className="text-gray-400" />
                         <span className="text-xs text-gray-500">Upload bukti DP</span>
                         <input
@@ -366,7 +367,7 @@ export default function EduxploreForm({ programId, programTitle, isOpen }: Props
                         </button>
                       </div>
                     ) : (
-                      <label className="flex items-center gap-3 p-3 border-2 border-dashed border-gray-200 rounded-xl cursor-pointer hover:border-emerald-400 hover:bg-emerald-50/50 transition-all">
+                      <label className="flex items-center gap-3 p-3 border-2 border-dashed border-gray-200 rounded-xl cursor-pointer hover:border-emerald-400 hover:bg-emerald-50/50 transition-colors">
                         <Upload size={16} className="text-gray-400" />
                         <span className="text-xs text-gray-500">Upload bukti follow</span>
                         <input
@@ -397,7 +398,7 @@ export default function EduxploreForm({ programId, programTitle, isOpen }: Props
                         </button>
                       </div>
                     ) : (
-                      <label className="flex items-center gap-3 p-3 border-2 border-dashed border-gray-200 rounded-xl cursor-pointer hover:border-emerald-400 hover:bg-emerald-50/50 transition-all">
+                      <label className="flex items-center gap-3 p-3 border-2 border-dashed border-gray-200 rounded-xl cursor-pointer hover:border-emerald-400 hover:bg-emerald-50/50 transition-colors">
                         <Upload size={16} className="text-gray-400" />
                         <span className="text-xs text-gray-500">Upload foto</span>
                         <input
@@ -438,7 +439,7 @@ export default function EduxploreForm({ programId, programTitle, isOpen }: Props
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="w-full h-14 rounded-xl bg-emerald-600 text-white font-bold text-base hover:bg-emerald-500 active:scale-[0.98] transition-all shadow-lg shadow-emerald-200/50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  className="w-full h-14 rounded-xl bg-emerald-600 text-white font-bold text-base hover:bg-emerald-500 active:scale-[0.98] transition-colors shadow-lg shadow-emerald-200/50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
                   {isSubmitting ? (
                     <>
