@@ -358,7 +358,7 @@ export async function deleteVolunteerRegistrations(ids: string[]) {
       return parts.length === 2 ? decodeURIComponent(parts[1]) : null;
     };
 
-    records.forEach(record => {
+    (records as any[]).forEach(record => {
       const dp = extractPath(record.bukti_dp_url);
       const follow = extractPath(record.bukti_follow_url);
       const idCard = extractPath(record.foto_id_url);
