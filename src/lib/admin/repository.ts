@@ -341,7 +341,46 @@ export function updateVolunteerRegistrationStatus(
     .eq('id', id);
 }
 
-export function deleteVolunteerRegistrations(ids: string[]) {
+export async function deleteVolunteerRegistrations(ids: string[]) {
+  // 1. Ambil URL file untuk pendaftar yang akan dihapus
+  const { data: records, error: fetchError } = await supabase
+    .from('volunteer_registrations')
+    .select('bukti_dp_url, bukti_follow_url, foto_id_url')
+    .in('id', ids);
+
+  // 2. Kumpulkan path file dari storage
+  if (!fetchError && records && records.length > 0) {
+    const filePaths: string[] = [];
+    
+    const extractPath = (url: string | null) => {
+      if (!url) return null;
+      const parts = url.split('/volunteer-assets/');
+      return parts.length === 2 ? decodeURIComponent(parts[1]) : null;
+    };
+
+    records.forEach(record => {
+      const dp = extractPath(record.bukti_dp_url);
+      const follow = extractPath(record.bukti_follow_url);
+      const idCard = extractPath(record.foto_id_url);
+      
+      if (dp) filePaths.push(dp);
+      if (follow) filePaths.push(follow);
+      if (idCard) filePaths.push(idCard);
+    });
+
+    // 3. Hapus file dari Supabase Storage jika ada
+    if (filePaths.length > 0) {
+      const { error: storageError } = await supabase.storage
+        .from('volunteer-assets')
+        .remove(filePaths);
+      
+      if (storageError) {
+        console.error('Failed to delete some storage files:', storageError);
+      }
+    }
+  }
+
+  // 4. Hapus baris data dari database
   return supabase
     .from('volunteer_registrations')
     .delete()
