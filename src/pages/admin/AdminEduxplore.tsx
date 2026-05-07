@@ -162,7 +162,15 @@ export default function AdminEduxplore() {
                           <span className="text-xs text-slate-500">Baju:</span>
                           <span className="px-2 py-0.5 bg-slate-100 text-slate-700 text-xs font-bold rounded">{reg.size_baju}</span>
                         </div>
-                        <p className="text-slate-600 text-xs">Lahir: {reg.tanggal_lahir}</p>
+                         <p className="text-slate-600 text-xs">Lahir: {reg.tanggal_lahir}</p>
+                        <div className="mt-2 space-y-1">
+                          <p className="text-[11px] text-slate-500 font-medium leading-tight">
+                            🎓 {reg.pendidikan || <span className="text-slate-300 italic">Belum diisi</span>}
+                          </p>
+                          <p className="text-[11px] text-emerald-600 font-bold leading-tight">
+                            🎯 {reg.bidang_diminati || <span className="text-slate-300 italic font-normal">Belum diisi</span>}
+                          </p>
+                        </div>
                         {reg.riwayat_penyakit && (
                           <div className="mt-2 text-[11px] bg-rose-50 border border-rose-100 text-rose-700 px-2 py-1.5 rounded-lg flex gap-1">
                             <span className="font-bold shrink-0">Sakit:</span>

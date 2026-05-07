@@ -7,6 +7,12 @@ export const EDUXPLORE_ADMIN_NUMBER = '6287882799026';
 export const EDUXPLORE_DRAFT_KEY = 'sta-eduxplore-draft-v1';
 
 export const SIZE_OPTIONS = ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL'] as const;
+export const BIDANG_OPTIONS = [
+  'Pengembangan Pemuda',
+  'Pendidikan dan Pengajaran Siswa Guru',
+  'Media dan Promosi serta Branding Desa',
+  'Branding Budaya dan Lingkungan Lokal',
+] as const;
 
 // ── Timeline Interface ──
 
@@ -51,6 +57,8 @@ export const eduxploreFormSchema = z.object({
     error: 'Ukuran baju wajib dipilih',
   }),
   riwayat_penyakit: z.string().optional(),
+  pendidikan: z.string().min(3, 'Latar belakang pendidikan wajib diisi'),
+  bidang_diminati: z.string().min(1, 'Pilihan bidang wajib dipilih'),
 });
 
 export type EduxploreFormValues = z.infer<typeof eduxploreFormSchema>;
@@ -74,6 +82,8 @@ export const EDUXPLORE_DEFAULT_VALUES: EduxploreFormValues = {
   tanggal_lahir: '',
   size_baju: '' as any,
   riwayat_penyakit: '',
+  pendidikan: '',
+  bidang_diminati: '',
 };
 
 // ── Draft Persistence ──
@@ -125,6 +135,8 @@ export function buildEduxploreWhatsAppMessage(
     `• Alamat: ${values.alamat}`,
     `• Tanggal Lahir: ${values.tanggal_lahir}`,
     `• Size Baju: ${values.size_baju}`,
+    `• Pendidikan: ${values.pendidikan}`,
+    `• Bidang Diminati: ${values.bidang_diminati}`,
     `• Riwayat Penyakit: ${values.riwayat_penyakit || 'Tidak ada'}`,
     '',
     'Bukti DP, bukti follow IG, dan pas foto (untuk ID Card) telah diunggah melalui portal STA.',

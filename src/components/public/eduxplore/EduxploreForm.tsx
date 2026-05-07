@@ -12,6 +12,7 @@ import {
   type EduxploreAssets,
   EDUXPLORE_DEFAULT_VALUES,
   SIZE_OPTIONS,
+  BIDANG_OPTIONS,
   loadEduxploreDraft,
   persistEduxploreDraft,
   clearEduxploreDraft,
@@ -122,6 +123,8 @@ export default function EduxploreForm({ programId, programTitle, isOpen }: Props
         alamat: values.alamat,
         tanggal_lahir: values.tanggal_lahir,
         size_baju: values.size_baju,
+        pendidikan: values.pendidikan,
+        bidang_diminati: values.bidang_diminati,
         riwayat_penyakit: values.riwayat_penyakit || null,
         bukti_dp_url: dpUrl,
         bukti_follow_url: followUrl,
@@ -270,6 +273,33 @@ export default function EduxploreForm({ programId, programTitle, isOpen }: Props
                     </select>
                     {errors.size_baju && <p className="text-xs text-red-500 mt-1">{errors.size_baju.message}</p>}
                   </div>
+                </div>
+
+                {/* Latar Belakang Pendidikan */}
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-1.5">Latar Belakang Pendidikan *</label>
+                  <input
+                    {...register('pendidikan')}
+                    type="text"
+                    placeholder="Contoh: S1 Pendidikan Biologi - Universitas Hasanuddin"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all"
+                  />
+                  {errors.pendidikan && <p className="text-xs text-red-500 mt-1">{errors.pendidikan.message}</p>}
+                </div>
+
+                {/* Bidang yang Diminati */}
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-1.5">Bidang yang Diminati *</label>
+                  <select
+                    {...register('bidang_diminati')}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all bg-white"
+                  >
+                    <option value="">Pilih bidang</option>
+                    {BIDANG_OPTIONS.map((option) => (
+                      <option key={option} value={option}>{option}</option>
+                    ))}
+                  </select>
+                  {errors.bidang_diminati && <p className="text-xs text-red-500 mt-1">{errors.bidang_diminati.message}</p>}
                 </div>
 
                 {/* Riwayat Penyakit */}

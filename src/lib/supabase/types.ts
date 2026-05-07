@@ -342,6 +342,8 @@ export interface Database {
           tanggal_lahir: string;
           size_baju: string;
           riwayat_penyakit: string | null;
+          pendidikan: string | null;
+          bidang_diminati: string | null;
           bukti_dp_url: string | null;
           bukti_follow_url: string | null;
           foto_id_url: string | null;
@@ -359,6 +361,8 @@ export interface Database {
           tanggal_lahir: string;
           size_baju: string;
           riwayat_penyakit?: string | null;
+          pendidikan?: string | null;
+          bidang_diminati?: string | null;
           bukti_dp_url?: string | null;
           bukti_follow_url?: string | null;
           foto_id_url?: string | null;
@@ -376,6 +380,8 @@ export interface Database {
           tanggal_lahir?: string;
           size_baju?: string;
           riwayat_penyakit?: string | null;
+          pendidikan?: string | null;
+          bidang_diminati?: string | null;
           bukti_dp_url?: string | null;
           bukti_follow_url?: string | null;
           foto_id_url?: string | null;
