@@ -316,6 +316,41 @@ export default function EduxploreForm({ programId, programTitle, isOpen }: Props
                   />
                 </div>
 
+                {/* Informasi Pembayaran & QRIS */}
+                <div className="bg-emerald-50 rounded-2xl p-6 border border-emerald-200">
+                  <div className="text-center mb-5">
+                    <h3 className="text-sm sm:text-base font-bold text-emerald-900 mb-2">
+                      Informasi Pembayaran (DP)
+                    </h3>
+                    <p className="text-xs sm:text-sm text-emerald-700 leading-relaxed max-w-lg mx-auto">
+                      Silakan lakukan pembayaran Down Payment (DP) sebesar <strong className="font-bold text-emerald-900">Rp 300.000</strong> melalui scan QRIS di bawah ini sebelum mengunggah bukti pendaftaran.
+                    </p>
+                  </div>
+                  <div className="flex justify-center">
+                    <a 
+                      href="/images/qris-payment.jpeg" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="bg-white p-3 rounded-2xl shadow-sm border border-emerald-100 hover:shadow-md hover:border-emerald-300 transition-all group block cursor-pointer"
+                    >
+                      <div className="relative overflow-hidden rounded-xl">
+                        <img 
+                          src="/images/qris-payment.jpeg" 
+                          alt="QRIS Pembayaran Eduxplore" 
+                          className="max-w-[200px] sm:max-w-[240px] w-full rounded-xl group-hover:scale-105 transition-transform duration-300"
+                        />
+                        <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl">
+                          <span className="text-white text-sm font-bold flex items-center gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 3h6v6"/><path d="M9 21H3v-6"/><path d="M21 3l-7 7"/><path d="M3 21l7-7"/></svg>
+                            Perbesar
+                          </span>
+                        </div>
+                      </div>
+                      <p className="text-center text-[10px] text-emerald-600 mt-2 font-medium">Klik untuk memperbesar</p>
+                    </a>
+                  </div>
+                </div>
+
                 {/* File Uploads */}
                 <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {/* Bukti DP */}

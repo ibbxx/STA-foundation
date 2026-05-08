@@ -89,7 +89,9 @@ export default function EduxploreDetail({ description, requirements }: Props) {
                       <CheckCircle2 size={16} />
                     </div>
                     <p className="text-sm sm:text-base text-gray-700 font-medium leading-relaxed">
-                      {req}
+                      {req.toLowerCase().includes('membayar dp') && !req.includes('300')
+                        ? `${req} (Rp 300.000)`
+                        : req}
                     </p>
                   </motion.div>
                 ))}
