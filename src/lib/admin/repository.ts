@@ -328,6 +328,7 @@ export function fetchAllVolunteerRegistrations() {
   return supabase
     .from('volunteer_registrations')
     .select('*')
+    .limit(10000)
     .order('created_at', { ascending: false });
 }
 
