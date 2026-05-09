@@ -28,6 +28,7 @@ const schema = z.object({
   status: z.enum(['open', 'closed', 'ongoing']),
   timeline_text: z.string().optional(),
   requirements_text: z.string().optional(),
+  external_link: z.string().optional(),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -42,6 +43,7 @@ const defaultValues: FormValues = {
   status: 'open',
   timeline_text: '',
   requirements_text: '',
+  external_link: '',
 };
 
 export default function AdminVolunteerPrograms() {
@@ -119,6 +121,7 @@ export default function AdminVolunteerPrograms() {
       status: program.status,
       timeline_text: timelineText,
       requirements_text: reqText,
+      external_link: program.external_link || '',
     });
     setMode('edit');
   }
@@ -200,6 +203,7 @@ export default function AdminVolunteerPrograms() {
         status: values.status,
         timeline: timeline as unknown as import('../../lib/supabase/types').Json,
         requirements: requirements as unknown as import('../../lib/supabase/types').Json,
+        external_link: values.external_link || null,
       };
 
       const { error: saveError } = await saveVolunteerProgram(payload, editingProgram?.id);
@@ -399,6 +403,13 @@ export default function AdminVolunteerPrograms() {
               />
             )}
           />
+
+          {/* Link Eksternal */}
+          <label className="block space-y-1.5">
+            <span className="text-sm font-semibold text-slate-700">Link Pendaftaran Eksternal (Opsional)</span>
+            <input type="url" {...register('external_link')} className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500" placeholder="Contoh: https://forms.gle/xyz123" />
+            <p className="text-[11px] text-slate-500 leading-relaxed">Jika diisi, tombol 'Daftar' di website publik akan mengalihkan pengguna ke link ini (misal Google Form) alih-alih menggunakan form registrasi bawaan sistem.</p>
+          </label>
 
           {/* Toggle Hero Beranda */}
           <label className="flex items-start gap-3 p-4 rounded-xl border-2 border-dashed border-emerald-200 bg-emerald-50/50 cursor-pointer hover:border-emerald-300 transition-colors">

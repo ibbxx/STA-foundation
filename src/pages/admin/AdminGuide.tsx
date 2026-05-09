@@ -310,6 +310,23 @@ const GUIDE_SECTIONS: GuideSection[] = [
       {
         title: 'Cara Khusus: Menautkan Relawan ke Google Form',
         detail: 'Jika yayasan Anda sedang tidak ingin menggunakan form website untuk pendaftaran EduXplore, dan lebih memilih menggunakan Google Forms/Typeform:\n\n1. Buka tab "Program Relawan".\n2. Edit program EduXplore yang diinginkan.\n3. Di dalam formulir, cari kotak bernama "Link Eksternal".\n4. Tempelkan (Paste) link Google Form Anda ke situ.\n5. Selesai! Kini setiap tombol "Daftar Sekarang" di website akan melempar pengguna ke link Google Form tersebut.',
+        visual: (
+          <div className="flex flex-col gap-4 p-4 bg-slate-50 border border-slate-200 rounded-xl max-w-sm w-full">
+            <div>
+              <label className="text-xs font-bold text-slate-700">Link Pendaftaran Eksternal (Opsional)</label>
+              <div className="mt-1 flex items-center gap-2 px-3 py-2 bg-white border border-slate-200 rounded-md text-xs text-slate-500 shadow-sm">
+                <ExternalLink size={14} className="text-slate-400" />
+                <span className="truncate">https://forms.gle/xyz123...</span>
+              </div>
+            </div>
+            <div className="flex items-center justify-between border-t border-slate-200 pt-3">
+              <span className="text-xs font-bold text-slate-700">Jadikan Hero Banner</span>
+              <div className="w-8 h-5 bg-emerald-500 rounded-full flex items-center justify-end px-1 shadow-inner">
+                <div className="w-3.5 h-3.5 bg-white rounded-full shadow-sm"></div>
+              </div>
+            </div>
+          </div>
+        ),
         tip: 'Di tab Program Relawan yang sama, jika Anda menyalakan tombol (toggle) "Jadikan Hero Banner" menjadi warna hijau, poster relawan tersebut akan memaksa masuk ke urutan paling depan di banner raksasa halaman beranda secara otomatis.'
       }
     ],

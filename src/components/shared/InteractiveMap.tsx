@@ -1,4 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
+import maplibregl from 'maplibre-gl';
+import MapWorker from 'maplibre-gl/dist/maplibre-gl-csp-worker?worker';
 import Map, { Marker } from 'react-map-gl/maplibre';
 import type { MapRef } from '@vis.gl/react-maplibre';
 import type { LngLatBoundsLike } from 'maplibre-gl';
@@ -8,6 +10,11 @@ import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { EventMapLocation } from '../../lib/public/events';
 import { cn } from '../../lib/utils';
+
+// Assign worker for Vite production build
+if (!(maplibregl as any).workerClass) {
+  (maplibregl as any).workerClass = MapWorker;
+}
 
 // ─── Map tile styles ───────────────────────────────────────────────────────────
 
