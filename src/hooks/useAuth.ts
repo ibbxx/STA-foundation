@@ -43,10 +43,12 @@ export function useAuth(): UseAuthReturn {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+    } = supabase.auth.onAuthStateChange((event, nextSession) => {
       if (ignore) return;
       setSession(nextSession);
-      setLoading(false);
+      if (event !== 'INITIAL_SESSION') {
+        setLoading(false);
+      }
     });
 
     return () => {

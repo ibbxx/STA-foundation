@@ -35,6 +35,7 @@ export default function AdminContent() {
   const [notice, setNotice] = useState<string | null>(null);
   const [mode, setMode] = useState<'create' | 'edit' | null>(null);
   const [editingProgram, setEditingProgram] = useState<ProgramRow | null>(null);
+  const [activeTab, setActiveTab] = useState<'website' | 'programs' | 'volunteer'>('website');
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   // Header Config State
@@ -372,30 +373,62 @@ export default function AdminContent() {
   }
 
   return (
-    <div className="space-y-12 pb-12">
+    <div className="space-y-6 pb-12">
       {/* ═══════ PAGE HEADER ═══════ */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">Manajemen Konten</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">Pengaturan Konten</h1>
           <p className="text-sm text-slate-500 mt-1">Kelola hero, konten program, dan deskripsi aplikasi Sekolah Tanah Air.</p>
         </div>
       </div>
 
-      {/* ═══════ SECTION: HERO BERANDA ═══════ */}
-      <div className="space-y-4">
-        <div className="border-b border-slate-200 pb-4">
-          <h2 className="text-lg font-bold text-slate-900">Hero Beranda</h2>
-          <p className="text-sm text-slate-500">Atur media dan teks utama yang pertama kali dilihat pengunjung.</p>
-        </div>
-        <AdminHeroManager />
-        <AdminOtherPagesHero />
+      {/* ═══════ TABS NAVIGATION ═══════ */}
+      <div className="flex bg-slate-100/50 p-1 rounded-xl overflow-x-auto border border-slate-200/50 w-max max-w-full">
+        {[
+          { id: 'website', label: 'Tampilan Website' },
+          { id: 'programs', label: 'Program Utama (STA)' },
+          { id: 'volunteer', label: 'Program Relawan (EduXplore)' },
+        ].map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id as typeof activeTab)}
+            className={cn(
+              'px-5 py-2.5 text-sm font-semibold rounded-lg transition-all whitespace-nowrap',
+              activeTab === tab.id
+                ? 'bg-white text-zinc-950 shadow-sm border border-slate-200'
+                : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'
+            )}
+          >
+            {tab.label}
+          </button>
+        ))}
       </div>
 
-      {/* ═══════ SECTION: PROGRAM VOLUNTEER (EDUXPLORE) ═══════ */}
-      <AdminVolunteerPrograms />
+      <div className="pt-2">
+        {/* ═══════ SECTION: TAMPILAN WEBSITE ═══════ */}
+        {activeTab === 'website' && (
+          <div className="space-y-10 animate-in fade-in slide-in-from-bottom-2 duration-300">
+            <div className="space-y-4">
+              <div className="border-b border-slate-200 pb-4">
+                <h2 className="text-lg font-bold text-slate-900">Hero Beranda & Halaman Lain</h2>
+                <p className="text-sm text-slate-500">Atur media dan teks utama yang pertama kali dilihat pengunjung.</p>
+              </div>
+              <AdminHeroManager />
+              <AdminOtherPagesHero />
+            </div>
+          </div>
+        )}
 
-      {/* ═══════ SECTION: PROGRAM STA ═══════ */}
-      <div className="space-y-6">
+        {/* ═══════ SECTION: PROGRAM VOLUNTEER (EDUXPLORE) ═══════ */}
+        {activeTab === 'volunteer' && (
+          <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+            <AdminVolunteerPrograms />
+          </div>
+        )}
+
+        {/* ═══════ SECTION: PROGRAM STA ═══════ */}
+        {activeTab === 'programs' && (
+          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-slate-200 pb-4">
           <div>
             <h2 className="text-lg font-bold text-slate-900">Program & Inisiatif</h2>
@@ -562,41 +595,45 @@ export default function AdminContent() {
         )}
       </div>
       </div>
+      )}
 
       {/* ═══════ SECTION: CTA BERANDA ═══════ */}
-      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
-        <div className="p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-6">
-          <div className="flex items-center gap-4">
-            <div>
-              <h2 className="text-lg font-bold text-slate-900">Ajakan Bertindak (CTA)</h2>
-              <p className="text-sm text-slate-500">Sesuaikan teks, gambar, dan tombol ajakan di bagian bawah Beranda.</p>
+        {activeTab === 'website' && (
+          <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-300 mt-6">
+            <div className="p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+              <div className="flex items-center gap-4">
+                <div>
+                  <h2 className="text-lg font-bold text-slate-900">Ajakan Bertindak (CTA)</h2>
+                  <p className="text-sm text-slate-500">Sesuaikan teks, gambar, dan tombol ajakan di bagian bawah Beranda.</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setCtaModalOpen(true)}
+                className="flex items-center gap-2 px-6 py-3 bg-zinc-900 text-white rounded-xl text-sm font-semibold hover:bg-zinc-800 transition-all shadow-lg shadow-zinc-100 whitespace-nowrap"
+              >
+                Edit Konten CTA
+              </button>
+            </div>
+            
+            {/* Konten Terpasang (Preview) */}
+            <div className="px-6 pb-6">
+              <div className="p-4 bg-slate-50 rounded-xl border border-slate-100 flex flex-wrap gap-x-12 gap-y-4">
+                <div className="space-y-1">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Judul Saat Ini</p>
+                  <p className="text-sm font-medium text-slate-700">{ctaData.title}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Aksi Utama</p>
+                  <p className="text-sm font-medium text-slate-700">{ctaData.primaryButtonText} ({ctaData.primaryButtonLink})</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Status Gambar</p>
+                  <p className="text-sm font-medium text-slate-700">{ctaData.imageUrl ? 'Terpasang' : 'Tidak Ada'}</p>
+                </div>
+              </div>
             </div>
           </div>
-          <button
-            onClick={() => setCtaModalOpen(true)}
-            className="flex items-center gap-2 px-6 py-3 bg-zinc-900 text-white rounded-xl text-sm font-semibold hover:bg-zinc-800 transition-all shadow-lg shadow-zinc-100 whitespace-nowrap"
-          >
-            Edit Konten CTA
-          </button>
-        </div>
-        
-        {/* Konten Terpasang (Preview) */}
-        <div className="px-6 pb-6">
-          <div className="p-4 bg-slate-50 rounded-xl border border-slate-100 flex flex-wrap gap-x-12 gap-y-4">
-             <div className="space-y-1">
-               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Judul Saat Ini</p>
-               <p className="text-sm font-medium text-slate-700">{ctaData.title}</p>
-             </div>
-             <div className="space-y-1">
-               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Aksi Utama</p>
-               <p className="text-sm font-medium text-slate-700">{ctaData.primaryButtonText} ({ctaData.primaryButtonLink})</p>
-             </div>
-             <div className="space-y-1">
-               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Status Gambar</p>
-               <p className="text-sm font-medium text-slate-700">{ctaData.imageUrl ? 'Terpasang' : 'Tidak Ada'}</p>
-             </div>
-          </div>
-        </div>
+        )}
       </div>
 
       <AdminModal

@@ -23,21 +23,44 @@ import { supabase } from '../../lib/supabase';
 import Logo from '../shared/Logo';
 import NotificationBell from '../admin/NotificationBell';
 
-type AdminNavItem = {
-  name: string;
-  path: string;
-  icon: ComponentType<{ size?: number; className?: string }>;
+type AdminNavGroup = {
+  title: string;
+  items: {
+    name: string;
+    path: string;
+    icon: ComponentType<{ size?: number; className?: string }>;
+  }[];
 };
 
-const menuItems: AdminNavItem[] = [
-  { name: 'Dashboard', path: '/admin', icon: LayoutDashboard },
-  { name: 'Campaigns', path: '/admin/campaigns', icon: FileText },
-  { name: 'Manajemen Konten', path: '/admin/content', icon: BookText },
-  { name: 'Donatur', path: '/admin/donors', icon: Users },
-  { name: 'Donasi', path: '/admin/transactions', icon: Banknote },
-  { name: 'Pendaftar Volunteer', path: '/admin/eduxplore', icon: Users },
-  { name: 'Peta Dampak', path: '/admin/impact-map', icon: MapPinned },
-  { name: 'Laporan Sekolah', path: '/admin/school-reports', icon: Building2 },
+const menuGroups: AdminNavGroup[] = [
+  {
+    title: 'Utama',
+    items: [
+      { name: 'Dashboard', path: '/admin', icon: LayoutDashboard },
+    ],
+  },
+  {
+    title: 'Donasi & Pendanaan',
+    items: [
+      { name: 'Kelola Campaign', path: '/admin/campaigns', icon: FileText },
+      { name: 'Transaksi Donasi', path: '/admin/transactions', icon: Banknote },
+      { name: 'Data Donatur', path: '/admin/donors', icon: Users },
+    ],
+  },
+  {
+    title: 'Relawan & Laporan',
+    items: [
+      { name: 'Pendaftar EduXplore', path: '/admin/eduxplore', icon: Users },
+      { name: 'Laporan Sekolah', path: '/admin/school-reports', icon: Building2 },
+    ],
+  },
+  {
+    title: 'Tampilan Website',
+    items: [
+      { name: 'Peta Dampak', path: '/admin/impact-map', icon: MapPinned },
+      { name: 'Pengaturan Konten', path: '/admin/content', icon: BookText },
+    ],
+  }
 ];
 
 export default function AdminLayout() {
@@ -140,26 +163,35 @@ export default function AdminLayout() {
           </button>
         </div>
 
-        <nav className="flex-1 space-y-1 overflow-y-auto px-4 py-6">
-          {menuItems.map((item) => {
-            const active = isActive(item.path);
-            return (
-              <Link
-                key={item.path}
-                to={item.path}
-                onClick={() => setSidebarOpen(false)}
-                className={cn(
-                  'flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm font-medium transition-colors',
-                  active
-                    ? 'bg-zinc-100 text-zinc-900'
-                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900',
-                )}
-              >
-                <item.icon size={18} className={active ? 'text-zinc-900' : 'text-slate-400'} />
-                <span>{item.name}</span>
-              </Link>
-            );
-          })}
+        <nav className="flex-1 space-y-6 overflow-y-auto px-4 py-6">
+          {menuGroups.map((group) => (
+            <div key={group.title}>
+              <p className="px-4 text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">
+                {group.title}
+              </p>
+              <div className="space-y-1">
+                {group.items.map((item) => {
+                  const active = isActive(item.path);
+                  return (
+                    <Link
+                      key={item.path}
+                      to={item.path}
+                      onClick={() => setSidebarOpen(false)}
+                      className={cn(
+                        'flex items-center gap-3 rounded-xl px-4 py-2 text-sm font-medium transition-colors',
+                        active
+                          ? 'bg-zinc-100 text-zinc-900'
+                          : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900',
+                      )}
+                    >
+                      <item.icon size={18} className={active ? 'text-zinc-900' : 'text-slate-400'} />
+                      <span>{item.name}</span>
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
         </nav>
 
         <div className="border-t border-slate-100 p-4 space-y-2">
