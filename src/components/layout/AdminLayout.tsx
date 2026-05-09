@@ -21,6 +21,7 @@ import { getInitials } from '../../lib/admin-helpers';
 import { logError } from '../../lib/error-logger';
 import { supabase } from '../../lib/supabase';
 import Logo from '../shared/Logo';
+import NotificationBell from '../admin/NotificationBell';
 
 type AdminNavItem = {
   name: string;
@@ -189,10 +190,7 @@ export default function AdminLayout() {
           <div className="flex-1" />
           
           <div className="flex items-center gap-6">
-            <button className="relative text-slate-400 hover:text-slate-600 transition-colors">
-              <Bell size={18} />
-              <span className="absolute top-0 right-0 w-2 h-2 bg-rose-500 rounded-full border-2 border-white"></span>
-            </button>
+            <NotificationBell />
             <div className="h-6 w-px bg-slate-200"></div>
             <div className="flex items-center gap-3 cursor-default">
               <div className="flex h-8 w-8 items-center justify-center rounded-full bg-zinc-100 text-xs font-bold text-zinc-900 border border-zinc-200">
