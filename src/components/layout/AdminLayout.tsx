@@ -11,7 +11,8 @@ import {
   Users,
   X,
   Bell,
-  MapPinned
+  MapPinned,
+  BookOpen
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import type { ComponentType } from 'react';
@@ -195,6 +196,19 @@ export default function AdminLayout() {
         </nav>
 
         <div className="border-t border-slate-100 p-4 space-y-2">
+          <Link
+            to="/admin/guide"
+            onClick={() => setSidebarOpen(false)}
+            className={cn(
+              'flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm font-medium transition-colors',
+              location.pathname === '/admin/guide'
+                ? 'bg-zinc-100 text-zinc-900'
+                : 'text-slate-600 hover:bg-slate-50'
+            )}
+          >
+            <BookOpen size={18} className={location.pathname === '/admin/guide' ? 'text-zinc-900' : 'text-slate-400'} />
+            Panduan
+          </Link>
           <Link
             to="/"
             className="flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50"

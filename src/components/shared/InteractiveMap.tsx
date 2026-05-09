@@ -181,6 +181,7 @@ export default function InteractiveMap({
         scrollZoom={scrollWheelZoom}
         dragRotate={false}
         touchPitch={false}
+        cooperativeGestures={false}
         onLoad={handleMapLoad}
         onClick={onClick}
         attributionControl={false}
