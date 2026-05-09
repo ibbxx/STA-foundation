@@ -178,10 +178,9 @@ export default function InteractiveMap({
         maxBounds={popupInfo ? undefined : INDONESIA_BOUNDS}
         style={{ width: '100%', height: '100%' }}
         mapStyle={(mapStyle === 'satellite' ? ESRI_SATELLITE_STYLE : ESRI_STREETS_STYLE) as unknown as React.ComponentProps<typeof Map>['mapStyle']}
-        scrollZoom={false}
+        scrollZoom={scrollWheelZoom}
         dragRotate={false}
         touchPitch={false}
-        cooperativeGestures={true}
         onLoad={handleMapLoad}
         onClick={onClick}
         attributionControl={false}

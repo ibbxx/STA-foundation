@@ -65,14 +65,14 @@ export default function HeroSlideshow() {
 
   return (
     <section className="relative min-h-screen">
-      {/* Background image with crossfade transition */}
-      <AnimatePresence mode="popLayout">
+      {/* Background image with smooth Ken Burns transition */}
+      <AnimatePresence>
         <motion.div
           key={currentSlide.id}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
+          initial={{ opacity: 0, scale: 1.05 }}
+          animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0 }}
-          transition={{ duration: 1.2, ease: 'easeInOut' }}
+          transition={{ duration: 1.5, ease: 'easeOut' }}
           className="absolute inset-0 overflow-hidden"
         >
           {currentSlide.videoUrl ? (
@@ -102,14 +102,14 @@ export default function HeroSlideshow() {
       {/* Content overlay — bottom-left, flush left on all screens */}
       <div className="relative z-10 flex min-h-screen items-end pb-16 sm:pb-32 pt-28">
         <div className="flex flex-col px-5 sm:px-8 lg:px-12">
-          <div className="max-w-2xl text-left">
+          <div className="max-w-3xl text-left">
             <AnimatePresence mode="wait">
               <motion.div
                 key={currentSlide.id + '-text'}
-                initial={{ opacity: 0, y: 30 }}
+                initial={{ opacity: 0, y: 40 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
-                transition={{ duration: 0.8, delay: 0.2 }}
+                transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
               >
                 <h1 className="mt-4 max-w-2xl text-balance font-black uppercase leading-[1.1] tracking-tight text-[#F5F1E8] md:mt-8 lg:mt-16">
                   {(() => {
@@ -168,21 +168,25 @@ export default function HeroSlideshow() {
             </AnimatePresence>
           </div>
 
-          {/* Slide Indicators */}
+          {/* Premium Slide Indicators - Story Style */}
           {heroSlides.length > 1 && (
-            <div className="mt-8 flex items-center gap-2">
+            <div className="mt-12 sm:mt-16 flex items-center gap-2">
               {heroSlides.map((slide, i) => (
                 <button
                   key={slide.id}
                   onClick={() => setCurrentSlideIndex(i)}
-                  className={cn(
-                    'h-1.5 rounded-full transition-all duration-500',
-                    i === currentSlideIndex
-                      ? 'w-8 bg-white'
-                      : 'w-3 bg-white/40 hover:bg-white/60'
+                  className="group relative h-1.5 w-12 sm:w-16 overflow-hidden rounded-full bg-white/30 transition-colors hover:bg-white/50"
+                  aria-label={`Lihat slide ${i + 1}`}
+                >
+                  {i === currentSlideIndex && (
+                    <motion.div
+                      className="absolute inset-y-0 left-0 bg-white rounded-full"
+                      initial={{ width: 0 }}
+                      animate={{ width: "100%" }}
+                      transition={{ duration: 6, ease: "linear" }}
+                    />
                   )}
-                  aria-label={`Slide ${i + 1}`}
-                />
+                </button>
               ))}
             </div>
           )}
