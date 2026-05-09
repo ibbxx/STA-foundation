@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { adminMapLocationSchema, type AdminMapLocationValues } from '../../lib/admin/schemas';
 import { fetchSiteContentRows, upsertSiteContent } from '../../lib/admin/repository';
+import { parseSiteContentValue } from '../../lib/supabase/types';
 import { uploadAdminImage } from '../../lib/supabase/storage';
 import { logError } from '../../lib/error-logger';
 import AdminModal from '../../components/admin/AdminModal';
@@ -31,8 +32,10 @@ import type { EventMapLocation } from '../../lib/public/events';
 import { cn } from '../../lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 import { compressImage } from '../../lib/image-compression';
+import { useConfirmDialog } from '../../components/admin/ConfirmDialog';
 
 export default function AdminImpactMap() {
+  const { confirm, ConfirmDialogElement } = useConfirmDialog();
   const [locations, setLocations] = useState<EventMapLocation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -82,15 +85,15 @@ export default function AdminImpactMap() {
     try {
       const { data } = await fetchSiteContentRows();
       if (data) {
-        const mapRow = (data as any[]).find(r => r.key === 'impact_map');
+        const mapRow = data.find(r => r.key === 'impact_map');
         if (mapRow && mapRow.value) {
-          const parsed = typeof mapRow.value === 'string' ? JSON.parse(mapRow.value) : mapRow.value;
-          if (Array.isArray(parsed.locations)) {
+          const parsed = parseSiteContentValue<{ locations?: EventMapLocation[] }>(mapRow.value);
+          if (parsed && Array.isArray(parsed.locations)) {
             setLocations(parsed.locations);
           }
         }
       }
-    } catch (err: any) {
+    } catch (err) {
       logError('AdminImpactMap.loadData', err);
       setError('Gagal memuat data peta dampak.');
     } finally {
@@ -206,7 +209,7 @@ export default function AdminImpactMap() {
       setValue('imageUrl', url, { shouldDirty: true, shouldValidate: true });
     } catch (err) {
       logError('AdminImpactMap.handleUploadImage', err);
-      alert('Gagal mengunggah gambar.');
+      setError('Gagal mengunggah gambar.');
     } finally {
       setUploadingImage(false);
     }
@@ -238,7 +241,7 @@ export default function AdminImpactMap() {
       setValue('images', [...galleryImages, ...urls], { shouldDirty: true, shouldValidate: true });
     } catch (err) {
       logError('AdminImpactMap.handleUploadGallery', err);
-      alert('Gagal mengunggah beberapa gambar.');
+      setError('Gagal mengunggah beberapa gambar.');
     } finally {
       setUploadingGallery(false);
     }
@@ -272,15 +275,21 @@ export default function AdminImpactMap() {
       setNotice(mode === 'edit' ? 'Lokasi diperbarui.' : 'Lokasi ditambahkan.');
       setMode(null);
       setEditingLocation(null);
-    } catch (err: any) {
-      setError(err.message || 'Gagal menyimpan.');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Gagal menyimpan.';
+      setError(message);
     } finally {
       setSaving(false);
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!window.confirm('Hapus lokasi ini?')) return;
+    const ok = await confirm({
+      title: 'Hapus Lokasi',
+      message: 'Hapus lokasi ini dari peta dampak?',
+      confirmText: 'Hapus',
+    });
+    if (!ok) return;
     setSaving(true);
     try {
       const nextLocations = locations.filter(l => l.id !== id);
@@ -291,7 +300,7 @@ export default function AdminImpactMap() {
       if (upsertError) throw upsertError;
       setLocations(nextLocations);
       setNotice('Lokasi dihapus.');
-    } catch (err: any) {
+    } catch (err) {
       setError('Gagal menghapus.');
     } finally {
       setSaving(false);
@@ -487,7 +496,7 @@ export default function AdminImpactMap() {
           <div className="flex w-full items-center justify-end gap-6">
             <button onClick={() => setMode(null)} className="text-xs font-bold uppercase tracking-widest text-slate-400 hover:text-slate-600">Batal</button>
             <button
-              onClick={handleSubmit(onSubmit as any)}
+              onClick={handleSubmit(onSubmit)}
               disabled={saving || uploadingImage}
               className="bg-emerald-600 text-white px-10 py-3 rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-200 disabled:opacity-50"
             >
@@ -531,7 +540,7 @@ export default function AdminImpactMap() {
                 onDragLeave={(e) => { e.preventDefault(); e.currentTarget.classList.remove('border-emerald-500', 'bg-emerald-50/30'); }}
                 onDrop={(e) => {
                   e.currentTarget.classList.remove('border-emerald-500', 'bg-emerald-50/30');
-                  handleUploadImage(e as any);
+                  handleUploadImage(e);
                 }}
                 className="relative aspect-video rounded-xl overflow-hidden bg-slate-50 border-2 border-dashed border-slate-200 group transition-all"
               >
@@ -568,7 +577,7 @@ export default function AdminImpactMap() {
                 onDragLeave={(e) => { e.preventDefault(); e.currentTarget.classList.remove('border-emerald-500', 'bg-emerald-50/30'); }}
                 onDrop={(e) => {
                   e.currentTarget.classList.remove('border-emerald-500', 'bg-emerald-50/30');
-                  handleUploadGallery(e as any);
+                  handleUploadGallery(e);
                 }}
                 className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2"
               >
@@ -620,6 +629,7 @@ export default function AdminImpactMap() {
           </div>
         </form>
       </AdminModal>
+      {ConfirmDialogElement}
     </div>
   );
 }

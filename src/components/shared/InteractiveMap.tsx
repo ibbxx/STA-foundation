@@ -177,7 +177,7 @@ export default function InteractiveMap({
         initialViewState={DESKTOP_VIEW_STATE}
         maxBounds={popupInfo ? undefined : INDONESIA_BOUNDS}
         style={{ width: '100%', height: '100%' }}
-        mapStyle={(mapStyle === 'satellite' ? ESRI_SATELLITE_STYLE : ESRI_STREETS_STYLE) as any}
+        mapStyle={(mapStyle === 'satellite' ? ESRI_SATELLITE_STYLE : ESRI_STREETS_STYLE) as unknown as React.ComponentProps<typeof Map>['mapStyle']}
         scrollZoom={false}
         dragRotate={false}
         touchPitch={false}

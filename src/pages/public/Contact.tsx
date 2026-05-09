@@ -1,7 +1,8 @@
 import React from 'react';
 import { Mail, Phone, MapPin, Send, MessageCircle, ArrowRight } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { supabase } from '../../lib/supabase';
+import { supabase, parseSiteContentValue } from '../../lib/supabase';
+import { logError } from '../../lib/error-logger';
 
 /**
  * Komponen Halaman Kontak (Contact).
@@ -14,13 +15,12 @@ export default function Contact() {
   React.useEffect(() => {
     async function loadHero() {
       try {
-        const { data } = await supabase.from('site_content').select('value').eq('key', 'hero_kontak').single();
-        if (data && (data as any).value) {
-          const val = (data as any).value;
-          const parsed = typeof val === 'string' ? JSON.parse(val) : val;
-          if (parsed.imageUrl) setHeroImage(parsed.imageUrl);
-        }
-      } catch (e) { }
+        const { data } = await supabase.from('site_content').select('value').eq('key', 'hero_kontak').maybeSingle();
+        const parsed = parseSiteContentValue<{ imageUrl?: string }>(data?.value);
+        if (parsed?.imageUrl) setHeroImage(parsed.imageUrl);
+      } catch (e) {
+        logError('Contact.loadHero', e);
+      }
     }
     loadHero();
   }, []);

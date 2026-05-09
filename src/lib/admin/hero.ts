@@ -65,15 +65,15 @@ export async function fetchHeroContent(): Promise<HeroContent> {
  * Menggunakan upsert berdasarkan `key` agar selalu hanya ada 1 row.
  */
 export async function saveHeroContent(content: HeroContent) {
-  const payload = {
+  const payload: { key: string; value: Json; updated_at: string } = {
     key: HERO_CONTENT_KEY,
     value: content as unknown as Json,
     updated_at: new Date().toISOString(),
-  } as any; // eslint-disable-line @typescript-eslint/no-explicit-any
+  };
 
   return supabase
     .from('site_content')
-    .upsert(payload, { onConflict: 'key' });
+    .upsert(payload as unknown as SiteContentRow, { onConflict: 'key' });
 }
 
 /* ─────────── Helpers ─────────── */

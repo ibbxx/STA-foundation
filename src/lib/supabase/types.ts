@@ -13,6 +13,9 @@ export type Json =
  * Row/Insert/Update di bawah mengikuti struktur tabel yang sudah ditetapkan di Supabase.
  */
 export interface Database {
+  // Required by @supabase/supabase-js v2.99.x for correct type inference.
+  // Without this field, insert/update/upsert overloads resolve to `never`.
+  PostgrestVersion: '12';
   public: {
     Tables: {
       programs: {
@@ -46,6 +49,7 @@ export interface Database {
           created_at?: string;
           updated_at?: string;
         };
+        Relationships: any[];
       };
       campaigns: {
         Row: {
@@ -108,6 +112,7 @@ export interface Database {
           created_at?: string;
           updated_at?: string;
         };
+        Relationships: any[];
       };
       donations: {
         Row: {
@@ -149,6 +154,7 @@ export interface Database {
           is_anonymous?: boolean;
           created_at?: string;
         };
+        Relationships: any[];
       };
       categories: {
         Row: {
@@ -169,6 +175,7 @@ export interface Database {
           slug?: string | null;
           created_at?: string | null;
         };
+        Relationships: any[];
       };
       campaign_updates: {
         Row: {
@@ -201,6 +208,7 @@ export interface Database {
           update_type?: 'General' | 'Fundraising Progress' | 'Distribution';
           created_at?: string;
         };
+        Relationships: any[];
       };
       school_reports: {
         Row: {
@@ -242,6 +250,7 @@ export interface Database {
           created_at?: string;
           updated_at?: string;
         };
+        Relationships: any[];
       };
       spammer_blacklist: {
         Row: {
@@ -262,6 +271,7 @@ export interface Database {
           reason?: string | null;
           created_at?: string;
         };
+        Relationships: any[];
       };
       site_content: {
         Row: {
@@ -282,6 +292,7 @@ export interface Database {
           value?: Json | null;
           updated_at?: string;
         };
+        Relationships: any[];
       };
       volunteer_programs: {
         Row: {
@@ -329,6 +340,7 @@ export interface Database {
           created_at?: string;
           updated_at?: string;
         };
+        Relationships: any[];
       };
       volunteer_registrations: {
         Row: {
@@ -388,9 +400,19 @@ export interface Database {
           status?: 'pending' | 'verified' | 'rejected';
           created_at?: string;
         };
+        Relationships: any[];
       };
     };
     Views: {
+      leaderboard: {
+        Row: {
+          identifier: string;
+          display_name: string;
+          total_amount: number;
+          donation_count: number;
+        };
+        Relationships: any[];
+      };
       public_campaign_donations: {
         Row: {
           id: string;
@@ -401,6 +423,7 @@ export interface Database {
           created_at: string;
           is_anonymous: boolean;
         };
+        Relationships: any[];
       };
       public_campaign_stats: {
         Row: {
@@ -409,7 +432,17 @@ export interface Database {
           donor_count: number;
           updated_at: string;
         };
+        Relationships: any[];
       };
+    };
+    Functions: {
+      [_ in never]: never;
+    };
+    Enums: {
+      [_ in never]: never;
+    };
+    CompositeTypes: {
+      [_ in never]: never;
     };
   };
 }
@@ -481,6 +514,27 @@ export type VolunteerRegistrationInsert = Database['public']['Tables']['voluntee
 export type VolunteerRegistrationUpdate = Database['public']['Tables']['volunteer_registrations']['Update'];
 
 /**
+ * Utility terpusat untuk mem-parse nilai dari tabel `site_content`.
+ * Menggantikan pola `(data as any).value` yang tersebar di banyak halaman.
+ *
+ * @example
+ * const { data } = await supabase.from('site_content').select('value').eq('key', 'hero_events').single();
+ * const parsed = parseSiteContentValue<{ imageUrl: string }>(data?.value);
+ * if (parsed?.imageUrl) setHeroImage(parsed.imageUrl);
+ */
+export function parseSiteContentValue<T>(value: Json | null | undefined): T | null {
+  if (value === null || value === undefined) return null;
+  if (typeof value === 'string') {
+    try {
+      return JSON.parse(value) as T;
+    } catch {
+      return null;
+    }
+  }
+  return value as unknown as T;
+}
+
+/**
  * View-model lama untuk halaman publik yang masih memakai mock data.
  * Dipertahankan sementara agar migrasi ke schema baru bisa dilakukan bertahap.
  */
@@ -505,10 +559,7 @@ export type Campaign = {
   end_date?: string;
   images?: string[];
   collaborators?: { id: string; name: string; role: string; quote: string; avatar?: string | null; url?: string | null }[];
-};
-
-
-
+}
 /**
  * View-model program STA yang saat ini dipakai halaman publik.
  * Berbeda dengan `ProgramRow` karena halaman detail masih memakai struktur konten statis yang lebih kaya.

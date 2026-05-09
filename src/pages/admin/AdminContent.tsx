@@ -18,14 +18,16 @@ import {
 import { uploadAdminImage } from '../../lib/supabase/storage';
 import { getProgramIcon } from '../../lib/program-icons';
 import { logError } from '../../lib/error-logger';
-import { ProgramRow } from '../../lib/supabase/types';
+import { ProgramRow, parseSiteContentValue } from '../../lib/supabase/types';
 import { cn } from '../../lib/utils';
 import RichTextEditor from '../../components/admin/campaigns/RichTextEditor';
 import { parseProgramContent } from '../../lib/programs';
 import { DEFAULT_PROGRAMS_HEADER, DEFAULT_CTA_DATA } from '../../lib/constants';
 import type { ProgramsHeaderData, CtaData } from '../../lib/constants';
+import { useConfirmDialog } from '../../components/admin/ConfirmDialog';
 
 export default function AdminContent() {
+  const { confirm, ConfirmDialogElement } = useConfirmDialog();
   const [programs, setPrograms] = useState<ProgramRow[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
@@ -58,7 +60,7 @@ export default function AdminContent() {
         import('../../lib/supabase/storage').then(m => m.deleteFilesFromStorage([oldUrl]));
       }
     } catch (err) {
-      alert('Gagal mengunggah gambar. Pastikan ukuran file tidak terlalu besar.');
+      setError('Gagal mengunggah gambar. Pastikan ukuran file tidak terlalu besar.');
     } finally {
       setUploadingImage(false);
     }
@@ -76,7 +78,7 @@ export default function AdminContent() {
         import('../../lib/supabase/storage').then(m => m.deleteFilesFromStorage([oldUrl]));
       }
     } catch (err) {
-      alert('Gagal mengunggah gambar.');
+      setError('Gagal mengunggah gambar.');
     } finally {
       setUploadingImage(false);
     }
@@ -96,7 +98,7 @@ export default function AdminContent() {
       const newText = existing ? existing + '\n' + urls.join('\n') : urls.join('\n');
       setValue('gallery_images', newText, { shouldDirty: true, shouldValidate: true });
     } catch (err) {
-      alert('Gagal mengunggah gambar galeri.');
+      setError('Gagal mengunggah gambar galeri.');
     } finally {
       setUploadingImage(false);
     }
@@ -131,52 +133,48 @@ export default function AdminContent() {
     setPrograms(data ?? []);
     setLoading(false);
   }
-  async function loadHeaderData() {
+  async function loadSiteContentData() {
     const { data } = await fetchSiteContentRows();
-    if (data) {
-      const headerRow = (data as any[]).find(r => r.key === 'home_programs_header');
-      if (headerRow && headerRow.value) {
-        try {
-          const parsed = typeof headerRow.value === 'string' ? JSON.parse(headerRow.value) : headerRow.value;
-          setHeaderData({
-            label: parsed.label || DEFAULT_PROGRAMS_HEADER.label,
-            title: parsed.title || DEFAULT_PROGRAMS_HEADER.title,
-            description: parsed.description || DEFAULT_PROGRAMS_HEADER.description,
-          });
-        } catch (e) {
-          console.error("Gagal parse header data", e);
-        }
+    if (!data) return;
+
+    // Parse header data
+    const headerRow = data.find(r => r.key === 'home_programs_header');
+    if (headerRow?.value) {
+      const parsed = parseSiteContentValue<ProgramsHeaderData>(headerRow.value);
+      if (parsed) {
+        setHeaderData({
+          label: parsed.label || DEFAULT_PROGRAMS_HEADER.label,
+          title: parsed.title || DEFAULT_PROGRAMS_HEADER.title,
+          description: parsed.description || DEFAULT_PROGRAMS_HEADER.description,
+        });
+      } else {
+        logError('AdminContent.loadHeaderData', new Error('Gagal parse header data'), { value: headerRow.value });
       }
     }
-  }
 
-  async function loadCtaData() {
-    const { data } = await fetchSiteContentRows();
-    if (data) {
-      const ctaRow = (data as any[]).find(r => r.key === 'home_cta');
-      if (ctaRow && ctaRow.value) {
-        try {
-          const parsed = typeof ctaRow.value === 'string' ? JSON.parse(ctaRow.value) : ctaRow.value;
-          setCtaData({
-            title: parsed.title || DEFAULT_CTA_DATA.title,
-            description: parsed.description || DEFAULT_CTA_DATA.description,
-            primaryButtonText: parsed.primaryButtonText || DEFAULT_CTA_DATA.primaryButtonText,
-            primaryButtonLink: parsed.primaryButtonLink || DEFAULT_CTA_DATA.primaryButtonLink,
-            secondaryButtonText: parsed.secondaryButtonText || DEFAULT_CTA_DATA.secondaryButtonText,
-            secondaryButtonLink: parsed.secondaryButtonLink || DEFAULT_CTA_DATA.secondaryButtonLink,
-            imageUrl: parsed.imageUrl || DEFAULT_CTA_DATA.imageUrl,
-          });
-        } catch (e) {
-          console.error("Gagal parse CTA data", e);
-        }
+    // Parse CTA data
+    const ctaRow = data.find(r => r.key === 'home_cta');
+    if (ctaRow?.value) {
+      const parsed = parseSiteContentValue<CtaData>(ctaRow.value);
+      if (parsed) {
+        setCtaData({
+          title: parsed.title || DEFAULT_CTA_DATA.title,
+          description: parsed.description || DEFAULT_CTA_DATA.description,
+          primaryButtonText: parsed.primaryButtonText || DEFAULT_CTA_DATA.primaryButtonText,
+          primaryButtonLink: parsed.primaryButtonLink || DEFAULT_CTA_DATA.primaryButtonLink,
+          secondaryButtonText: parsed.secondaryButtonText || DEFAULT_CTA_DATA.secondaryButtonText,
+          secondaryButtonLink: parsed.secondaryButtonLink || DEFAULT_CTA_DATA.secondaryButtonLink,
+          imageUrl: parsed.imageUrl || DEFAULT_CTA_DATA.imageUrl,
+        });
+      } else {
+        logError('AdminContent.loadCtaData', new Error('Gagal parse CTA data'), { value: ctaRow.value });
       }
     }
   }
 
   useEffect(() => {
     loadPrograms();
-    loadHeaderData();
-    loadCtaData();
+    loadSiteContentData();
   }, []);
 
   useEffect(() => {
@@ -254,9 +252,11 @@ export default function AdminContent() {
   async function handleDelete(program: ProgramRow) {
     setNotice(null);
     setError(null);
-    const confirmed = window.confirm(
-      `Apakah Anda yakin ingin menghapus program "${program.title}"?\n\nTindakan ini tidak dapat dibatalkan dan data tidak dapat dikembalikan lagi.`
-    );
+    const confirmed = await confirm({
+      title: 'Hapus Program',
+      message: `Apakah Anda yakin ingin menghapus program "${program.title}"? Tindakan ini tidak dapat dibatalkan.`,
+      confirmText: 'Hapus Permanen',
+    });
     if (!confirmed) return;
 
     setDeletingId(program.id);
@@ -301,8 +301,9 @@ export default function AdminContent() {
       
       setNotice('Header program berhasil diperbarui.');
       setHeaderModalOpen(false);
-    } catch (err: any) {
-      setError(err.message || 'Gagal menyimpan header.');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Gagal menyimpan header.';
+      setError(message);
     } finally {
       setSavingHeader(false);
     }
@@ -322,8 +323,9 @@ export default function AdminContent() {
       
       setNotice('Konten CTA berhasil diperbarui.');
       setCtaModalOpen(false);
-    } catch (err: any) {
-      setError(err.message || 'Gagal menyimpan CTA.');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Gagal menyimpan CTA.';
+      setError(message);
     } finally {
       setSavingCta(false);
     }
@@ -333,7 +335,13 @@ export default function AdminContent() {
   const modalTitle = mode === 'edit' ? 'Edit Program' : 'Tambah Program';
 
   async function handleSeedData() {
-    if (!window.confirm('Apakah Anda ingin memuat data program default ke database? Ini akan memudahkan Anda mengelola konten yang sudah ada.')) return;
+    const ok = await confirm({
+      title: 'Muat Data Default',
+      message: 'Apakah Anda ingin memuat data program default ke database? Ini akan memudahkan Anda mengelola konten yang sudah ada.',
+      confirmText: 'Muat Data',
+      variant: 'warning',
+    });
+    if (!ok) return;
     
     setLoading(true);
     const { PROGRAMS } = await import('../../lib/programs');
@@ -954,6 +962,7 @@ export default function AdminContent() {
           </div>
         </div>
       </AdminModal>
+      {ConfirmDialogElement}
     </div>
   );
 }

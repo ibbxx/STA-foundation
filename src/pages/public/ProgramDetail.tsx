@@ -1,17 +1,32 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowLeft, ArrowRight, CheckCircle2, Users, Globe, Target, Loader2 } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
 import { getProgramIcon } from '../../lib/program-icons';
 import { getProgramBySlug, PROGRAMS } from '../../lib/programs';
-import { fetchHomeProgramsContent, type HomeProgramSlide } from '../../lib/admin/home-programs';
+import type { HomeProgramSlide } from '../../lib/admin/home-programs';
 import { supabase } from '../../lib/supabase/types';
+import { logError } from '../../lib/error-logger';
+
+/** Type guard for parsed content JSON from DB */
+interface ProgramContentJson {
+  hero_image_url?: string;
+  home_slider_image?: string;
+  overview?: string;
+  focus_areas?: string[];
+  gallery_images?: string[];
+  body_content?: string;
+}
+
+function isProgramContentJson(val: unknown): val is ProgramContentJson {
+  return typeof val === 'object' && val !== null;
+}
 
 export default function ProgramDetail() {
   const { slug } = useParams();
   const [loading, setLoading] = useState(true);
   const [dynamicProgram, setDynamicProgram] = useState<HomeProgramSlide | null>(null);
-  
+
   // Static fallback data
   const staticProgram = getProgramBySlug(slug);
 
@@ -23,16 +38,23 @@ export default function ProgramDetail() {
           .select('*')
           .eq('slug', slug)
           .maybeSingle();
-        
+
+        if (error) {
+          logError('ProgramDetail.loadDynamicData', error, { slug });
+        }
+
         if (data) {
-          const item = data as any;
-          let parsedContent = {};
+          const item = data as { id: string; slug: string; title: string; description: string; content?: string };
+          let parsedContent: ProgramContentJson = {};
           try {
-            if (item.content && (item.content.startsWith('{') || item.content.startsWith('['))) {
-              parsedContent = JSON.parse(item.content);
+            if (item.content && typeof item.content === 'string' && (item.content.startsWith('{') || item.content.startsWith('['))) {
+              const parsed: unknown = JSON.parse(item.content);
+              if (isProgramContentJson(parsed)) {
+                parsedContent = parsed;
+              }
             }
-          } catch (e) {
-            console.warn("Content is not JSON:", item.content);
+          } catch {
+            // Content is not JSON — ignore
           }
 
           setDynamicProgram({
@@ -40,12 +62,12 @@ export default function ProgramDetail() {
             slug: item.slug,
             title: item.title,
             short_description: item.description,
-            imageUrl: '', // Not used in detail hero
+            imageUrl: '',
             ...parsedContent
-          } as any);
+          });
         }
       } catch (err) {
-        console.error("Failed to load dynamic program data:", err);
+        logError('ProgramDetail.loadDynamicData.unexpected', err, { slug });
       } finally {
         setLoading(false);
       }
@@ -96,8 +118,8 @@ export default function ProgramDetail() {
 
   // Helper to get Icon
   const iconName = 'icon_name' in program ? program.icon_name : 'search';
-  const Icon = getProgramIcon(iconName as any);
-  
+  const Icon = getProgramIcon(iconName);
+
   const relatedPrograms = PROGRAMS.filter((item) => item.slug !== slug);
 
   const containerVariants = {
@@ -112,18 +134,18 @@ export default function ProgramDetail() {
 
   const itemVariants = {
     hidden: { opacity: 0, y: 20 },
-    visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: "easeOut" } as any }
+    visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: "easeOut" as const } }
   };
 
-  // Image Logic: 
+  // Image Logic:
   // 1. dynamic hero_image_url
-  const heroImage = ('hero_image_url' in program && program.hero_image_url) 
-    ? (program as any).hero_image_url as string
+  const heroImage = ('hero_image_url' in program && typeof program.hero_image_url === 'string')
+    ? program.hero_image_url
     : '';
 
   return (
     <div className="bg-white min-h-screen selection:bg-emerald-100 selection:text-emerald-900 overflow-x-hidden">
-      
+
       {/* ═══════ NAVIGATION ═══════ */}
       <nav className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-100">
         <div className="max-w-7xl mx-auto px-5 h-16 flex items-center justify-between">
@@ -144,7 +166,7 @@ export default function ProgramDetail() {
       <section className="relative pt-20 pb-6 sm:pt-32 sm:pb-10 overflow-hidden">
         <div className="max-w-7xl mx-auto px-5 lg:px-8">
           <div className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
-            
+
             <motion.div
               variants={containerVariants}
               initial="hidden"
@@ -204,8 +226,8 @@ export default function ProgramDetail() {
               <div className="absolute -inset-2 bg-emerald-100/40 rounded-2xl blur-xl group-hover:bg-emerald-200/40 transition-colors duration-500"></div>
               <div className="relative aspect-video sm:aspect-[4/3] lg:aspect-square rounded-2xl overflow-hidden shadow-xl">
                 {heroImage ? (
-                  <img 
-                    src={heroImage} 
+                  <img
+                    src={heroImage}
                     alt={program.title}
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
                   />
@@ -235,7 +257,7 @@ export default function ProgramDetail() {
                   const dynamicGallery = ('gallery_images' in program && Array.isArray(program.gallery_images))
                     ? program.gallery_images.filter(Boolean)
                     : [];
-                  
+
                   // Jika benar-benar tidak ada gambar sama sekali (baik dinamis maupun statis), sembunyikan grid
                   if (dynamicGallery.length === 0) return null;
 
@@ -253,7 +275,7 @@ export default function ProgramDetail() {
                     dynamicGallery[2] || placeholders[2],
                     dynamicGallery[3] || placeholders[3],
                   ];
-                  
+
                   return (
                     <>
                       <div className="space-y-3 sm:space-y-4">
@@ -399,4 +421,3 @@ export default function ProgramDetail() {
     </div>
   );
 }
-

@@ -16,7 +16,7 @@ import { logError } from '../../lib/error-logger';
 import { fetchPublicCampaigns } from '../../lib/public/campaigns';
 import { PROGRAMS, parseProgramContent } from '../../lib/programs';
 import { formatCurrency, calculateProgress, cn } from '../../lib/utils';
-import { supabase } from '../../lib/supabase/types';
+import { supabase, parseSiteContentValue } from '../../lib/supabase/types';
 import { DEFAULT_PROGRAMS_HEADER, DEFAULT_CTA_DATA } from '../../lib/constants';
 import type { ProgramsHeaderData, CtaData } from '../../lib/constants';
 
@@ -51,9 +51,11 @@ export default function Home() {
   React.useEffect(() => {
     async function loadPrograms() {
       try {
-        const { data } = await supabase.from('programs').select('*').order('created_at', { ascending: true });
+        // Hanya select kolom yang ada di schema programs — stage_value, home_slider_image, hero_image_url
+        // berada di dalam kolom JSON `content` yang di-parse oleh parseProgramContent()
+        const { data } = await supabase.from('programs').select('id, slug, title, description, icon_name, content').order('created_at', { ascending: true });
         if (data && data.length > 0) {
-          const mapped = data.map((item: any) => {
+          const mapped = data.map((item) => {
             const detail = parseProgramContent(item.content);
             return { ...item, ...detail };
           });
@@ -61,34 +63,32 @@ export default function Home() {
         }
 
         // Fetch Header
-        const { data: siteContent } = await supabase.from('site_content').select('*').eq('key', 'home_programs_header').single();
-        if (siteContent && (siteContent as any).value) {
-          const val = (siteContent as any).value;
-          const parsed = typeof val === 'string' ? JSON.parse(val) : val;
+        const { data: siteContent } = await supabase.from('site_content').select('value').eq('key', 'home_programs_header').maybeSingle();
+        const headerParsed = parseSiteContentValue<ProgramsHeaderData>(siteContent?.value);
+        if (headerParsed) {
           setHeaderData({
-            label: parsed.label || DEFAULT_PROGRAMS_HEADER.label,
-            title: parsed.title || DEFAULT_PROGRAMS_HEADER.title,
-            description: parsed.description || DEFAULT_PROGRAMS_HEADER.description,
+            label: headerParsed.label || DEFAULT_PROGRAMS_HEADER.label,
+            title: headerParsed.title || DEFAULT_PROGRAMS_HEADER.title,
+            description: headerParsed.description || DEFAULT_PROGRAMS_HEADER.description,
           });
         }
 
         // Fetch CTA
-        const { data: ctaContent } = await supabase.from('site_content').select('*').eq('key', 'home_cta').single();
-        if (ctaContent && (ctaContent as any).value) {
-          const val = (ctaContent as any).value;
-          const parsed = typeof val === 'string' ? JSON.parse(val) : val;
+        const { data: ctaContent } = await supabase.from('site_content').select('value').eq('key', 'home_cta').maybeSingle();
+        const ctaParsed = parseSiteContentValue<CtaData>(ctaContent?.value);
+        if (ctaParsed) {
           setCtaData({
-            title: parsed.title || DEFAULT_CTA_DATA.title,
-            description: parsed.description || DEFAULT_CTA_DATA.description,
-            primaryButtonText: parsed.primaryButtonText || DEFAULT_CTA_DATA.primaryButtonText,
-            primaryButtonLink: parsed.primaryButtonLink || DEFAULT_CTA_DATA.primaryButtonLink,
-            secondaryButtonText: parsed.secondaryButtonText || DEFAULT_CTA_DATA.secondaryButtonText,
-            secondaryButtonLink: parsed.secondaryButtonLink || DEFAULT_CTA_DATA.secondaryButtonLink,
-            imageUrl: parsed.imageUrl || DEFAULT_CTA_DATA.imageUrl,
+            title: ctaParsed.title || DEFAULT_CTA_DATA.title,
+            description: ctaParsed.description || DEFAULT_CTA_DATA.description,
+            primaryButtonText: ctaParsed.primaryButtonText || DEFAULT_CTA_DATA.primaryButtonText,
+            primaryButtonLink: ctaParsed.primaryButtonLink || DEFAULT_CTA_DATA.primaryButtonLink,
+            secondaryButtonText: ctaParsed.secondaryButtonText || DEFAULT_CTA_DATA.secondaryButtonText,
+            secondaryButtonLink: ctaParsed.secondaryButtonLink || DEFAULT_CTA_DATA.secondaryButtonLink,
+            imageUrl: ctaParsed.imageUrl || DEFAULT_CTA_DATA.imageUrl,
           });
         }
       } catch (err) {
-        console.error("Failed to load programs for home slider:", err);
+        logError('Home.loadPrograms', err);
       }
     }
     loadPrograms();

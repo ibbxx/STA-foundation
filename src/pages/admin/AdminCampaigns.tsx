@@ -59,8 +59,10 @@ import {
 } from '../../lib/supabase';
 import { cn, formatCurrency } from '../../lib/utils';
 import { sanitizeHTML } from '../../lib/sanitize';
+import { useConfirmDialog } from '../../components/admin/ConfirmDialog';
 
 export default function AdminCampaigns() {
+  const { confirm, ConfirmDialogElement } = useConfirmDialog();
   const [campaigns, setCampaigns] = useState<CampaignRow[]>([]);
   const [categories, setCategories] = useState<CategoryRow[]>([]);
   const [updates, setUpdates] = useState<CampaignUpdateRow[]>([]);
@@ -316,7 +318,7 @@ export default function AdminCampaigns() {
             });
             updatedCollaborators[i].avatar = logoUrl;
           } catch (err) {
-            console.error('Failed to upload partner logo:', err);
+            logError('AdminCampaigns.uploadPartnerLogo', err, { collaboratorIndex: i });
           }
         }
       }
@@ -441,7 +443,11 @@ export default function AdminCampaigns() {
   async function handleDeleteUpdate(updateId: string, title: string, imageUrl: string | null, images: string[] | null) {
     if (!selectedCampaignId) return;
 
-    const confirmed = window.confirm(`Hapus update timeline "${title}"?`);
+    const confirmed = await confirm({
+      title: 'Hapus Update',
+      message: `Hapus update timeline "${title}"?`,
+      confirmText: 'Hapus',
+    });
     if (!confirmed) return;
 
     setError(null);
@@ -472,7 +478,11 @@ export default function AdminCampaigns() {
   async function handleDeleteCampaign() {
     if (!selectedCampaign) return;
 
-    const confirmed = window.confirm(`Hapus campaign "${selectedCampaign.title}"?`);
+    const confirmed = await confirm({
+      title: 'Hapus Campaign',
+      message: `Hapus campaign "${selectedCampaign.title}"? Data donasi terkait juga akan dihapus.`,
+      confirmText: 'Hapus Permanen',
+    });
     if (!confirmed) return;
 
     setError(null);
@@ -540,7 +550,11 @@ export default function AdminCampaigns() {
           failed: result.failed,
         });
       }
-      console.log(`Storage cleanup: ${result.deleted} dihapus, ${result.failed} gagal`);
+      logError('AdminCampaigns.storageCleanupResult', new Error('Storage cleanup completed'), {
+          campaignId: selectedCampaign.id,
+          deleted: result.deleted,
+          failed: result.failed,
+        });
     }
 
     setNotice('Campaign beserta file gambarnya berhasil dihapus.');
@@ -1146,6 +1160,7 @@ export default function AdminCampaigns() {
           )}
         </AdminModal>
       </div>
+      {ConfirmDialogElement}
     </div>
   );
 }

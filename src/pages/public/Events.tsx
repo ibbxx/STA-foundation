@@ -4,7 +4,7 @@ import { ArrowRight, Compass, MapPinned, Sparkles } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import InteractiveMap from '../../components/shared/InteractiveMap';
 import { logError } from '../../lib/error-logger';
-import { supabase } from '../../lib/supabase/types';
+import { supabase, parseSiteContentValue } from '../../lib/supabase/types';
 import { fetchImpactMapLocations, type EventMapLocation } from '../../lib/public/events';
 import { cn } from '../../lib/utils';
 
@@ -55,13 +55,12 @@ export default function Events() {
   React.useEffect(() => {
     async function loadHero() {
       try {
-        const { data } = await supabase.from('site_content').select('value').eq('key', 'hero_events').single();
-        if (data && (data as any).value) {
-          const val = (data as any).value;
-          const parsed = typeof val === 'string' ? JSON.parse(val) : val;
-          if (parsed.imageUrl) setHeroImage(parsed.imageUrl);
-        }
-      } catch (e) { }
+        const { data } = await supabase.from('site_content').select('value').eq('key', 'hero_events').maybeSingle();
+        const parsed = parseSiteContentValue<{ imageUrl?: string }>(data?.value);
+        if (parsed?.imageUrl) setHeroImage(parsed.imageUrl);
+      } catch (e) {
+        logError('Events.loadHero', e);
+      }
     }
     loadHero();
   }, []);

@@ -1,9 +1,10 @@
 import { z } from 'zod';
 import { logError } from './error-logger';
+import { STA_ADMIN_WHATSAPP } from './constants';
 
 // ── Constants ──
 
-export const EDUXPLORE_ADMIN_NUMBER = '6287882799026';
+export const EDUXPLORE_ADMIN_NUMBER = STA_ADMIN_WHATSAPP;
 export const EDUXPLORE_DRAFT_KEY = 'sta-eduxplore-draft-v1';
 
 export const SIZE_OPTIONS = ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL'] as const;
@@ -73,18 +74,18 @@ export interface EduxploreAssets {
 
 // ── Default Values ──
 
-export const EDUXPLORE_DEFAULT_VALUES: EduxploreFormValues = {
+export const EDUXPLORE_DEFAULT_VALUES = {
   nama_lengkap: '',
   email: '',
   whatsapp: '',
   whatsapp_emergency: '',
   alamat: '',
   tanggal_lahir: '',
-  size_baju: '' as any,
+  size_baju: '' as EduxploreFormValues['size_baju'],
   riwayat_penyakit: '',
   pendidikan: '',
   bidang_diminati: '',
-};
+} satisfies EduxploreFormValues;
 
 // ── Draft Persistence ──
 

@@ -1,6 +1,7 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App.tsx';
+import ErrorBoundary from './components/shared/ErrorBoundary.tsx';
 import './index.css';
 import { logError, registerGlobalErrorLogging } from './lib/error-logger.ts';
 
@@ -33,6 +34,8 @@ createRoot(document.getElementById('root')!, {
 }).render(
   // StrictMode digunakan untuk mendeteksi masalah potensial dalam aplikasi selama fase pengembangan
   <StrictMode>
-    <App />
+    <ErrorBoundary>
+      <App />
+    </ErrorBoundary>
   </StrictMode>,
 );

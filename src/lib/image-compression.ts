@@ -34,7 +34,7 @@ export async function compressImage(file: File): Promise<File> {
 
   if (isHeic) {
     try {
-      console.log('[STA] Mengonversi gambar HEIC ke format standar...');
+      if (import.meta.env.DEV) console.log('[STA] Mengonversi gambar HEIC ke format standar...');
       // Import dinamis agar tidak memberatkan loading awal website
       const heic2any = (await import('heic2any')).default;
       

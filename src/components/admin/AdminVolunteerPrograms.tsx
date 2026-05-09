@@ -16,6 +16,7 @@ import { formatAdminDate } from '../../lib/admin/helpers';
 import type { VolunteerProgramRow } from '../../lib/supabase/types';
 import type { VolunteerTimelineItem } from '../../lib/eduxplore';
 import { logError } from '../../lib/error-logger';
+import { useConfirmDialog } from './ConfirmDialog';
 
 const schema = z.object({
   title: z.string().min(1, 'Judul wajib diisi'),
@@ -44,6 +45,7 @@ const defaultValues: FormValues = {
 };
 
 export default function AdminVolunteerPrograms() {
+  const { confirm, ConfirmDialogElement } = useConfirmDialog();
   const [programs, setPrograms] = useState<VolunteerProgramRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -134,7 +136,8 @@ export default function AdminVolunteerPrograms() {
       const url = await uploadAdminImage(file, 'programs');
       setValue('image_url', url, { shouldDirty: true });
     } catch (err) {
-      alert('Gagal mengunggah gambar banner.');
+      logError('AdminVolunteerPrograms.handleUploadImage', err);
+      setError('Gagal mengunggah gambar banner.');
     } finally {
       setUploadingImage(false);
     }
@@ -195,8 +198,8 @@ export default function AdminVolunteerPrograms() {
         image_url: values.image_url,
         show_in_hero: values.show_in_hero,
         status: values.status,
-        timeline: timeline as any,
-        requirements: requirements as any,
+        timeline: timeline as unknown as import('../../lib/supabase/types').Json,
+        requirements: requirements as unknown as import('../../lib/supabase/types').Json,
       };
 
       const { error: saveError } = await saveVolunteerProgram(payload, editingProgram?.id);
@@ -205,14 +208,20 @@ export default function AdminVolunteerPrograms() {
       setNotice(mode === 'edit' ? 'Program berhasil diperbarui.' : 'Program berhasil ditambahkan.');
       closeModal();
       loadData();
-    } catch (err: any) {
+    } catch (err) {
       logError('AdminVolunteerPrograms.onSubmit', err);
-      setError(err.message || 'Terjadi kesalahan saat menyimpan data.');
+      const message = err instanceof Error ? err.message : 'Terjadi kesalahan saat menyimpan data.';
+      setError(message);
     }
   }
 
   async function handleDelete(program: VolunteerProgramRow) {
-    if (!window.confirm(`Hapus program "${program.title}"? Semua pendaftar terkait juga akan terhapus!`)) return;
+    const ok = await confirm({
+      title: 'Hapus Program',
+      message: `Hapus program "${program.title}"? Semua pendaftar terkait juga akan terhapus!`,
+      confirmText: 'Hapus Permanen',
+    });
+    if (!ok) return;
 
     setError(null);
     setNotice(null);
@@ -401,6 +410,7 @@ export default function AdminVolunteerPrograms() {
           </label>
         </form>
       </AdminModal>
+      {ConfirmDialogElement}
     </div>
   );
 }

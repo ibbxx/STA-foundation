@@ -64,15 +64,15 @@ export async function fetchHomeProgramsContent(): Promise<HomeProgramsContent> {
 }
 
 export async function saveHomeProgramsContent(content: HomeProgramsContent) {
-  const payload = {
+  const payload: { key: string; value: Json; updated_at: string } = {
     key: HOME_PROGRAMS_KEY,
     value: content as unknown as Json,
     updated_at: new Date().toISOString(),
-  } as any;
+  };
 
   return supabase
     .from('site_content')
-    .upsert(payload, { onConflict: 'key' });
+    .upsert(payload as unknown as SiteContentRow, { onConflict: 'key' });
 }
 
 export function createEmptyHomeProgram(): HomeProgramSlide {

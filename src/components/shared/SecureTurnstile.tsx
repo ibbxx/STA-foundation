@@ -97,7 +97,7 @@ export function SecureTurnstile({ onSuccess, onError, siteKey, theme = 'light' }
 
       setStatus('loading');
       
-      console.log(`[Turnstile] Merender widget dengan siteKey: ${activeSiteKey}`);
+      if (import.meta.env.DEV) console.log(`[Turnstile] Merender widget dengan siteKey: ${activeSiteKey}`);
       
       widgetIdRef.current = window.turnstile.render(containerRef.current, {
         sitekey: activeSiteKey,

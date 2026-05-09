@@ -11,16 +11,50 @@ import type {
   VolunteerProgramUpdate,
   VolunteerRegistrationInsert,
   VolunteerRegistrationUpdate,
+  Database,
 } from '../supabase/types';
 import { supabase } from '../supabase/types';
+import { logError } from '../error-logger';
+
+// ── Typed table helpers (workaround for Supabase v2.99.x generic strictness) ──
+// Supabase v2.99.x uses `PostgrestVersion: "12"` in its generic system, which
+// causes the `.update()`, `.insert()`, `.upsert()` overloads to require a type that
+// resolves to exactly the Table's Insert/Update type — not a named alias of it.
+//
+// Using `as unknown as X` is the idiomatic fix: it first asserts to `unknown`
+// (which is always safe), then to the target type (which is equivalent since they
+// come from the same Database interface). This is NOT bypassing type-safety —
+// it's navigating around a TypeScript generic variance limitation.
+//
+// Reference: https://github.com/supabase/supabase-js/issues/1070
+
+type Tables = Database['public']['Tables'];
+type SR = Tables['school_reports'];
+type P = Tables['programs'];
+type SC = Tables['site_content'];
+type C = Tables['campaigns'];
+type CU = Tables['campaign_updates'];
+type SB = Tables['spammer_blacklist'];
+type VP = Tables['volunteer_programs'];
+type VR = Tables['volunteer_registrations'];
+
+// ── Dashboard ──
 
 export function fetchDashboardRows() {
   return Promise.all([
-    supabase.from('campaigns').select('*'),
-    supabase.from('donations').select('*'),
-    supabase.from('school_reports').select('*'),
+    supabase
+      .from('campaigns')
+      .select('id, title, status, category, current_amount, target_amount, is_featured'),
+    supabase
+      .from('donations')
+      .select('id, campaign_id, amount, payment_status, donor_name, donor_email, is_anonymous, created_at'),
+    supabase
+      .from('school_reports')
+      .select('id, status, created_at, updated_at'),
   ]);
 }
+
+// ── Donors & Transactions ──
 
 export function fetchDonorDonationRows() {
   return supabase
@@ -36,6 +70,8 @@ export function fetchTransactionRows() {
   ]);
 }
 
+// ── School Reports ──
+
 export function fetchSchoolReportRows() {
   return supabase
     .from('school_reports')
@@ -46,7 +82,7 @@ export function fetchSchoolReportRows() {
 export function updateSchoolReportStatus(reportId: string, update: SchoolReportUpdate) {
   return supabase
     .from('school_reports')
-    .update(update as never)
+    .update(update as unknown as SR['Update'])
     .eq('id', reportId);
 }
 
@@ -57,6 +93,8 @@ export function deleteSchoolReport(reportId: string) {
     .eq('id', reportId);
 }
 
+// ── Programs ──
+
 export function fetchProgramRows() {
   return supabase
     .from('programs')
@@ -65,16 +103,18 @@ export function fetchProgramRows() {
 }
 
 export function insertProgram(payload: ProgramInsert) {
-  return supabase.from('programs').insert(payload as never);
+  return supabase.from('programs').insert(payload as unknown as P['Insert']);
 }
 
 export function updateProgram(programId: string, payload: ProgramInsert) {
-  return supabase.from('programs').update(payload as never).eq('id', programId);
+  return supabase.from('programs').update(payload as unknown as P['Update']).eq('id', programId);
 }
 
 export function deleteProgram(programId: string) {
   return supabase.from('programs').delete().eq('id', programId);
 }
+
+// ── Site Content ──
 
 export function fetchSiteContentRows() {
   return supabase
@@ -90,20 +130,22 @@ export function listStorageBuckets() {
 export function upsertSiteContent(payload: SiteContentInsert[]) {
   return supabase
     .from('site_content')
-    .upsert(payload as never, { onConflict: 'key' });
+    .upsert(payload as unknown as SC['Insert'][], { onConflict: 'key' });
 }
 
 export function insertSiteContent(payload: SiteContentInsert) {
-  return supabase.from('site_content').insert(payload as never);
+  return supabase.from('site_content').insert(payload as unknown as SC['Insert']);
 }
 
 export function updateSiteContent(entryId: string, payload: SiteContentUpdate) {
-  return supabase.from('site_content').update(payload as never).eq('id', entryId);
+  return supabase.from('site_content').update(payload as unknown as SC['Update']).eq('id', entryId);
 }
 
 export function deleteSiteContent(entryId: string) {
   return supabase.from('site_content').delete().eq('id', entryId);
 }
+
+// ── Campaigns ──
 
 export function fetchCampaignManagerRows() {
   return Promise.all([
@@ -131,12 +173,12 @@ export function fetchCampaignDonationRows(campaignId: string) {
 
 export function saveCampaign(payload: CampaignInsert, campaignId?: string) {
   return campaignId
-    ? supabase.from('campaigns').update(payload as never).eq('id', campaignId).select('*').single()
-    : supabase.from('campaigns').insert(payload as never).select('*').single();
+    ? supabase.from('campaigns').update(payload as unknown as C['Update']).eq('id', campaignId).select('*').single()
+    : supabase.from('campaigns').insert(payload as unknown as C['Insert']).select('*').single();
 }
 
 export function insertCampaignUpdate(payload: CampaignUpdateInsert) {
-  return supabase.from('campaign_updates').insert(payload as never);
+  return supabase.from('campaign_updates').insert(payload as unknown as CU['Insert']);
 }
 
 export function fetchCampaignDonationProbe(campaignId: string) {
@@ -203,7 +245,7 @@ export async function uploadSchoolReportPhotos(photos: File[]): Promise<string[]
 export function insertSchoolReport(payload: SchoolReportInsert) {
   return supabase
     .from('school_reports')
-    .insert(payload as never)
+    .insert(payload as unknown as SR['Insert'])
     .select('*')
     .single();
 }
@@ -226,7 +268,7 @@ export async function checkIsBlacklisted(ip: string, whatsapp: string): Promise<
 
 /**
  * Check how many reports were submitted from a given IP in the last hour.
- * Returns true if the count exceeds maxPerHour (default: 2).
+ * Returns true if the count exceeds maxPerHour (default: 50).
  */
 export async function checkIPRateLimit(ip: string, maxPerHour = 50): Promise<boolean> {
   const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
@@ -247,7 +289,7 @@ export async function checkIPRateLimit(ip: string, maxPerHour = 50): Promise<boo
 export function addToBlacklist(payload: SpammerBlacklistInsert) {
   return supabase
     .from('spammer_blacklist')
-    .insert(payload as never);
+    .insert(payload as unknown as SB['Insert']);
 }
 
 // ── Volunteer Programs ──
@@ -276,10 +318,10 @@ export function fetchVolunteerProgramBySlug(slug: string) {
     .single();
 }
 
-export function saveVolunteerProgram(payload: VolunteerProgramInsert, programId?: string) {
+export function saveVolunteerProgram(payload: VolunteerProgramInsert | VolunteerProgramUpdate, programId?: string) {
   return programId
-    ? supabase.from('volunteer_programs').update(payload as never).eq('id', programId).select('*').single()
-    : supabase.from('volunteer_programs').insert(payload as never).select('*').single();
+    ? supabase.from('volunteer_programs').update(payload as unknown as VP['Update']).eq('id', programId).select('*').single()
+    : supabase.from('volunteer_programs').insert(payload as unknown as VP['Insert']).select('*').single();
 }
 
 export function deleteVolunteerProgram(programId: string) {
@@ -313,7 +355,7 @@ export function insertVolunteerRegistration(payload: VolunteerRegistrationInsert
   // RLS hanya memerlukan INSERT policy untuk operasi ini.
   return supabase
     .from('volunteer_registrations')
-    .insert(payload as never);
+    .insert(payload as unknown as VR['Insert']);
 }
 
 export function fetchVolunteerRegistrationsByProgram(programId: string) {
@@ -338,7 +380,7 @@ export function updateVolunteerRegistrationStatus(
 ) {
   return supabase
     .from('volunteer_registrations')
-    .update(update as never)
+    .update(update as unknown as VR['Update'])
     .eq('id', id);
 }
 
@@ -352,18 +394,18 @@ export async function deleteVolunteerRegistrations(ids: string[]) {
   // 2. Kumpulkan path file dari storage
   if (!fetchError && records && records.length > 0) {
     const filePaths: string[] = [];
-    
+
     const extractPath = (url: string | null) => {
       if (!url) return null;
       const parts = url.split('/volunteer-assets/');
       return parts.length === 2 ? decodeURIComponent(parts[1]) : null;
     };
 
-    (records as any[]).forEach(record => {
-      const dp = extractPath(record.bukti_dp_url);
-      const follow = extractPath(record.bukti_follow_url);
-      const idCard = extractPath(record.foto_id_url);
-      
+    records.forEach((record) => {
+      const dp = extractPath(record.bukti_dp_url ?? null);
+      const follow = extractPath(record.bukti_follow_url ?? null);
+      const idCard = extractPath(record.foto_id_url ?? null);
+
       if (dp) filePaths.push(dp);
       if (follow) filePaths.push(follow);
       if (idCard) filePaths.push(idCard);
@@ -374,9 +416,9 @@ export async function deleteVolunteerRegistrations(ids: string[]) {
       const { error: storageError } = await supabase.storage
         .from('volunteer-assets')
         .remove(filePaths);
-      
+
       if (storageError) {
-        console.error('Failed to delete some storage files:', storageError);
+        logError('repository.deleteVolunteerRegistrations.storage', storageError, { filePaths });
       }
     }
   }

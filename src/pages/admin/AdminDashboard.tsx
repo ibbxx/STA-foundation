@@ -56,9 +56,9 @@ export default function AdminDashboard() {
       return;
     }
 
-    setCampaigns(campaignRows ?? []);
-    setDonations(donationRows ?? []);
-    setReports(reportRows ?? []);
+    setCampaigns((campaignRows as CampaignRow[]) ?? []);
+    setDonations((donationRows as DonationRow[]) ?? []);
+    setReports((reportRows as SchoolReportRow[]) ?? []);
     setLoading(false);
   }
 

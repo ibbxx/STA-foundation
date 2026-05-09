@@ -23,6 +23,7 @@ export default function AdminEduxplore() {
   const [selected, setSelected] = useState<VolunteerRegistrationRow | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [updating, setUpdating] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   async function loadData() {
     setLoading(true);
@@ -44,13 +45,15 @@ export default function AdminEduxplore() {
 
   async function handleUpdateStatus(id: string, newStatus: 'verified' | 'rejected' | 'pending') {
     setUpdating(true);
+    setActionError(null);
     try {
       const { error } = await updateVolunteerRegistrationStatus(id, { status: newStatus });
       if (error) throw error;
       setRegistrations(prev => prev.map(r => r.id === id ? { ...r, status: newStatus } : r));
       if (selected?.id === id) setSelected(prev => prev ? { ...prev, status: newStatus } : null);
     } catch (err) {
-      alert('Gagal mengupdate status.');
+      logError('AdminEduxplore.handleUpdateStatus', err);
+      setActionError('Gagal mengupdate status. Coba lagi.');
     } finally {
       setUpdating(false);
     }
@@ -75,6 +78,7 @@ export default function AdminEduxplore() {
   const handleDeleteSelected = async () => {
     if (!confirm(`Apakah Anda yakin ingin menghapus ${selectedIds.length} data pendaftar? Tindakan ini tidak dapat dibatalkan.`)) return;
     setUpdating(true);
+    setActionError(null);
     try {
       const { error } = await deleteVolunteerRegistrations(selectedIds);
       if (error) throw error;
@@ -82,7 +86,8 @@ export default function AdminEduxplore() {
       if (selected && selectedIds.includes(selected.id)) setSelected(null);
       setSelectedIds([]);
     } catch (err) {
-      alert('Gagal menghapus data.');
+      logError('AdminEduxplore.handleDeleteSelected', err);
+      setActionError('Gagal menghapus data. Coba lagi.');
     } finally {
       setUpdating(false);
     }
@@ -188,7 +193,19 @@ export default function AdminEduxplore() {
         </div>
       </div>
 
-      {/* Stats */}
+      {/* Action Error Banner */}
+      {actionError && (
+        <div className="flex items-center justify-between gap-3 p-3.5 rounded-xl border border-rose-200 bg-rose-50 text-sm text-rose-700">
+          <div className="flex items-center gap-2.5">
+            <AlertCircle size={16} className="flex-shrink-0" />
+            <span>{actionError}</span>
+          </div>
+          <button onClick={() => setActionError(null)} className="text-rose-400 hover:text-rose-600 transition-colors">
+            <X size={14} />
+          </button>
+        </div>
+      )}
+
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
           { label: 'Total', value: stats.total, icon: Users, color: 'text-slate-600 bg-slate-100', filter: 'all' as StatusFilter },

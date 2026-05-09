@@ -13,8 +13,10 @@ import { logError } from '../../lib/error-logger';
 import { deleteFilesFromStorage } from '../../lib/supabase-storage';
 import { SchoolReportRow } from '../../lib/supabase';
 import { cn } from '../../lib/utils';
+import { useConfirmDialog } from '../../components/admin/ConfirmDialog';
 
 export default function AdminSchoolReports() {
+  const { confirm, ConfirmDialogElement } = useConfirmDialog();
   const [reports, setReports] = useState<SchoolReportRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -180,9 +182,11 @@ export default function AdminSchoolReports() {
   }
 
   async function handleDeleteReport(report: SchoolReportRow) {
-    const confirmed = window.confirm(
-      `Apakah Anda yakin ingin menghapus laporan "${report.school_name}"?\n\nTindakan ini tidak dapat dibatalkan dan data laporan akan hilang permanen.`
-    );
+    const confirmed = await confirm({
+      title: 'Hapus Laporan',
+      message: `Apakah Anda yakin ingin menghapus laporan "${report.school_name}"? Tindakan ini tidak dapat dibatalkan.`,
+      confirmText: 'Hapus Permanen',
+    });
     if (!confirmed) return;
 
     await deleteReports([report]);
@@ -191,16 +195,24 @@ export default function AdminSchoolReports() {
   async function handleBulkDelete() {
     if (selectedReports.length === 0) return;
 
-    const confirmed = window.confirm(
-      `Apakah Anda yakin ingin menghapus ${selectedReports.length} laporan terpilih?\n\nTindakan ini tidak dapat dibatalkan dan semua data terpilih akan hilang permanen.`
-    );
+    const confirmed = await confirm({
+      title: 'Hapus Massal',
+      message: `Apakah Anda yakin ingin menghapus ${selectedReports.length} laporan terpilih? Tindakan ini tidak dapat dibatalkan.`,
+      confirmText: 'Hapus Semua',
+    });
     if (!confirmed) return;
 
     await deleteReports(selectedReports);
   }
 
   async function blockSpammer(report: SchoolReportRow) {
-    if (!confirm(`Blokir pelapor "${report.reporter_name}"?\n\nNomor WA dan IP akan dimasukkan ke daftar hitam permanen.`)) return;
+    const ok = await confirm({
+      title: 'Blokir Spammer',
+      message: `Blokir pelapor "${report.reporter_name}"? Nomor WA dan IP akan dimasukkan ke daftar hitam permanen.`,
+      confirmText: 'Blokir',
+      variant: 'warning',
+    });
+    if (!ok) return;
 
     setError(null);
     setNotice(null);
@@ -595,6 +607,7 @@ export default function AdminSchoolReports() {
           </div>
         )}
       </AdminModal>
+      {ConfirmDialogElement}
     </div>
   );
 }

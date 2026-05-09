@@ -3,6 +3,7 @@ import { ImagePlus, Loader2, Save, CheckCircle2, AlertCircle } from 'lucide-reac
 import { fetchSiteContentRows, upsertSiteContent } from '../../lib/admin-repository';
 import { uploadAdminImage } from '../../lib/supabase-storage';
 import { logError } from '../../lib/error-logger';
+import { parseSiteContentValue } from '../../lib/supabase/types';
 
 const PAGES_CONFIG = [
   { key: 'hero_tentang_kami', label: 'Tentang Kami', description: 'Hero halaman profil yayasan.' },
@@ -27,15 +28,10 @@ export default function AdminOtherPagesHero() {
         if (rows) {
           const mapped: Record<string, string> = {};
           PAGES_CONFIG.forEach(config => {
-            const row = rows.find((r: any) => r.key === config.key);
-            if (row && (row as any).value) {
-              try {
-                const val = (row as any).value;
-                const parsed = typeof val === 'string' ? JSON.parse(val) : val;
-                mapped[config.key] = parsed.imageUrl || '';
-              } catch (e) {
-                mapped[config.key] = '';
-              }
+            const row = rows.find((r) => r.key === config.key);
+            if (row) {
+              const parsed = parseSiteContentValue<{ imageUrl?: string }>(row.value);
+              mapped[config.key] = parsed?.imageUrl || '';
             }
           });
           setData(mapped);

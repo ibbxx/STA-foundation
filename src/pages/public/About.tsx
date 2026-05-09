@@ -2,7 +2,8 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Shield, Users, Heart, Target, Lightbulb, CheckCircle2, ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { supabase } from '../../lib/supabase';
+import { supabase, parseSiteContentValue } from '../../lib/supabase';
+import { logError } from '../../lib/error-logger';
 
 const fadeUp = {
   initial: { opacity: 0, y: 20 },
@@ -26,13 +27,12 @@ export default function About() {
   React.useEffect(() => {
     async function loadHero() {
       try {
-        const { data } = await supabase.from('site_content').select('value').eq('key', 'hero_tentang_kami').single();
-        if (data && (data as any).value) {
-          const val = (data as any).value;
-          const parsed = typeof val === 'string' ? JSON.parse(val) : val;
-          if (parsed.imageUrl) setHeroImage(parsed.imageUrl);
-        }
-      } catch (e) {}
+        const { data } = await supabase.from('site_content').select('value').eq('key', 'hero_tentang_kami').maybeSingle();
+        const parsed = parseSiteContentValue<{ imageUrl?: string }>(data?.value);
+        if (parsed?.imageUrl) setHeroImage(parsed.imageUrl);
+      } catch (e) {
+        logError('About.loadHero', e);
+      }
     }
     loadHero();
   }, []);

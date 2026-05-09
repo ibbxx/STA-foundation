@@ -16,6 +16,7 @@ import {
 } from '../../lib/admin/home-programs';
 import { uploadAdminImage } from '../../lib/supabase/storage';
 import { logError } from '../../lib/error-logger';
+import { useConfirmDialog } from './ConfirmDialog';
 
 function ProgramSlideCard({
   slide,
@@ -177,6 +178,7 @@ function ProgramSlideCard({
 
 
 export default function AdminHomeProgramsManager() {
+  const { confirm, ConfirmDialogElement } = useConfirmDialog();
   const [slides, setSlides] = useState<HomeProgramSlide[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -210,12 +212,17 @@ export default function AdminHomeProgramsManager() {
     setSlides((prev) => [...prev, createEmptyHomeProgram()]);
   }
 
-  function deleteSlide(id: string) {
+  async function deleteSlide(id: string) {
     if (slides.length <= 1) {
       setError('Minimal 1 program harus ada.');
       return;
     }
-    if (!window.confirm('Yakin hapus program ini?')) return;
+    const ok = await confirm({
+      title: 'Hapus Program',
+      message: 'Yakin hapus program ini?',
+      confirmText: 'Hapus',
+    });
+    if (!ok) return;
     
     const slide = slides.find((s) => s.id === id);
     if (slide) {
@@ -340,6 +347,7 @@ export default function AdminHomeProgramsManager() {
           />
         ))}
       </div>
+      {ConfirmDialogElement}
     </div>
   );
 }

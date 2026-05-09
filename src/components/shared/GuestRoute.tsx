@@ -1,46 +1,13 @@
-import { Session } from '@supabase/supabase-js';
-import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import { Navigate } from 'react-router-dom';
-import { logError } from '../../lib/error-logger';
-import { supabase } from '../../lib/supabase';
+import { useAuth } from '../../hooks/useAuth';
 
 type GuestRouteProps = {
   children: ReactNode;
 };
 
 export default function GuestRoute({ children }: GuestRouteProps) {
-  const [session, setSession] = useState<Session | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    let ignore = false;
-
-    async function loadSession() {
-      const { data, error } = await supabase.auth.getSession();
-      if (error) {
-        logError('GuestRoute.loadSession', error);
-      }
-      if (ignore) return;
-      setSession(data.session);
-      setLoading(false);
-    }
-
-    loadSession();
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, nextSession) => {
-      if (ignore) return;
-      setSession(nextSession);
-      setLoading(false);
-    });
-
-    return () => {
-      ignore = true;
-      subscription.unsubscribe();
-    };
-  }, []);
+  const { session, loading } = useAuth();
 
   if (loading) {
     return (

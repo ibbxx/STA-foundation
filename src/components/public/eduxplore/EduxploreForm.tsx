@@ -148,9 +148,9 @@ export default function EduxploreForm({ programId, programTitle, isOpen }: Props
       setTimeout(() => {
         window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
       }, 2500);
-    } catch (err: any) {
+    } catch (err) {
       logError('EduxploreForm.onSubmit', err);
-      const msg = err?.message || 'Terjadi kesalahan yang tidak diketahui.';
+      const msg = err instanceof Error ? err.message : 'Terjadi kesalahan yang tidak diketahui.';
       setErrorMsg(`Gagal mengirim pendaftaran: ${msg}`);
       setIsSubmitting(false);
     }

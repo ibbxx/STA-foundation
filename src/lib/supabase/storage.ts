@@ -2,8 +2,8 @@ import imageCompression from 'browser-image-compression';
 import { logError } from '../error-logger';
 import { supabase } from './types';
 
-const defaultBucket = (import.meta as any).env?.VITE_SUPABASE_STORAGE_BUCKET || 'site-media';
-const campaignAssetsBucket = (import.meta as any).env?.VITE_SUPABASE_CAMPAIGN_ASSETS_BUCKET || 'campaign-assets';
+const defaultBucket = import.meta.env.VITE_SUPABASE_STORAGE_BUCKET || 'site-media';
+const campaignAssetsBucket = import.meta.env.VITE_SUPABASE_CAMPAIGN_ASSETS_BUCKET || 'campaign-assets';
 
 // --- Konstanta Validasi ---
 const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];

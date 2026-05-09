@@ -36,3 +36,9 @@ export type CtaData = {
   secondaryButtonLink: string;
   imageUrl: string;
 };
+
+/**
+ * Nomor WhatsApp admin terpusat.
+ * Digunakan oleh modul EduXplore dan Laporan Sekolah.
+ */
+export const STA_ADMIN_WHATSAPP = '6287882799026';

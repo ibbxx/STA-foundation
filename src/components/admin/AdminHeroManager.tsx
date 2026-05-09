@@ -16,6 +16,7 @@ import {
 } from '../../lib/admin-hero';
 import { uploadAdminImage } from '../../lib/supabase/storage';
 import { logError } from '../../lib/error-logger';
+import { useConfirmDialog } from './ConfirmDialog';
 
 /* ─────────── Single Slide Card (Inline Edit) ─────────── */
 
@@ -146,6 +147,7 @@ function SlideCard({
 /* ─────────── Main Manager ─────────── */
 
 export default function AdminHeroManager() {
+  const { confirm, ConfirmDialogElement } = useConfirmDialog();
   const [slides, setSlides] = useState<HeroSlide[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -179,12 +181,17 @@ export default function AdminHeroManager() {
     setSlides((prev) => [...prev, createEmptySlide()]);
   }
 
-  function deleteSlide(id: string) {
+  async function deleteSlide(id: string) {
     if (slides.length <= 1) {
       setError('Minimal 1 slide harus ada.');
       return;
     }
-    if (!window.confirm('Yakin hapus slide ini?')) return;
+    const ok = await confirm({
+      title: 'Hapus Slide',
+      message: 'Yakin hapus slide ini?',
+      confirmText: 'Hapus',
+    });
+    if (!ok) return;
     
     // Delete from storage
     const slide = slides.find((s) => s.id === id);
@@ -322,6 +329,7 @@ export default function AdminHeroManager() {
           <p className="mt-2 text-sm text-slate-500">Belum ada slide. Klik "Tambah" di atas.</p>
         </div>
       )}
+      {ConfirmDialogElement}
     </div>
   );
 }
