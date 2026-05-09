@@ -192,6 +192,9 @@ export default function InteractiveMap({
         onLoad={handleMapLoad}
         onClick={onClick}
         attributionControl={false}
+        onError={(e) => {
+          console.error('[InteractiveMap] MapLibre Error Details:', e);
+        }}
       >
         {/* Controls */}
         {showControls && (
