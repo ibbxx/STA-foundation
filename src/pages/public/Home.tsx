@@ -184,6 +184,7 @@ export default function Home() {
                             alt={hero.title}
                             className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
                             referrerPolicy="no-referrer"
+                            loading="lazy"
                           />
                           <div className="absolute inset-0 bg-gray-900/5" />
                         </div>
@@ -236,6 +237,7 @@ export default function Home() {
                               alt={campaign.title}
                               className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
                               referrerPolicy="no-referrer"
+                              loading="lazy"
                             />
                           </div>
                           <div className="flex min-w-0 flex-1 flex-col">

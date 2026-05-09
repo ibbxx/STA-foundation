@@ -89,6 +89,8 @@ export default function HeroSlideshow() {
               src={currentSlide.imageUrl}
               alt={currentSlide.title}
               className="size-full object-cover"
+              fetchPriority="high"
+              decoding="sync"
             />
           ) : (
             <div className="size-full bg-emerald-950" />
