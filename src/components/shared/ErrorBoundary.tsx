@@ -70,9 +70,11 @@ export default class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBo
             <p className="mb-6 text-sm text-gray-500">
               Maaf, terjadi kesalahan yang tidak terduga. Tim kami telah diberitahu.
             </p>
-            {import.meta.env.DEV && this.state.error && (
+            {this.state.error && (
               <pre className="mb-6 max-h-32 overflow-auto rounded-lg bg-gray-100 p-3 text-left text-xs text-gray-700">
                 {this.state.error.message}
+                {'\n\n'}
+                {this.state.error.stack?.split('\n').slice(0, 5).join('\n')}
               </pre>
             )}
             <div className="flex items-center justify-center gap-3">
