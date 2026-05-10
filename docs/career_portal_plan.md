@@ -26,6 +26,15 @@
 
 ---
 
+## 🎯 Penyesuaian Konteks Aktual (Berdasarkan Glints STA)
+
+Dari data rekrutmen yayasan di Glints (Content Planner, Writer, Graphic Designer), sistem ini akan dirancang khusus untuk mengakomodasi struktur data nyata:
+1. **Departemen Spesifik:** *Marketing*, *Operasional & Pelayanan Pelanggan*, *Seni, Media, & Komunikasi*.
+2. **Kualifikasi Khusus:** Field tambahan untuk *Experience Level* (misal: 1 - 3 tahun) dan *Education* (Minimal SMA/SMK, S1, dll).
+3. **Sistem Hibrida (Glints Integration):** Menambahkan field `external_link`. Jika diisi dengan link loker Glints, tombol "Lamar" akan langsung mengarahkan pelamar ke aplikasi Glints, namun jika dikosongkan, pelamar akan menggunakan form internal website STA.
+
+---
+
 ## 🏗️ Arsitektur Fitur
 
 ```
@@ -50,25 +59,29 @@ Portal Karir
 create table if not exists public.job_postings (
   id uuid primary key default gen_random_uuid(),
   slug text not null unique,
-  title text not null,
-  department text not null,           -- Misal: 'Teknologi', 'Program', 'Komunikasi'
-  employment_type text not null,       -- 'full_time' | 'part_time' | 'contract' | 'internship' | 'volunteer'
-  location text not null,             -- Misal: 'Jakarta', 'Remote', 'Hybrid'
-  description text,                   -- Rich text (HTML dari RichTextEditor)
-  requirements text,                  -- Rich text: syarat & kualifikasi
-  benefits text,                      -- Rich text: keuntungan & fasilitas
-  salary_range text,                  -- Opsional: misal "Rp 5jt - 8jt" atau null
-  image_url text,                     -- Foto/banner lowongan (opsional)
+  title text not null,                -- Misal: 'CONTENT PLANNER', 'WRITER'
+  department text not null,           -- Misal: 'Marketing', 'Seni, Media, & Komunikasi'
+  employment_type text not null,      -- 'full_time' | 'part_time' | 'contract' | 'internship' | 'freelance' | 'volunteer'
+  location text not null,             -- Misal: 'Kerja di lokasi', 'Remote', 'Tangerang Selatan'
+  experience_level text,              -- Misal: '1 - 3 tahun pengalaman'
+  education_level text,               -- Misal: 'Minimal SMA/SMK'
+  skills_required text[],             -- Array of skills: ['Copywriting', 'Proofreading']
+  description text,                   -- Rich text: Tentang Pekerjaan
+  requirements text,                  -- Rich text: Syarat & Kualifikasi
+  benefits text,                      -- Rich text: Benefit (Flexible Hours, Transport Money)
+  salary_range text,                  -- Opsional
+  image_url text,                     -- Foto/banner
+  external_link text,                 -- URL Glints/LinkedIn (Jika diisi, bypass form lamaran internal)
   is_featured boolean not null default false,
-  status text not null default 'draft', -- 'draft' | 'open' | 'closed'
-  deadline date,                      -- Batas waktu lamaran
+  status text not null default 'draft',
+  deadline date,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
 
   constraint job_postings_status_check
     check (status in ('draft', 'open', 'closed')),
   constraint job_postings_employment_type_check
-    check (employment_type in ('full_time', 'part_time', 'contract', 'internship', 'volunteer'))
+    check (employment_type in ('full_time', 'part_time', 'contract', 'internship', 'freelance', 'volunteer'))
 );
 ```
 
@@ -185,13 +198,17 @@ job_postings: {
     slug: string;
     title: string;
     department: string;
-    employment_type: 'full_time' | 'part_time' | 'contract' | 'internship' | 'volunteer';
+    employment_type: 'full_time' | 'part_time' | 'contract' | 'internship' | 'freelance' | 'volunteer';
     location: string;
+    experience_level: string | null;
+    education_level: string | null;
+    skills_required: string[] | null;
     description: string | null;
     requirements: string | null;
     benefits: string | null;
     salary_range: string | null;
     image_url: string | null;
+    external_link: string | null;
     is_featured: boolean;
     status: 'draft' | 'open' | 'closed';
     deadline: string | null;
@@ -277,13 +294,15 @@ export type JobApplicationInsert = Database['public']['Tables']['job_application
 - Tombol "Lamar Sekarang" → scroll ke form
 
 **Form Lamaran (di bawah, full-width):**
-- Nama lengkap, Email, WhatsApp, Domisili
-- Pendidikan terakhir (select)
-- Upload CV (PDF, max 5MB) → Supabase Storage `careers/`
-- Pengalaman kerja (textarea)
-- Motivasi/surat lamaran (textarea, rich)
-- Portfolio URL (opsional)
-- Submit → notifikasi sukses + konfirmasi via email jika ada
+- Jika `external_link` terisi: Tampilkan tombol besar "Lamar Via Platform (Glints)" yang mengarah ke link tersebut, dan sembunyikan form internal.
+- Jika `external_link` kosong, tampilkan form internal:
+  - Nama lengkap, Email, WhatsApp, Domisili
+  - Pendidikan terakhir (select)
+  - Upload CV (PDF, max 5MB) → Supabase Storage `careers/`
+  - Pengalaman kerja (textarea)
+  - Motivasi/surat lamaran (textarea, rich)
+  - Portfolio URL (opsional)
+  - Submit → notifikasi sukses + konfirmasi via email jika ada
 
 ---
 
@@ -330,17 +349,23 @@ export type JobApplicationInsert = Database['public']['Tables']['job_application
 - Lokasi (text + saran: Remote, Hybrid, Jakarta, dll)
 - Status (Draft/Open/Closed)
 
-**Seksi 2 — Waktu & Kompensasi** (biru)
+**Seksi 2 — Kualifikasi Ekstra**
+- Tingkat Pengalaman (text, misal: "1 - 3 tahun pengalaman")
+- Tingkat Pendidikan (text, misal: "Minimal SMA/SMK")
+- Daftar Keahlian / Skills (input tags array)
+
+**Seksi 3 — Waktu & Kompensasi** (biru)
 - Deadline (date picker)
 - Salary Range (text, opsional)
+- Link Eksternal (URL Glints/LinkedIn)
 - Is Featured (toggle)
 
-**Seksi 3 — Konten Lowongan** (kuning)
+**Seksi 4 — Konten Lowongan** (kuning)
 - Deskripsi Pekerjaan (RichTextEditor)
 - Kualifikasi & Persyaratan (RichTextEditor)
 - Keuntungan & Fasilitas (RichTextEditor)
 
-**Seksi 4 — Media** (ungu)
+**Seksi 5 — Media** (ungu)
 - Upload Banner/Gambar (opsional)
 
 ---
@@ -434,6 +459,7 @@ const AdminKarir = lazy(() => import('./pages/admin/AdminKarir'));
 | `part_time` | Indigo (`bg-indigo-50 text-indigo-700`) |
 | `contract` | Oranye (`bg-orange-50 text-orange-700`) |
 | `internship` | Hijau teal (`bg-teal-50 text-teal-700`) |
+| `freelance` | Kuning Emas (`bg-yellow-50 text-yellow-700`) |
 | `volunteer` | Ungu (`bg-purple-50 text-purple-700`) |
 
 ### Warna Status Pelamar
