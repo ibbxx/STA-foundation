@@ -17,6 +17,7 @@ interface DisplaySlide extends HeroSlide {
 export default function HeroSlideshow() {
   const [heroSlides, setHeroSlides] = React.useState<DisplaySlide[]>(DEFAULT_HERO_SLIDES);
   const [currentSlideIndex, setCurrentSlideIndex] = React.useState(0);
+  const [isLoading, setIsLoading] = React.useState(true);
 
   // Fetch hero slides from Supabase + auto-inject EduXplore programs
   React.useEffect(() => {
@@ -40,10 +41,22 @@ export default function HeroSlideshow() {
         // EduXplore slides go first (priority), then admin-managed slides
         const combined: DisplaySlide[] = [...volunteerSlides, ...heroContent.slides];
         if (combined.length > 0) {
+          // Preload the first slide's image to prevent "blank screen" during image load
+          const firstSlide = combined[0];
+          if (firstSlide?.imageUrl) {
+            await new Promise((resolve) => {
+              const img = new Image();
+              img.onload = resolve;
+              img.onerror = resolve;
+              img.src = firstSlide.imageUrl;
+            });
+          }
           setHeroSlides(combined);
         }
       } catch (err) {
         logError('HeroSlideshow.loadSlides', err);
+      } finally {
+        setIsLoading(false);
       }
     }
 
@@ -52,55 +65,72 @@ export default function HeroSlideshow() {
 
   // Auto-advance slideshow (every 6 seconds)
   React.useEffect(() => {
-    if (heroSlides.length <= 1) return;
+    if (heroSlides.length <= 1 || isLoading) return;
 
     const interval = setInterval(() => {
       setCurrentSlideIndex((prev) => (prev + 1) % heroSlides.length);
     }, 6000);
 
     return () => clearInterval(interval);
-  }, [heroSlides.length]);
+  }, [heroSlides.length, isLoading]);
 
   const currentSlide = heroSlides[currentSlideIndex] ?? heroSlides[0];
 
   return (
-    <section className="relative min-h-screen">
+    <section className="relative min-h-screen bg-emerald-950">
+      {/* Loading overlay */}
+      <AnimatePresence>
+        {isLoading && (
+          <motion.div
+            initial={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.8 }}
+            className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-emerald-950"
+          >
+            <div className="h-10 w-10 animate-spin rounded-full border-4 border-emerald-500/30 border-t-emerald-500 mb-4" />
+            <p className="text-emerald-500/70 text-sm font-medium tracking-widest uppercase animate-pulse">Memuat...</p>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Background image with smooth Ken Burns transition */}
       <AnimatePresence>
-        <motion.div
-          key={currentSlide.id}
-          initial={{ opacity: 0, scale: 1.05 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 1.5, ease: 'easeOut' }}
-          className="absolute inset-0 overflow-hidden"
-        >
-          {currentSlide.videoUrl ? (
-            <video
-              src={currentSlide.videoUrl}
-              autoPlay
-              muted
-              loop
-              playsInline
-              className="size-full object-cover"
-            />
-          ) : currentSlide.imageUrl ? (
-            <img
-              src={currentSlide.imageUrl}
-              alt={currentSlide.title}
-              className="size-full object-cover"
-              fetchPriority="high"
-              decoding="sync"
-            />
-          ) : (
-            <div className="size-full bg-emerald-950" />
-          )}
-          <div className="absolute inset-0 bg-gradient-to-t from-gray-950 via-gray-950/60 to-gray-950/20" />
-        </motion.div>
+        {!isLoading && (
+          <motion.div
+            key={currentSlide.id}
+            initial={{ opacity: 0, scale: 1.05 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 1.5, ease: 'easeOut' }}
+            className="absolute inset-0 overflow-hidden"
+          >
+            {currentSlide.videoUrl ? (
+              <video
+                src={currentSlide.videoUrl}
+                autoPlay
+                muted
+                loop
+                playsInline
+                className="size-full object-cover"
+              />
+            ) : currentSlide.imageUrl ? (
+              <img
+                src={currentSlide.imageUrl}
+                alt={currentSlide.title}
+                className="size-full object-cover"
+                fetchPriority="high"
+                decoding="sync"
+              />
+            ) : (
+              <div className="size-full bg-emerald-950" />
+            )}
+            <div className="absolute inset-0 bg-gradient-to-t from-gray-950 via-gray-950/60 to-gray-950/20" />
+          </motion.div>
+        )}
       </AnimatePresence>
 
       {/* Content overlay — bottom-left, flush left on all screens */}
-      <div className="relative z-10 flex min-h-screen items-end pb-16 sm:pb-32 pt-28">
+      <div className={cn("relative z-10 flex min-h-screen items-end pb-16 sm:pb-32 pt-28 transition-opacity duration-1000", isLoading ? "opacity-0" : "opacity-100")}>
         <div className="flex flex-col px-5 sm:px-8 lg:px-12">
           <div className="max-w-3xl text-left">
             <AnimatePresence mode="wait">
