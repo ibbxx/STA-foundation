@@ -34,6 +34,7 @@ const AdminSchoolReports = lazy(() => import('./pages/admin/AdminSchoolReports')
 const AdminContent = lazy(() => import('./pages/admin/AdminContent'));
 const AdminImpactMap = lazy(() => import('./pages/admin/AdminImpactMap'));
 const AdminGuide = lazy(() => import('./pages/admin/AdminGuide'));
+const AdminLogs = lazy(() => import('./pages/admin/AdminLogs'));
 
 function RouteLoader() {
   return (
@@ -111,6 +112,7 @@ export default function App() {
           <Route path="content" element={renderWithSuspense(<AdminContent />)} />
           <Route path="impact-map" element={renderWithSuspense(<AdminImpactMap />)} />
           <Route path="guide" element={renderWithSuspense(<AdminGuide />)} />
+          <Route path="logs" element={renderWithSuspense(<AdminLogs />)} />
         </Route>
 
         {/* Rute Penanganan 404/Fallback */}

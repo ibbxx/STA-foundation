@@ -12,7 +12,8 @@ import {
   X,
   Bell,
   MapPinned,
-  BookOpen
+  BookOpen,
+  History
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import type { ComponentType } from 'react';
@@ -60,6 +61,12 @@ const menuGroups: AdminNavGroup[] = [
     items: [
       { name: 'Peta Dampak', path: '/admin/impact-map', icon: MapPinned },
       { name: 'Pengaturan Konten', path: '/admin/content', icon: BookText },
+    ],
+  },
+  {
+    title: 'Sistem',
+    items: [
+      { name: 'Log Aktivitas', path: '/admin/logs', icon: History },
     ],
   }
 ];
