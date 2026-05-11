@@ -62,3 +62,12 @@ FOR EACH ROW EXECUTE FUNCTION public.record_audit_log();
 CREATE TRIGGER audit_programs_trigger
 AFTER INSERT OR UPDATE OR DELETE ON public.programs
 FOR EACH ROW EXECUTE FUNCTION public.record_audit_log();
+
+-- Berikan akses ke role Supabase agar API bisa membaca datanya (RLS akan tetap membatasi sesuai policy)
+GRANT SELECT ON TABLE public.audit_logs TO anon, authenticated;
+GRANT ALL ON TABLE public.audit_logs TO service_role;
+
+-- Index untuk mempercepat query database
+CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at_desc ON public.audit_logs(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_entity_type ON public.audit_logs(entity_type);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_user_id ON public.audit_logs(user_id);
