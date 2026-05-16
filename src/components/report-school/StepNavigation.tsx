@@ -45,6 +45,7 @@ export default function StepNavigation({
         {isLastStep ? (
           <button
             type="submit"
+            form="report-school-form"
             disabled={!isCurrentStepValid || isSubmitting}
             className={cn(
               'inline-flex w-full items-center justify-center gap-2 rounded-lg px-6 py-3 text-sm font-semibold text-white transition-all duration-200 active:scale-[0.98] sm:w-auto',

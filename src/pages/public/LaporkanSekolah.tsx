@@ -388,7 +388,7 @@ export default function LaporkanSekolah() {
                         transition={{ duration: 0.3 }}
                       >
                         <FormProvider {...methods}>
-                          <form onSubmit={onSubmit}>
+                          <form id="report-school-form" onSubmit={onSubmit}>
 
                             {/* Step Progress directly in the white panel so it reads clearly */}
                             <div className="mb-10">
