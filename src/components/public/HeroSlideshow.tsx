@@ -204,20 +204,22 @@ export default function HeroSlideshow() {
                       <ArrowRight className="ml-1 h-4 w-4" />
                     </Link>
                   ) : (
-                    <Link
-                      to="/campaigns"
-                      className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-[#2C5F4F] pl-6 pr-4 text-sm font-bold text-[#F5F1E8] transition-all duration-300 hover:bg-[#234A3D] md:h-12 md:text-base"
-                    >
-                      <span className="whitespace-nowrap">Donasi Sekarang</span>
-                      <ArrowRight className="ml-1 h-4 w-4" />
-                    </Link>
+                    <>
+                      <Link
+                        to="/campaigns"
+                        className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-[#2C5F4F] pl-6 pr-4 text-sm font-bold text-[#F5F1E8] transition-all duration-300 hover:bg-[#234A3D] md:h-12 md:text-base"
+                      >
+                        <span className="whitespace-nowrap">Donasi Sekarang</span>
+                        <ArrowRight className="ml-1 h-4 w-4" />
+                      </Link>
+                      <Link
+                        to="/laporkan"
+                        className="inline-flex h-11 items-center justify-center rounded-full bg-white px-6 text-sm font-bold text-[#2C5F4F] transition-all duration-300 hover:bg-white/90 md:h-12 md:text-base"
+                      >
+                        <span className="whitespace-nowrap">Laporkan Sekolah</span>
+                      </Link>
+                    </>
                   )}
-                  <Link
-                    to="/laporkan"
-                    className="inline-flex h-11 items-center justify-center rounded-full bg-white px-6 text-sm font-bold text-[#2C5F4F] transition-all duration-300 hover:bg-white/90 md:h-12 md:text-base"
-                  >
-                    <span className="whitespace-nowrap">Laporkan Sekolah</span>
-                  </Link>
                 </div>
               </motion.div>
             </AnimatePresence>

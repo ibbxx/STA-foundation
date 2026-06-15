@@ -9,6 +9,8 @@ export interface HeroSlide {
   subtitle: string;
   imageUrl: string;
   videoUrl?: string;
+  buttonText?: string;
+  buttonLink?: string;
 }
 
 export interface HeroContent {
@@ -94,5 +96,7 @@ export function createEmptySlide(): HeroSlide {
     title: '',
     subtitle: '',
     imageUrl: '',
+    buttonText: '',
+    buttonLink: '',
   };
 }
