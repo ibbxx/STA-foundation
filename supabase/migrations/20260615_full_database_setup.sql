@@ -395,14 +395,19 @@ FOR EACH ROW EXECUTE FUNCTION public.record_audit_log();
 -- Function: Is Admin
 CREATE OR REPLACE FUNCTION public.is_admin()
 RETURNS boolean
-LANGUAGE sql
-STABLE
+LANGUAGE plpgsql
 SECURITY DEFINER
+STABLE
 SET search_path = public, auth
 AS $$
+DECLARE
+  v_is_admin boolean;
+BEGIN
   SELECT EXISTS (
     SELECT 1 FROM public.admin_users WHERE user_id = auth.uid()
-  );
+  ) INTO v_is_admin;
+  RETURN v_is_admin;
+END;
 $$;
 
 -- ============================================================
@@ -785,7 +790,7 @@ CREATE POLICY "site_content_admin_all" ON public.site_content FOR ALL TO authent
 
 -- admin_users
 DROP POLICY IF EXISTS "admin_users_admin_select" ON public.admin_users;
-CREATE POLICY "admin_users_admin_select" ON public.admin_users FOR SELECT TO authenticated USING (public.is_admin());
+CREATE POLICY "admin_users_admin_select" ON public.admin_users FOR SELECT TO authenticated USING (auth.uid() = user_id);
 
 -- spammer_blacklist
 DROP POLICY IF EXISTS "spammer_blacklist_admin_all" ON public.spammer_blacklist;

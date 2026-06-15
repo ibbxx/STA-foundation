@@ -4,6 +4,7 @@ import Navbar from './components/layout/Navbar';
 import GuestRoute from './components/shared/GuestRoute';
 import Footer from './components/layout/Footer';
 import ProtectedRoute from './components/shared/ProtectedRoute';
+import { AuthContext, useAuthProvider } from './hooks/useAuth';
 
 /* ── Public Pages ── */
 const Home = lazy(() => import('./pages/public/Home'));
@@ -76,55 +77,67 @@ function PublicLayout({ children }: { children: React.ReactNode }) {
 }
 
 /**
+ * Provider terpusat untuk auth state.
+ * Menjalankan useAuthProvider() SATU KALI dan men-share hasilnya
+ * ke seluruh tree melalui React Context.
+ */
+function AuthProvider({ children }: { children: React.ReactNode }) {
+  const auth = useAuthProvider();
+  return <AuthContext.Provider value={auth}>{children}</AuthContext.Provider>;
+}
+
+/**
  * Komponen utama aplikasi yang mendefinisikan seluruh rute (routing).
  */
 export default function App() {
   return (
     <Router>
-      <ScrollToTop />
-      <Routes>
-        {/* Rute-rute Publik */}
-        <Route path="/" element={renderWithSuspense(<PublicLayout><Home /></PublicLayout>)} />
-        <Route path="/campaigns" element={renderWithSuspense(<PublicLayout><Campaigns /></PublicLayout>)} />
-        <Route path="/campaigns/:slug" element={renderWithSuspense(<PublicLayout><CampaignDetail /></PublicLayout>)} />
-        <Route path="/programs/:slug" element={renderWithSuspense(<PublicLayout><ProgramDetail /></PublicLayout>)} />
-        <Route path="/donate/:slug" element={renderWithSuspense(<PublicLayout><Donate /></PublicLayout>)} />
-        <Route path="/payment/success" element={renderWithSuspense(<PublicLayout><PaymentSuccess /></PublicLayout>)} />
-        <Route path="/tentang-kami" element={renderWithSuspense(<PublicLayout><About /></PublicLayout>)} />
-        <Route path="/events" element={renderWithSuspense(<PublicLayout><Events /></PublicLayout>)} />
-        <Route path="/journey/:id" element={renderWithSuspense(<PublicLayout><JourneyDetail /></PublicLayout>)} />
+      <AuthProvider>
+        <ScrollToTop />
+        <Routes>
+          {/* Rute-rute Publik */}
+          <Route path="/" element={renderWithSuspense(<PublicLayout><Home /></PublicLayout>)} />
+          <Route path="/campaigns" element={renderWithSuspense(<PublicLayout><Campaigns /></PublicLayout>)} />
+          <Route path="/campaigns/:slug" element={renderWithSuspense(<PublicLayout><CampaignDetail /></PublicLayout>)} />
+          <Route path="/programs/:slug" element={renderWithSuspense(<PublicLayout><ProgramDetail /></PublicLayout>)} />
+          <Route path="/donate/:slug" element={renderWithSuspense(<PublicLayout><Donate /></PublicLayout>)} />
+          <Route path="/payment/success" element={renderWithSuspense(<PublicLayout><PaymentSuccess /></PublicLayout>)} />
+          <Route path="/tentang-kami" element={renderWithSuspense(<PublicLayout><About /></PublicLayout>)} />
+          <Route path="/events" element={renderWithSuspense(<PublicLayout><Events /></PublicLayout>)} />
+          <Route path="/journey/:id" element={renderWithSuspense(<PublicLayout><JourneyDetail /></PublicLayout>)} />
 
 
-        <Route path="/laporkan" element={renderWithSuspense(<PublicLayout><LaporkanSekolah /></PublicLayout>)} />
-        <Route path="/kontak" element={renderWithSuspense(<PublicLayout><Contact /></PublicLayout>)} />
-        <Route path="/leaderboard" element={renderWithSuspense(<PublicLayout><Leaderboard /></PublicLayout>)} />
-        <Route path="/eduxplore/:slug" element={renderWithSuspense(<PublicLayout><EduxploreDetailView /></PublicLayout>)} />
-        <Route path="/admin/login" element={renderWithSuspense(<GuestRoute><AdminLogin /></GuestRoute>)} />
+          <Route path="/laporkan" element={renderWithSuspense(<PublicLayout><LaporkanSekolah /></PublicLayout>)} />
+          <Route path="/kontak" element={renderWithSuspense(<PublicLayout><Contact /></PublicLayout>)} />
+          <Route path="/leaderboard" element={renderWithSuspense(<PublicLayout><Leaderboard /></PublicLayout>)} />
+          <Route path="/eduxplore/:slug" element={renderWithSuspense(<PublicLayout><EduxploreDetailView /></PublicLayout>)} />
+          <Route path="/admin/login" element={renderWithSuspense(<GuestRoute><AdminLogin /></GuestRoute>)} />
 
-        {/* Rute-rute Panel Admin */}
-        <Route path="/admin" element={renderWithSuspense(<ProtectedRoute><AdminLayout /></ProtectedRoute>)}>
-          <Route index element={renderWithSuspense(<AdminDashboard />)} />
-          <Route path="campaigns" element={renderWithSuspense(<AdminCampaigns />)} />
-          <Route path="donors" element={renderWithSuspense(<AdminDonors />)} />
-          <Route path="eduxplore" element={renderWithSuspense(<AdminEduxplore />)} />
-          <Route path="transactions" element={renderWithSuspense(<AdminTransactions />)} />
-          <Route path="school-reports" element={renderWithSuspense(<AdminSchoolReports />)} />
-          <Route path="content" element={renderWithSuspense(<AdminContent />)} />
-          <Route path="impact-map" element={renderWithSuspense(<AdminImpactMap />)} />
-          <Route path="guide" element={renderWithSuspense(<AdminGuide />)} />
-          <Route path="logs" element={renderWithSuspense(<AdminLogs />)} />
-        </Route>
+          {/* Rute-rute Panel Admin */}
+          <Route path="/admin" element={renderWithSuspense(<ProtectedRoute><AdminLayout /></ProtectedRoute>)}>
+            <Route index element={renderWithSuspense(<AdminDashboard />)} />
+            <Route path="campaigns" element={renderWithSuspense(<AdminCampaigns />)} />
+            <Route path="donors" element={renderWithSuspense(<AdminDonors />)} />
+            <Route path="eduxplore" element={renderWithSuspense(<AdminEduxplore />)} />
+            <Route path="transactions" element={renderWithSuspense(<AdminTransactions />)} />
+            <Route path="school-reports" element={renderWithSuspense(<AdminSchoolReports />)} />
+            <Route path="content" element={renderWithSuspense(<AdminContent />)} />
+            <Route path="impact-map" element={renderWithSuspense(<AdminImpactMap />)} />
+            <Route path="guide" element={renderWithSuspense(<AdminGuide />)} />
+            <Route path="logs" element={renderWithSuspense(<AdminLogs />)} />
+          </Route>
 
-        {/* Rute Penanganan 404/Fallback */}
-        <Route
-          path="*"
-          element={renderWithSuspense(
-            <PublicLayout>
-              <div className="py-24 text-center sm:py-32">Halaman tidak ditemukan.</div>
-            </PublicLayout>,
-          )}
-        />
-      </Routes>
+          {/* Rute Penanganan 404/Fallback */}
+          <Route
+            path="*"
+            element={renderWithSuspense(
+              <PublicLayout>
+                <div className="py-24 text-center sm:py-32">Halaman tidak ditemukan.</div>
+              </PublicLayout>,
+            )}
+          />
+        </Routes>
+      </AuthProvider>
     </Router>
   );
 }

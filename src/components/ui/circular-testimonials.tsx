@@ -10,6 +10,7 @@ import { FaArrowLeft, FaArrowRight } from "react-icons/fa";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface Testimonial {
+  id?: string;
   quote: string;
   name: string;
   designation: string;
@@ -186,12 +187,14 @@ export const CircularTestimonials = ({
         <div className="image-container relative w-full h-[180px] sm:h-[260px] md:h-[400px] lg:h-[500px]" style={{ perspective: '1000px' }} ref={imageContainerRef}>
           {testimonials.map((testimonial, index) => (
             <img
-              key={testimonial.src + index}
+              key={testimonial.id || testimonial.name + index}
               src={testimonial.src}
               alt={testimonial.name}
               className="testimonial-image absolute inset-0 w-full h-full object-cover rounded-3xl shadow-2xl"
               data-index={index}
               style={getImageStyle(index)}
+              loading="lazy"
+              decoding="async"
             />
           ))}
         </div>
@@ -223,34 +226,12 @@ export const CircularTestimonials = ({
               </div>
 
               <div className="min-h-[80px] md:min-h-[120px]">
-                <motion.p
-                  className="quote leading-relaxed font-light"
+                <p
+                  className="quote leading-relaxed font-light text-gray-600"
                   style={{ color: colorTestimony, fontSize: fontSizeQuote }}
                 >
-                  {activeTestimonial.quote.split(" ").map((word, i) => (
-                    <motion.span
-                      key={i}
-                      initial={{
-                        filter: "blur(8px)",
-                        opacity: 0,
-                        y: 5,
-                      }}
-                      animate={{
-                        filter: "blur(0px)",
-                        opacity: 1,
-                        y: 0,
-                      }}
-                      transition={{
-                        duration: 0.3,
-                        ease: "easeOut",
-                        delay: 0.01 * i,
-                      }}
-                      style={{ display: "inline-block" }}
-                    >
-                      {word}&nbsp;
-                    </motion.span>
-                  ))}
-                </motion.p>
+                  {activeTestimonial.quote}
+                </p>
               </div>
 
               {activeTestimonial.href && (

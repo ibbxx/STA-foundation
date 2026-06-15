@@ -45,6 +45,7 @@ export default function Home() {
 
   // Programs State (Dynamic from Supabase)
   const [dynamicPrograms, setDynamicPrograms] = React.useState<any[]>([]);
+  const [loadingPrograms, setLoadingPrograms] = React.useState(true);
   const [headerData, setHeaderData] = React.useState<ProgramsHeaderData>({ ...DEFAULT_PROGRAMS_HEADER });
 
   const [ctaData, setCtaData] = React.useState<CtaData>({ ...DEFAULT_CTA_DATA });
@@ -90,6 +91,8 @@ export default function Home() {
         }
       } catch (err) {
         logError('Home.loadPrograms', err);
+      } finally {
+        setLoadingPrograms(false);
       }
     }
     loadPrograms();
@@ -383,32 +386,58 @@ export default function Home() {
             </p>
           </motion.div>
 
-          <div className="flex justify-center">
-            <CircularTestimonials
-              testimonials={(dynamicPrograms.length > 0 ? dynamicPrograms : PROGRAMS).map((program) => {
-                return {
-                  name: program.title,
-                  designation: program.stage_value || 'Program STA',
-                  quote: program.short_description || program.description,
-                  src: program.home_slider_image || program.hero_image_url || '',
-                  href: `/programs/${program.slug}`
-                };
-              })}
-              autoplay={true}
-              colors={{
-                name: "#111827",
-                designation: "#059669",
-                testimony: "#4b5563",
-                arrowBackground: "#065f46",
-                arrowForeground: "#ffffff",
-                arrowHoverBackground: "#047857",
-              }}
-              fontSizes={{
-                name: "clamp(1.25rem, 4vw, 2.5rem)",
-                designation: "0.75rem",
-                quote: "clamp(0.875rem, 2vw, 1.25rem)",
-              }}
-            />
+          <div className="flex justify-center w-full">
+            {loadingPrograms ? (
+              <div className="w-full max-w-7xl px-4 py-4 sm:py-8 grid gap-4 sm:gap-6 md:gap-20 md:grid-cols-2 animate-pulse">
+                {/* Image Skeleton */}
+                <div className="relative w-full h-[180px] sm:h-[260px] md:h-[400px] lg:h-[500px]">
+                  <Skeleton className="w-full h-full rounded-3xl bg-gray-200" />
+                </div>
+                {/* Content Skeleton */}
+                <div className="flex flex-col justify-center space-y-4 md:space-y-8">
+                  <div className="space-y-3">
+                    <Skeleton className="h-8 w-2/3 sm:h-12 bg-gray-200" />
+                    <Skeleton className="h-4 w-1/3 bg-gray-200" />
+                  </div>
+                  <div className="space-y-2">
+                    <Skeleton className="h-4 w-full bg-gray-200" />
+                    <Skeleton className="h-4 w-full bg-gray-200" />
+                    <Skeleton className="h-4 w-4/5 bg-gray-200" />
+                  </div>
+                  <div className="flex gap-4 pt-4">
+                    <Skeleton className="w-12 h-12 rounded-full bg-gray-200" />
+                    <Skeleton className="w-12 h-12 rounded-full bg-gray-200" />
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <CircularTestimonials
+                testimonials={(dynamicPrograms.length > 0 ? dynamicPrograms : PROGRAMS).map((program) => {
+                  return {
+                    id: program.id || program.slug,
+                    name: program.title,
+                    designation: program.stage_value || 'Program STA',
+                    quote: program.short_description || program.description,
+                    src: program.home_slider_image || program.hero_image_url || '',
+                    href: `/programs/${program.slug}`
+                  };
+                })}
+                autoplay={true}
+                colors={{
+                  name: "#111827",
+                  designation: "#059669",
+                  testimony: "#4b5563",
+                  arrowBackground: "#065f46",
+                  arrowForeground: "#ffffff",
+                  arrowHoverBackground: "#047857",
+                }}
+                fontSizes={{
+                  name: "clamp(1.25rem, 4vw, 2.5rem)",
+                  designation: "0.75rem",
+                  quote: "clamp(0.875rem, 2vw, 1.25rem)",
+                }}
+              />
+            )}
           </div>
         </div>
       </section>
