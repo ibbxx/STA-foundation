@@ -885,6 +885,22 @@ GRANT SELECT ON public.public_campaign_donations TO authenticated;
 GRANT SELECT ON public.public_campaign_stats TO authenticated;
 GRANT SELECT ON public.leaderboard TO authenticated;
 
+-- Service Role grants
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.categories TO service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.programs TO service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.campaigns TO service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.donations TO service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.campaign_updates TO service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.school_reports TO service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.site_content TO service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.spammer_blacklist TO service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.volunteer_programs TO service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.volunteer_registrations TO service_role;
+GRANT SELECT ON public.audit_logs TO service_role;
+GRANT SELECT ON public.public_campaign_donations TO service_role;
+GRANT SELECT ON public.public_campaign_stats TO service_role;
+GRANT SELECT ON public.leaderboard TO service_role;
+
 -- Execute permissions for Functions/RPCs
 GRANT EXECUTE ON FUNCTION public.is_admin() TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.create_pending_donation(uuid, text, text, text, numeric, text, text, boolean) TO anon, authenticated, service_role;

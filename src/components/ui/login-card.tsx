@@ -34,7 +34,7 @@ export default function LoginCard({
     <div className="relative w-full min-h-screen flex items-center justify-center overflow-hidden bg-[#fafaf9]">
       {/* Background decoration */}
       <div className="absolute inset-0 z-0">
-        <ParticleCanvas maxParticles={800} speedScale={1} />
+        <ParticleCanvas maxParticles={120} speedScale={1} />
         <div className="absolute inset-0 bg-gradient-to-tr from-emerald-50/50 via-transparent to-emerald-50/30" />
       </div>
 

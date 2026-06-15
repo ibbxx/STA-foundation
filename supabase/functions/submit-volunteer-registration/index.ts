@@ -18,6 +18,12 @@ Deno.serve(async (request) => {
     const payload = JSON.parse(String(form.get('payload') ?? '{}'));
     const token = String(form.get('turnstile_token') ?? '');
 
+    console.log('[submit-volunteer-registration] Received payload keys:', Object.keys(payload));
+    console.log('[submit-volunteer-registration] program_id:', payload.program_id);
+    console.log('[submit-volunteer-registration] nama_lengkap:', payload.nama_lengkap ? '✓' : '✗ MISSING');
+    console.log('[submit-volunteer-registration] email:', payload.email ? '✓' : '✗ MISSING');
+    console.log('[submit-volunteer-registration] whatsapp:', payload.whatsapp ? '✓' : '✗ MISSING');
+
     const isHuman = await verifyTurnstile(token);
     if (!isHuman) {
       return jsonResponse({ error: 'Verifikasi keamanan gagal atau kedaluwarsa.' }, 403);
@@ -35,7 +41,15 @@ Deno.serve(async (request) => {
       .eq('id', payload.program_id)
       .single();
 
-    if (programError || program?.status !== 'open') {
+    console.log('[submit-volunteer-registration] Program query result:', { program, programError: programError?.message });
+
+    if (programError) {
+      console.error('Database query error during program verification:', programError);
+      return jsonResponse({ error: `Gagal memverifikasi status program: ${programError.message}` }, 400);
+    }
+
+    if (program?.status !== 'open') {
+      console.log('[submit-volunteer-registration] Program status is NOT open:', program?.status);
       return jsonResponse({ error: 'Pendaftaran program sedang ditutup.' }, 400);
     }
 
@@ -97,6 +111,12 @@ Deno.serve(async (request) => {
       );
       await cleanupClient.storage.from('volunteer-assets').remove(uploadedPaths);
     }
-    return jsonResponse({ error: error instanceof Error ? error.message : 'Pendaftaran gagal dikirim.' }, 400);
+    console.error('Unexpected function error:', error);
+    const errorMessage = error instanceof Error 
+      ? error.message 
+      : (error && typeof error === 'object' && 'message' in error) 
+        ? String((error as any).message) 
+        : 'Pendaftaran gagal dikirim.';
+    return jsonResponse({ error: errorMessage }, 400);
   }
 });

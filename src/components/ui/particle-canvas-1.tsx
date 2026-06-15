@@ -1,198 +1,22 @@
 import { useEffect, useRef } from 'react';
 
-const Helper = {
-  createShader: (gl: WebGLRenderingContext, type: number, source: string) => {
-    const shader = gl.createShader(type);
-    if (!shader) return null;
-    gl.shaderSource(shader, source);
-    gl.compileShader(shader);
-    return shader;
-  },
-  createProgram: (gl: WebGLRenderingContext, vertexShader: WebGLShader, fragmentShader: WebGLShader) => {
-    const program = gl.createProgram();
-    if (!program) return null;
-    gl.attachShader(program, vertexShader);
-    gl.attachShader(program, fragmentShader);
-    gl.linkProgram(program);
-    return program;
-  },
-  pixel2DVertexVaryingShader: `
-    attribute vec2 a_position;
-    uniform vec2 u_resolution;
-    attribute vec2 a_color;
-    varying vec2 v_color;
-    void main(){
-      gl_Position = vec4( vec2( 1, -1 ) * ( ( a_position / u_resolution ) * 2.0 - 1.0 ), 0, 1 );
-      v_color = a_color;
-    }
-  `,
-  uniform2DFragmentVaryingShader: `
-    precision mediump float;
-    varying vec2 v_color;
-    uniform float u_tick;
-    float frac = 1.0/6.0;
-    void main(){
-      float hue = v_color.x + u_tick;
-      hue = abs(hue - floor(hue));
-      vec4 color = vec4( 0, 0, 0, 1 );
-      if( hue < frac ){
-        color.r = 1.0;
-        color.g = hue / frac;
-        color.b = 0.0;
-      } else if( hue < frac * 2.0 ){
-        color.r = 1.0 - ( hue - frac ) / frac;
-        color.g = 1.0;
-        color.b = 0.0;
-      } else if( hue < frac * 3.0 ){
-        color.r = 0.0;
-        color.g = 1.0;
-        color.b = ( hue - frac * 2.0 ) / frac;
-      } else if( hue < frac * 4.0 ){
-        color.r = 0.0;
-        color.g = 1.0 - ( hue - frac * 3.0 ) / frac;
-        color.b = 1.0;
-      } else if( hue < frac * 5.0 ){
-        color.r = ( hue - frac * 4.0 ) / frac;
-        color.g = 0.0;
-        color.b = 1.0;
-      } else {
-        color.r = 1.0;
-        color.g = 0.0;
-        color.b = 1.0 - ( hue - frac * 5.0 ) / frac;
-      }
-      color = vec4( color.rgb * v_color.y, 1.0 );
-      gl_FragColor = color;
-    }
-  `
-};
-
-const ParticleCanvas = ({ maxParticles = 1000, particleSizeMin = 2, particleSizeMax = 5, speedScale = 2 }) => {
+const ParticleCanvas = ({
+  maxParticles = 120,
+  particleSizeMin = 2,
+  particleSizeMax = 5,
+  speedScale = 1,
+}) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const webglRef = useRef<any>({});
   const particlesRef = useRef<any[]>([]);
   const tickRef = useRef(0);
   const dimensionsRef = useRef({ width: 0, height: 0, cx: 0, cy: 0 });
   const animationFrameIdRef = useRef<number | null>(null);
 
-  function getCircleTriangles(x: number, y: number, r: number) {
-    const triangles = [];
-    const inc = Math.PI * 2 / 6;
-    let px = x + r;
-    let py = y;
-    for (let i = 0; i <= Math.PI * 2 + inc; i += inc) {
-      const nx = x + r * Math.cos(i);
-      const ny = y + r * Math.sin(i);
-      triangles.push(x, y, px, py, nx, ny);
-      px = nx;
-      py = ny;
-    }
-    return triangles;
-  }
-
-  function Particle(this: any) {
-    this.reset = () => {
-      this.size = particleSizeMin + (particleSizeMax - particleSizeMin) * Math.random();
-      this.x = dimensionsRef.current.cx;
-      this.y = dimensionsRef.current.cy;
-      this.vx = (Math.random() - 0.5) * 2 * speedScale;
-      this.vy = -2 - speedScale * Math.random();
-      this.time = 1;
-    };
-    this.step = () => {
-      this.x += (this.vx *= 0.995);
-      this.y += (this.vy += 0.05);
-      this.time *= 0.99;
-      const triangles = getCircleTriangles(this.x, this.y, this.size * this.time);
-      const hue = this.vy / 10;
-      for (let i = 0; i < triangles.length; i += 2) {
-        webglRef.current.data.triangles.push(triangles[i], triangles[i + 1]);
-        webglRef.current.data.colors.push(hue, this.time);
-      }
-      if (this.y - this.size > dimensionsRef.current.height) {
-        this.reset();
-      }
-    };
-    this.reset();
-  }
-
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const gl = canvas.getContext('webgl', { alpha: true });
-    if (!gl) return;
-
-    const w = window.innerWidth;
-    const h = window.innerHeight;
-    canvas.width = w;
-    canvas.height = h;
-    dimensionsRef.current = { width: w, height: h, cx: w / 2, cy: h / 2 };
-
-    const vs = Helper.createShader(gl, gl.VERTEX_SHADER, Helper.pixel2DVertexVaryingShader);
-    const fs = Helper.createShader(gl, gl.FRAGMENT_SHADER, Helper.uniform2DFragmentVaryingShader);
-    
-    if (!vs || !fs) return;
-    
-    webglRef.current.shaderProgram = Helper.createProgram(gl, vs, fs);
-    webglRef.current.attribLocs = {
-      position: gl.getAttribLocation(webglRef.current.shaderProgram, 'a_position'),
-      color: gl.getAttribLocation(webglRef.current.shaderProgram, 'a_color')
-    };
-    webglRef.current.buffers = {
-      position: gl.createBuffer(),
-      color: gl.createBuffer()
-    };
-    webglRef.current.uniformLocs = {
-      resolution: gl.getUniformLocation(webglRef.current.shaderProgram, 'u_resolution'),
-      tick: gl.getUniformLocation(webglRef.current.shaderProgram, 'u_tick')
-    };
-    webglRef.current.data = { triangles: [], colors: [] };
-
-    gl.viewport(0, 0, w, h);
-    gl.useProgram(webglRef.current.shaderProgram);
-    gl.enableVertexAttribArray(webglRef.current.attribLocs.position);
-    gl.enableVertexAttribArray(webglRef.current.attribLocs.color);
-    gl.bindBuffer(gl.ARRAY_BUFFER, webglRef.current.buffers.position);
-    gl.vertexAttribPointer(webglRef.current.attribLocs.position, 2, gl.FLOAT, false, 0, 0);
-    gl.bindBuffer(gl.ARRAY_BUFFER, webglRef.current.buffers.color);
-    gl.vertexAttribPointer(webglRef.current.attribLocs.color, 2, gl.FLOAT, false, 0, 0);
-    gl.uniform2f(webglRef.current.uniformLocs.resolution, w, h);
-
-    gl.clearColor(0, 0, 0, 0);
-
-    webglRef.current.clear = () => {
-      gl.clear(gl.COLOR_BUFFER_BIT);
-      webglRef.current.data.triangles = [];
-      webglRef.current.data.colors = [];
-    };
-
-    webglRef.current.draw = () => {
-      gl.bindBuffer(gl.ARRAY_BUFFER, webglRef.current.buffers.position);
-      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(webglRef.current.data.triangles), gl.STATIC_DRAW);
-      gl.bindBuffer(gl.ARRAY_BUFFER, webglRef.current.buffers.color);
-      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(webglRef.current.data.colors), gl.STATIC_DRAW);
-      gl.drawArrays(gl.TRIANGLES, 0, webglRef.current.data.triangles.length / 2);
-    };
-
-    const animate = () => {
-      webglRef.current.clear();
-      tickRef.current++;
-      if (particlesRef.current.length < maxParticles) {
-        // @ts-ignore
-        particlesRef.current.push(new Particle(), new Particle());
-      }
-      particlesRef.current.sort((a, b) => a.time - b.time);
-      particlesRef.current.forEach(particle => particle.step());
-      gl.uniform1f(webglRef.current.uniformLocs.tick, tickRef.current / 100);
-      webglRef.current.draw();
-      animationFrameIdRef.current = requestAnimationFrame(animate);
-    };
-
-    animationFrameIdRef.current = requestAnimationFrame(animate);
-
-    const handleMouseMove = (e: MouseEvent) => {
-      dimensionsRef.current.cx = e.clientX;
-      dimensionsRef.current.cy = e.clientY;
-    };
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
 
     const handleResize = () => {
       const w = window.innerWidth;
@@ -201,8 +25,124 @@ const ParticleCanvas = ({ maxParticles = 1000, particleSizeMin = 2, particleSize
       canvas.height = h;
       dimensionsRef.current.width = w;
       dimensionsRef.current.height = h;
-      gl.viewport(0, 0, w, h);
-      gl.uniform2f(webglRef.current.uniformLocs.resolution, w, h);
+      // Set initial center if cx/cy are not yet set
+      if (dimensionsRef.current.cx === 0) {
+        dimensionsRef.current.cx = w / 2;
+        dimensionsRef.current.cy = h / 2;
+      }
+    };
+
+    handleResize();
+
+    function getShaderColor(hue: number, time: number) {
+      hue = hue - Math.floor(hue);
+      if (hue < 0) hue += 1;
+
+      const frac = 1 / 6;
+      let r = 0, g = 0, b = 0;
+
+      if (hue < frac) {
+        r = 1;
+        g = hue / frac;
+        b = 0;
+      } else if (hue < frac * 2) {
+        r = 1 - (hue - frac) / frac;
+        g = 1;
+        b = 0;
+      } else if (hue < frac * 3) {
+        r = 0;
+        g = 1;
+        b = (hue - frac * 2) / frac;
+      } else if (hue < frac * 4) {
+        r = 0;
+        g = 1 - (hue - frac * 3) / frac;
+        b = 1;
+      } else if (hue < frac * 5) {
+        r = (hue - frac * 4) / frac;
+        g = 0;
+        b = 1;
+      } else {
+        r = 1;
+        g = 0;
+        b = 1 - (hue - frac * 5) / frac;
+      }
+
+      // Multiply by time (v_color.y) to replicate shader brightness fade
+      r = Math.floor(r * time * 255);
+      g = Math.floor(g * time * 255);
+      b = Math.floor(b * time * 255);
+
+      return `rgb(${r}, ${g}, ${b})`;
+    }
+
+    class Particle {
+      size!: number;
+      x!: number;
+      y!: number;
+      vx!: number;
+      vy!: number;
+      time!: number;
+      hue!: number;
+
+      constructor() {
+        this.reset();
+      }
+
+      reset() {
+        this.size = particleSizeMin + (particleSizeMax - particleSizeMin) * Math.random();
+        this.x = dimensionsRef.current.cx;
+        this.y = dimensionsRef.current.cy;
+        this.vx = (Math.random() - 0.5) * 2 * speedScale;
+        this.vy = -2 - speedScale * Math.random();
+        this.time = 1;
+        this.hue = this.vy / 10;
+      }
+
+      step() {
+        this.x += (this.vx *= 0.995);
+        this.y += (this.vy += 0.05);
+        this.time *= 0.99;
+
+        // Reset if goes off-screen or fades out completely
+        if (this.y - this.size > dimensionsRef.current.height || this.time < 0.01) {
+          this.reset();
+        }
+      }
+
+      draw(ctx: CanvasRenderingContext2D, tick: number) {
+        const currentHue = (this.hue + tick / 100);
+        const colorStr = getShaderColor(currentHue, this.time);
+
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.size * this.time, 0, Math.PI * 2);
+        ctx.fillStyle = colorStr;
+        ctx.fill();
+      }
+    }
+
+    // Initialize particles array
+    particlesRef.current = [];
+    for (let i = 0; i < maxParticles; i++) {
+      particlesRef.current.push(new Particle());
+    }
+
+    const animate = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      tickRef.current++;
+
+      particlesRef.current.forEach(p => {
+        p.step();
+        p.draw(ctx, tickRef.current);
+      });
+
+      animationFrameIdRef.current = requestAnimationFrame(animate);
+    };
+
+    animate();
+
+    const handleMouseMove = (e: MouseEvent) => {
+      dimensionsRef.current.cx = e.clientX;
+      dimensionsRef.current.cy = e.clientY;
     };
 
     window.addEventListener('mousemove', handleMouseMove);

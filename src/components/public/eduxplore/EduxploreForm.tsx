@@ -128,15 +128,60 @@ export default function EduxploreForm({ programId, programTitle, isOpen, formCon
         }
       }
 
-      // Pisahkan field inti dari jawaban dinamis
-      const { nama_lengkap, email, whatsapp, ...answers } = values;
+      // Map form values to standard payload keys with case-insensitive fallback mapping
+      let nama_lengkap = values.nama_lengkap;
+      let email = values.email;
+      let whatsapp = values.whatsapp;
 
-      // Pastikan semua field config terdaftar di answers (null jika kosong)
+      if (nama_lengkap === undefined) {
+        const found = activeFormConfig.find(
+          (q: any) => q.id === 'nama_lengkap' || (q.label && q.label.toLowerCase().includes('nama lengkap'))
+        );
+        if (found) nama_lengkap = values[found.id];
+      }
+
+      if (email === undefined) {
+        const found = activeFormConfig.find(
+          (q: any) => q.id === 'email' || q.type === 'email' || (q.label && q.label.toLowerCase().includes('email'))
+        );
+        if (found) email = values[found.id];
+      }
+
+      if (whatsapp === undefined) {
+        const found = activeFormConfig.find(
+          (q: any) => q.id === 'whatsapp' || (q.type === 'tel' && !q.id.includes('emergency')) || (q.label && (q.label.toLowerCase().includes('whatsapp') || q.label.toLowerCase().includes('wa ')) && !q.label.toLowerCase().includes('darurat'))
+        );
+        if (found) whatsapp = values[found.id];
+      }
+
+      // Extract dynamic answers
+      const answers: Record<string, any> = {};
       activeFormConfig.forEach((q: any) => {
         if (q.type === 'file') return;
-        if (['nama_lengkap', 'email', 'whatsapp'].includes(q.id)) return;
-        if (answers[q.id] === undefined) {
-          answers[q.id] = null;
+        answers[q.id] = values[q.id] !== undefined ? values[q.id] : null;
+      });
+
+      // Map dynamic fields to standard key names inside answers object for database column inserts
+      const mapping = [
+        { key: 'whatsapp_emergency', keywords: ['emergency', 'darurat'] },
+        { key: 'alamat', keywords: ['alamat', 'address'] },
+        { key: 'tanggal_lahir', keywords: ['tanggal lahir', 'birth'] },
+        { key: 'size_baju', keywords: ['ukuran baju', 'size baju', 'ukuran kaos', 'size kaos'] },
+        { key: 'pendidikan', keywords: ['pendidikan', 'education'] },
+        { key: 'bidang_diminati', keywords: ['bidang', 'divisi', 'posisi'] },
+        { key: 'riwayat_penyakit', keywords: ['penyakit', 'sakit', 'riwayat medis'] },
+      ];
+
+      mapping.forEach(({ key, keywords }) => {
+        if (answers[key] === undefined || answers[key] === null) {
+          const found = activeFormConfig.find(
+            (q: any) => q.id === key || (q.label && keywords.some(kw => q.label.toLowerCase().includes(kw)))
+          );
+          if (found && values[found.id] !== undefined) {
+            answers[key] = values[found.id];
+          } else {
+            answers[key] = null;
+          }
         }
       });
 
@@ -147,6 +192,26 @@ export default function EduxploreForm({ programId, programTitle, isOpen, formCon
         whatsapp,
         answers,
       };
+
+      // Debug: log the exact payload being sent
+      console.log('[EduxploreForm] program_id:', programId);
+      console.log('[EduxploreForm] nama_lengkap:', nama_lengkap);
+      console.log('[EduxploreForm] email:', email);
+      console.log('[EduxploreForm] whatsapp:', whatsapp);
+      console.log('[EduxploreForm] Full payload:', JSON.stringify(payload, null, 2));
+
+      // Validate core fields before sending
+      if (!nama_lengkap || !email || !whatsapp) {
+        const missing = [];
+        if (!nama_lengkap) missing.push('Nama Lengkap');
+        if (!email) missing.push('Email');
+        if (!whatsapp) missing.push('WhatsApp');
+        throw new Error(`Field wajib belum terisi: ${missing.join(', ')}. Mohon lengkapi form.`);
+      }
+
+      if (!programId) {
+        throw new Error('Program ID tidak ditemukan. Muat ulang halaman dan coba lagi.');
+      }
 
       const { error: insertError } = await submitVolunteerRegistration(
         payload,

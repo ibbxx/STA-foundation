@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useForm, Controller, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Edit2, Plus, Trash2, RefreshCw, AlertCircle, CheckCircle2, ChevronUp, ChevronDown } from 'lucide-react';
+import { Edit2, Plus, Trash2, RefreshCw, AlertCircle, CheckCircle2, ChevronUp, ChevronDown, X } from 'lucide-react';
 
 import AdminModal from './AdminModal';
 import RichTextEditor from './campaigns/RichTextEditor';
@@ -89,6 +89,75 @@ const defaultValues: FormValues = {
   form_config: [...DEFAULT_FORM_CONFIG],
   external_link: '',
 };
+
+interface OptionsTagInputProps {
+  value: string[] | null | undefined;
+  onChange: (val: string[]) => void;
+}
+
+function OptionsTagInput({ value, onChange }: OptionsTagInputProps) {
+  const [inputValue, setInputValue] = useState('');
+  const options = Array.isArray(value) ? value : [];
+
+  const addOption = (text: string) => {
+    const trimmed = text.trim();
+    if (trimmed && !options.includes(trimmed)) {
+      onChange([...options, trimmed]);
+    }
+    setInputValue('');
+  };
+
+  const removeOption = (indexToRemove: number) => {
+    onChange(options.filter((_, idx) => idx !== indexToRemove));
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      addOption(inputValue);
+    } else if (e.key === 'Backspace' && !inputValue && options.length > 0) {
+      removeOption(options.length - 1);
+    }
+  };
+
+  const handleBlur = () => {
+    addOption(inputValue);
+  };
+
+  return (
+    <div className="space-y-1.5">
+      <div className="flex flex-wrap gap-1.5 min-h-[36px] p-1.5 bg-white border border-slate-200 rounded-lg focus-within:ring-1 focus-within:ring-zinc-950 focus-within:border-zinc-950 transition-all">
+        {options.map((opt, idx) => (
+          <span
+            key={idx}
+            className="inline-flex items-center gap-1 px-2 py-0.5 bg-slate-100 text-slate-700 text-xs font-semibold rounded-md border border-slate-200/60 hover:bg-slate-200 transition-colors"
+          >
+            {opt}
+            <button
+              type="button"
+              onClick={() => removeOption(idx)}
+              className="text-slate-400 hover:text-rose-600 transition-colors focus:outline-none"
+            >
+              <X size={12} />
+            </button>
+          </span>
+        ))}
+        <input
+          type="text"
+          value={inputValue}
+          onChange={(e) => setInputValue(e.target.value)}
+          onKeyDown={handleKeyDown}
+          onBlur={handleBlur}
+          placeholder={options.length === 0 ? "Ketik opsi lalu tekan Enter..." : "Tambah opsi..."}
+          className="flex-1 min-w-[150px] bg-transparent text-xs focus:outline-none py-0.5 px-1 placeholder-slate-400"
+        />
+      </div>
+      <p className="text-[10px] text-slate-400">
+        Tekan <kbd className="px-1 py-0.5 bg-slate-100 border border-slate-200 rounded text-slate-500 font-sans font-medium text-[9px]">Enter</kbd> untuk menambahkan pilihan.
+      </p>
+    </div>
+  );
+}
 
 export default function AdminVolunteerPrograms() {
   const { confirm, ConfirmDialogElement } = useConfirmDialog();
@@ -674,21 +743,15 @@ export default function AdminVolunteerPrograms() {
 
                     {/* Options for Select Type */}
                     {type === 'select' && (
-                      <div className="pl-6 space-y-1">
-                        <span className="text-[10px] font-bold text-slate-500">Pilihan Opsi (pisahkan dengan koma):</span>
+                      <div className="pl-6 space-y-2">
+                        <span className="text-[10px] font-bold text-slate-500">Pilihan Opsi Dropdown:</span>
                         <Controller
                           name={`form_config.${index}.options`}
                           control={control}
                           render={({ field }) => (
-                            <input
-                              type="text"
-                              value={Array.isArray(field.value) ? field.value.join(', ') : ''}
-                              onChange={(e) => {
-                                const arr = e.target.value.split(',').map(s => s.trim()).filter(Boolean);
-                                field.onChange(arr);
-                              }}
-                              placeholder="Contoh: Pilihan A, Pilihan B, Pilihan C"
-                              className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-zinc-900 bg-white"
+                            <OptionsTagInput
+                              value={field.value}
+                              onChange={field.onChange}
                             />
                           )}
                         />
