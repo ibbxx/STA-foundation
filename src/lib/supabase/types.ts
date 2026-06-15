@@ -304,9 +304,12 @@ export interface Database {
           timeline: Json;
           requirements: Json;
           description: string | null;
+          short_description: string | null;
           show_in_hero: boolean;
           external_link: string | null;
+          program_type: 'jelajah' | 'eduxplore' | 'bangun-asa';
           status: 'open' | 'closed' | 'ongoing';
+          form_config: Json;
           created_at: string;
           updated_at: string;
         };
@@ -319,9 +322,12 @@ export interface Database {
           timeline?: Json;
           requirements?: Json;
           description?: string | null;
+          short_description?: string | null;
           show_in_hero?: boolean;
           external_link?: string | null;
+          program_type?: 'jelajah' | 'eduxplore' | 'bangun-asa';
           status?: 'open' | 'closed' | 'ongoing';
+          form_config?: Json;
           created_at?: string;
           updated_at?: string;
         };
@@ -334,9 +340,12 @@ export interface Database {
           timeline?: Json;
           requirements?: Json;
           description?: string | null;
+          short_description?: string | null;
           show_in_hero?: boolean;
           external_link?: string | null;
+          program_type?: 'jelajah' | 'eduxplore' | 'bangun-asa';
           status?: 'open' | 'closed' | 'ongoing';
+          form_config?: Json;
           created_at?: string;
           updated_at?: string;
         };
@@ -349,10 +358,10 @@ export interface Database {
           nama_lengkap: string;
           email: string;
           whatsapp: string;
-          whatsapp_emergency: string;
-          alamat: string;
-          tanggal_lahir: string;
-          size_baju: string;
+          whatsapp_emergency: string | null;
+          alamat: string | null;
+          tanggal_lahir: string | null;
+          size_baju: string | null;
           riwayat_penyakit: string | null;
           pendidikan: string | null;
           bidang_diminati: string | null;
@@ -360,6 +369,7 @@ export interface Database {
           bukti_follow_url: string | null;
           foto_id_url: string | null;
           status: 'pending' | 'verified' | 'rejected';
+          answers: Json;
           created_at: string;
         };
         Insert: {
@@ -368,10 +378,10 @@ export interface Database {
           nama_lengkap: string;
           email: string;
           whatsapp: string;
-          whatsapp_emergency: string;
-          alamat: string;
-          tanggal_lahir: string;
-          size_baju: string;
+          whatsapp_emergency?: string | null;
+          alamat?: string | null;
+          tanggal_lahir?: string | null;
+          size_baju?: string | null;
           riwayat_penyakit?: string | null;
           pendidikan?: string | null;
           bidang_diminati?: string | null;
@@ -379,6 +389,7 @@ export interface Database {
           bukti_follow_url?: string | null;
           foto_id_url?: string | null;
           status?: 'pending' | 'verified' | 'rejected';
+          answers?: Json;
           created_at?: string;
         };
         Update: {
@@ -387,10 +398,10 @@ export interface Database {
           nama_lengkap?: string;
           email?: string;
           whatsapp?: string;
-          whatsapp_emergency?: string;
-          alamat?: string;
-          tanggal_lahir?: string;
-          size_baju?: string;
+          whatsapp_emergency?: string | null;
+          alamat?: string | null;
+          tanggal_lahir?: string | null;
+          size_baju?: string | null;
           riwayat_penyakit?: string | null;
           pendidikan?: string | null;
           bidang_diminati?: string | null;
@@ -398,6 +409,7 @@ export interface Database {
           bukti_follow_url?: string | null;
           foto_id_url?: string | null;
           status?: 'pending' | 'verified' | 'rejected';
+          answers?: Json;
           created_at?: string;
         };
         Relationships: any[];
@@ -436,7 +448,54 @@ export interface Database {
       };
     };
     Functions: {
-      [_ in never]: never;
+      is_admin: {
+        Args: Record<PropertyKey, never>;
+        Returns: boolean;
+      };
+      create_pending_donation: {
+        Args: {
+          p_campaign_id: string;
+          p_donor_name: string;
+          p_donor_email: string;
+          p_donor_phone: string;
+          p_amount: number;
+          p_payment_method: string;
+          p_message: string;
+          p_is_anonymous: boolean;
+        };
+        Returns: string;
+      };
+      submit_school_report: {
+        Args: {
+          p_reporter_name: string;
+          p_reporter_phone: string;
+          p_reporter_ip: string;
+          p_school_name: string;
+          p_location: string;
+          p_description: string;
+          p_image_urls: Json;
+        };
+        Returns: string;
+      };
+      submit_volunteer_registration: {
+        Args: {
+          p_program_id: string;
+          p_nama_lengkap: string;
+          p_email: string;
+          p_whatsapp: string;
+          p_whatsapp_emergency: string;
+          p_alamat: string;
+          p_tanggal_lahir: string;
+          p_size_baju: string;
+          p_pendidikan: string;
+          p_bidang_diminati: string;
+          p_riwayat_penyakit: string;
+          p_bukti_dp_url: string;
+          p_bukti_follow_url: string;
+          p_foto_id_url: string;
+        };
+        Returns: string;
+      };
     };
     Enums: {
       [_ in never]: never;

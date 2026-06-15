@@ -8,12 +8,6 @@ interface SecureTurnstileProps {
   theme?: 'light' | 'dark' | 'auto';
 }
 
-/**
- * Kunci utama dari Dashboard Cloudflare Turnstile.
- * Digunakan untuk widget captcha pada form pelaporan.
- */
-const USER_SITE_KEY = '0x4AAAAAADDxv-_d95-X9IVJ';
-
 declare global {
   interface Window {
     turnstile?: any;
@@ -32,10 +26,9 @@ export function SecureTurnstile({ onSuccess, onError, siteKey, theme = 'light' }
   const [isScriptLoaded, setIsScriptLoaded] = useState(!!window.turnstile);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error' | 'fallback'>('loading');
   const [debugMsg, setDebugMsg] = useState<string>('');
-  // 1. Dapatkan kunci utama (Prioritas: User Key > Env > Prop > Dummy)
-  // Kita utamakan USER_SITE_KEY yang sudah pasti benar dari Cloudflare Dashboard Anda
+  // Site key harus berasal dari konfigurasi deployment, bukan hard-coded di source.
   const envKey = import.meta.env.VITE_TURNSTILE_SITE_KEY;
-  const primaryKey = USER_SITE_KEY || siteKey || envKey;
+  const primaryKey = siteKey || envKey || '';
   
   // Gunakan state untuk melacak kunci mana yang sedang dicoba
   const [activeSiteKey, setActiveSiteKey] = useState<string>(primaryKey);
@@ -90,6 +83,12 @@ export function SecureTurnstile({ onSuccess, onError, siteKey, theme = 'light' }
   // 3. Render Widget
   useEffect(() => {
     if (!isScriptLoaded || !containerRef.current || !window.turnstile) return;
+    if (!activeSiteKey) {
+      setStatus('error');
+      setDebugMsg('VITE_TURNSTILE_SITE_KEY belum dikonfigurasi.');
+      onErrorRef.current?.(new Error('Turnstile site key missing'));
+      return;
+    }
 
     try {
       // JANGAN hapus widget jika siteKey tidak berubah untuk mencegah looping

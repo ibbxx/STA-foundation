@@ -39,6 +39,6 @@ export type CtaData = {
 
 /**
  * Nomor WhatsApp admin terpusat.
- * Digunakan oleh modul EduXplore dan Laporan Sekolah.
+ * Digunakan oleh modul Relawan dan Laporan Sekolah.
  */
 export const STA_ADMIN_WHATSAPP = '6287882799026';

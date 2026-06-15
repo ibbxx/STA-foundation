@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import AdminModal from '../../components/admin/AdminModal';
 import { downloadCsv } from '../../lib/admin-export';
 import { formatAdminDate } from '../../lib/admin-helpers';
-import { fetchTransactionRows } from '../../lib/admin-repository';
+import { fetchTransactionRows, updateDonationStatus } from '../../lib/admin-repository';
 import {
   buildTransactionSummary,
   buildTransactionViews,
@@ -21,6 +21,7 @@ export default function AdminTransactions() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedTransaction, setSelectedTransaction] = useState<TransactionView | null>(null);
+  const [updatingStatus, setUpdatingStatus] = useState(false);
 
   async function loadTransactions() {
     setLoading(true);
@@ -71,6 +72,27 @@ export default function AdminTransactions() {
       message: transaction.message ?? '',
       created_at: transaction.created_at,
     })));
+  }
+
+  async function handleStatusUpdate(paymentStatus: DonationRow['payment_status']) {
+    if (!selectedTransaction) return;
+    setUpdatingStatus(true);
+    setError(null);
+
+    const { error: updateError } = await updateDonationStatus(selectedTransaction.id, paymentStatus);
+    if (updateError) {
+      logError('AdminTransactions.handleStatusUpdate', updateError, {
+        donationId: selectedTransaction.id,
+        paymentStatus,
+      });
+      setError(updateError.message);
+      setUpdatingStatus(false);
+      return;
+    }
+
+    setSelectedTransaction(null);
+    setUpdatingStatus(false);
+    await loadTransactions();
   }
 
   return (
@@ -240,13 +262,36 @@ export default function AdminTransactions() {
         description="Informasi lengkap mengenai histori donasi ini."
         widthClassName="max-w-2xl"
         footer={(
-          <button
-            type="button"
-            onClick={() => setSelectedTransaction(null)}
-            className="px-4 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors"
-          >
-            Tutup
-          </button>
+          <div className="flex w-full flex-wrap justify-end gap-2">
+            {selectedTransaction?.payment_status !== 'failed' ? (
+              <button
+                type="button"
+                disabled={updatingStatus}
+                onClick={() => void handleStatusUpdate('failed')}
+                className="px-4 py-2 text-sm font-medium text-rose-700 bg-rose-50 border border-rose-200 rounded-xl hover:bg-rose-100 transition-colors disabled:opacity-50"
+              >
+                Tandai Gagal
+              </button>
+            ) : null}
+            {selectedTransaction?.payment_status !== 'success' ? (
+              <button
+                type="button"
+                disabled={updatingStatus}
+                onClick={() => void handleStatusUpdate('success')}
+                className="px-4 py-2 text-sm font-medium text-white bg-emerald-600 border border-emerald-600 rounded-xl hover:bg-emerald-700 transition-colors disabled:opacity-50"
+              >
+                Konfirmasi Pembayaran
+              </button>
+            ) : null}
+            <button
+              type="button"
+              disabled={updatingStatus}
+              onClick={() => setSelectedTransaction(null)}
+              className="px-4 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors disabled:opacity-50"
+            >
+              Tutup
+            </button>
+          </div>
         )}
       >
         {selectedTransaction && (

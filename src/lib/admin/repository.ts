@@ -12,6 +12,7 @@ import type {
   VolunteerRegistrationInsert,
   VolunteerRegistrationUpdate,
   Database,
+  DonationRow,
 } from '../supabase/types';
 import { supabase } from '../supabase/types';
 import { logError } from '../error-logger';
@@ -68,6 +69,16 @@ export function fetchTransactionRows() {
     supabase.from('donations').select('*').order('created_at', { ascending: false }),
     supabase.from('campaigns').select('id, title'),
   ]);
+}
+
+export function updateDonationStatus(
+  donationId: string,
+  paymentStatus: DonationRow['payment_status'],
+) {
+  return supabase
+    .from('donations')
+    .update({ payment_status: paymentStatus } as unknown as Tables['donations']['Update'])
+    .eq('id', donationId);
 }
 
 // ── School Reports ──
@@ -213,73 +224,17 @@ export function deleteCampaignUpdate(updateId: string) {
 
 // ── School Report: Public Submit ──
 
-/**
- * Upload school report photos to Supabase Storage bucket 'school-reports'.
- * Returns array of public URLs.
- */
-export async function uploadSchoolReportPhotos(photos: File[]): Promise<string[]> {
-  const urls: string[] = [];
+export function submitSchoolReport(
+  payload: SchoolReportInsert,
+  photos: File[],
+  turnstileToken: string,
+) {
+  const body = new FormData();
+  body.set('payload', JSON.stringify(payload));
+  body.set('turnstile_token', turnstileToken);
+  photos.forEach((photo) => body.append('photos', photo));
 
-  for (const photo of photos) {
-    const safeName = photo.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-    const filePath = `reports/${Date.now()}_${safeName}`;
-
-    const { error } = await supabase.storage
-      .from('school-reports')
-      .upload(filePath, photo, { cacheControl: '3600', upsert: false });
-
-    if (!error) {
-      const { data: urlData } = supabase.storage
-        .from('school-reports')
-        .getPublicUrl(filePath);
-      urls.push(urlData.publicUrl);
-    }
-  }
-
-  return urls;
-}
-
-/**
- * Insert a new school report row (status defaults to 'pending').
- */
-export function insertSchoolReport(payload: SchoolReportInsert) {
-  return supabase
-    .from('school_reports')
-    .insert(payload as unknown as SR['Insert'])
-    .select('*')
-    .single();
-}
-
-// ── Anti-Spam: Blacklist & Rate Limit ──
-
-/**
- * Check if an IP address or WhatsApp number is blacklisted.
- * Returns true if the identifier is found in the blacklist.
- */
-export async function checkIsBlacklisted(ip: string, whatsapp: string): Promise<boolean> {
-  const { data } = await supabase
-    .from('spammer_blacklist')
-    .select('id')
-    .or(`identifier.eq.${ip},identifier.eq.${whatsapp}`)
-    .limit(1);
-
-  return (data?.length ?? 0) > 0;
-}
-
-/**
- * Check how many reports were submitted from a given IP in the last hour.
- * Returns true if the count exceeds maxPerHour (default: 50).
- */
-export async function checkIPRateLimit(ip: string, maxPerHour = 50): Promise<boolean> {
-  const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
-
-  const { count } = await supabase
-    .from('school_reports')
-    .select('id', { count: 'exact', head: true })
-    .eq('reporter_ip', ip)
-    .gte('created_at', oneHourAgo);
-
-  return (count ?? 0) >= maxPerHour;
+  return supabase.functions.invoke<{ id: string }>('submit-school-report', { body });
 }
 
 /**
@@ -290,6 +245,24 @@ export function addToBlacklist(payload: SpammerBlacklistInsert) {
   return supabase
     .from('spammer_blacklist')
     .insert(payload as unknown as SB['Insert']);
+}
+
+export async function getEdgeFunctionErrorMessage(error: unknown, fallback: string) {
+  if (
+    error
+    && typeof error === 'object'
+    && 'context' in error
+    && error.context instanceof Response
+  ) {
+    try {
+      const body = await error.context.clone().json() as { error?: string };
+      if (body.error) return body.error;
+    } catch {
+      // Fall back to the SDK error message below.
+    }
+  }
+
+  return error instanceof Error ? error.message : fallback;
 }
 
 // ── Volunteer Programs ──
@@ -306,7 +279,6 @@ export function fetchHeroVolunteerPrograms() {
     .from('volunteer_programs')
     .select('*')
     .eq('show_in_hero', true)
-    .eq('status', 'open')
     .order('created_at', { ascending: false });
 }
 
@@ -330,32 +302,21 @@ export function deleteVolunteerProgram(programId: string) {
 
 // ── Volunteer Registrations ──
 
-export async function uploadVolunteerFile(
-  file: File,
-  prefix: 'dp' | 'follow' | 'id_card',
-): Promise<string> {
-  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-  const uniqueId = typeof crypto !== 'undefined' && crypto.randomUUID
-    ? crypto.randomUUID().slice(0, 8)
-    : Math.random().toString(36).slice(2, 10);
-  const filePath = `${prefix}/${Date.now()}_${uniqueId}_${safeName}`;
+export function submitVolunteerRegistration(
+  payload: any,
+  files: Record<string, File>,
+  turnstileToken: string,
+) {
+  const body = new FormData();
+  body.set('payload', JSON.stringify(payload));
+  body.set('turnstile_token', turnstileToken);
+  for (const [key, file] of Object.entries(files)) {
+    if (file) {
+      body.set(key, file);
+    }
+  }
 
-  const { error } = await supabase.storage
-    .from('volunteer-assets')
-    .upload(filePath, file, { cacheControl: '3600', upsert: false });
-
-  if (error) throw error;
-
-  const { data } = supabase.storage.from('volunteer-assets').getPublicUrl(filePath);
-  return data.publicUrl;
-}
-
-export function insertVolunteerRegistration(payload: VolunteerRegistrationInsert) {
-  // Tidak menggunakan .select() agar anon tidak membutuhkan SELECT policy.
-  // RLS hanya memerlukan INSERT policy untuk operasi ini.
-  return supabase
-    .from('volunteer_registrations')
-    .insert(payload as unknown as VR['Insert']);
+  return supabase.functions.invoke<{ id: string }>('submit-volunteer-registration', { body });
 }
 
 export function fetchVolunteerRegistrationsByProgram(programId: string) {
@@ -366,12 +327,60 @@ export function fetchVolunteerRegistrationsByProgram(programId: string) {
     .order('created_at', { ascending: false });
 }
 
-export function fetchAllVolunteerRegistrations() {
-  return supabase
+function extractVolunteerStoragePath(value: string | null) {
+  if (!value) return null;
+  if (!value.startsWith('http')) return value;
+
+  const marker = '/volunteer-assets/';
+  const markerIndex = value.indexOf(marker);
+  if (markerIndex === -1) return null;
+
+  return decodeURIComponent(value.slice(markerIndex + marker.length).split('?')[0]);
+}
+
+async function createVolunteerSignedUrl(value: string | null) {
+  const path = extractVolunteerStoragePath(value);
+  if (!path) return null;
+
+  const { data, error } = await supabase.storage
+    .from('volunteer-assets')
+    .createSignedUrl(path, 60 * 60);
+
+  if (error) {
+    logError('repository.createVolunteerSignedUrl', error, { path });
+    return null;
+  }
+
+  return data.signedUrl;
+}
+
+export async function fetchAllVolunteerRegistrations() {
+  const response = await supabase
     .from('volunteer_registrations')
     .select('*')
     .limit(10000)
     .order('created_at', { ascending: false });
+
+  if (response.error || !response.data) {
+    return response;
+  }
+
+  const data = await Promise.all(response.data.map(async (registration) => {
+    const [dpUrl, followUrl, idUrl] = await Promise.all([
+      createVolunteerSignedUrl(registration.bukti_dp_url),
+      createVolunteerSignedUrl(registration.bukti_follow_url),
+      createVolunteerSignedUrl(registration.foto_id_url),
+    ]);
+
+    return {
+      ...registration,
+      bukti_dp_url: dpUrl,
+      bukti_follow_url: followUrl,
+      foto_id_url: idUrl,
+    };
+  }));
+
+  return { ...response, data };
 }
 
 export function updateVolunteerRegistrationStatus(
@@ -395,16 +404,10 @@ export async function deleteVolunteerRegistrations(ids: string[]) {
   if (!fetchError && records && records.length > 0) {
     const filePaths: string[] = [];
 
-    const extractPath = (url: string | null) => {
-      if (!url) return null;
-      const parts = url.split('/volunteer-assets/');
-      return parts.length === 2 ? decodeURIComponent(parts[1]) : null;
-    };
-
     records.forEach((record) => {
-      const dp = extractPath(record.bukti_dp_url ?? null);
-      const follow = extractPath(record.bukti_follow_url ?? null);
-      const idCard = extractPath(record.foto_id_url ?? null);
+      const dp = extractVolunteerStoragePath(record.bukti_dp_url ?? null);
+      const follow = extractVolunteerStoragePath(record.bukti_follow_url ?? null);
+      const idCard = extractVolunteerStoragePath(record.foto_id_url ?? null);
 
       if (dp) filePaths.push(dp);
       if (follow) filePaths.push(follow);

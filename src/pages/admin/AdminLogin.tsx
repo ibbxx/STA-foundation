@@ -44,6 +44,16 @@ export default function AdminLogin() {
       return;
     }
 
+    const { data: isAdmin, error: adminError } = await supabase.rpc('is_admin');
+    if (adminError || !isAdmin) {
+      if (adminError) {
+        logError('AdminLogin.isAdmin', adminError, { email: values.email });
+      }
+      await supabase.auth.signOut();
+      setAuthError('Akun ini tidak memiliki akses admin.');
+      return;
+    }
+
     const redirectTo = (location.state as { from?: { pathname?: string } } | null)?.from?.pathname || '/admin';
     navigate(redirectTo, { replace: true });
   }

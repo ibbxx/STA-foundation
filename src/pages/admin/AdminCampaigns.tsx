@@ -201,6 +201,7 @@ export default function AdminCampaigns() {
   function resetCampaignEditor(campaign: CampaignRow | null) {
     campaignForm.reset({
       title: campaign?.title ?? '',
+      slug: campaign?.slug ?? '',
       category_id: campaign?.category_id ?? '',
       target_amount: campaign?.target_amount ?? 0,
       start_date: campaign?.start_date ?? '',
@@ -270,6 +271,15 @@ export default function AdminCampaigns() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedCampaignId, selectedCampaign]);
 
+  const watchedCampaignTitle = campaignForm.watch('title');
+  const isCampaignSlugDirty = campaignForm.formState.dirtyFields.slug;
+
+  useEffect(() => {
+    if (!selectedCampaignId && !isCampaignSlugDirty) {
+      campaignForm.setValue('slug', slugify(watchedCampaignTitle || ''), { shouldValidate: true });
+    }
+  }, [watchedCampaignTitle, selectedCampaignId, isCampaignSlugDirty, campaignForm]);
+
   async function handleCampaignSubmit(values: CampaignManagerValues) {
     setError(null);
     setNotice(null);
@@ -326,7 +336,7 @@ export default function AdminCampaigns() {
       const imageUrls = [...existingUrls, ...freshUploads];
       const categoryName = categoryMap.get(values.category_id)?.name ?? null;
 
-      const slug = selectedCampaign?.slug || `${slugify(values.title)}-${Date.now().toString(36)}`;
+      const slug = values.slug.trim();
 
       const payload: CampaignInsert = {
         slug,
@@ -765,7 +775,7 @@ export default function AdminCampaigns() {
                     </div>
                   ) : null}
                   <CardContent className="space-y-6">
-                    <div className="grid gap-6 lg:grid-cols-3">
+                    <div className="grid gap-6 lg:grid-cols-2">
                       <div className="space-y-2">
                         <label className="text-sm font-medium text-gray-700">Title</label>
                         <input
@@ -777,6 +787,19 @@ export default function AdminCampaigns() {
                         {campaignForm.formState.errors.title && <p className="text-xs text-red-600">{campaignForm.formState.errors.title.message}</p>}
                       </div>
 
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-gray-700">Slug (URL)</label>
+                        <input
+                          type="text"
+                          {...campaignForm.register('slug')}
+                          placeholder="contoh-slug-campaign"
+                          className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 outline-none transition-colors placeholder:text-gray-400 focus:border-gray-300 font-mono"
+                        />
+                        {campaignForm.formState.errors.slug && <p className="text-xs text-red-600">{campaignForm.formState.errors.slug.message}</p>}
+                      </div>
+                    </div>
+
+                    <div className="grid gap-6 lg:grid-cols-2">
                       <div className="space-y-2">
                         <label className="text-sm font-medium text-gray-700">Kategori</label>
                         <select

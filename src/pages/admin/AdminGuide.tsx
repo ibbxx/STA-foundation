@@ -178,19 +178,19 @@ const GUIDE_SECTIONS: GuideSection[] = [
   },
   {
     id: 'eduxplore',
-    title: 'Pendaftar EduXplore (Relawan)',
+    title: 'Pendaftar Relawan',
     icon: Users,
     path: '/admin/eduxplore',
-    description: 'Pusat kendali untuk menyortir dan menyeleksi ribuan calon relawan pendidikan dengan sangat cepat.',
+    description: 'Pusat kendali untuk menyortir dan menyeleksi ribuan calon relawan pendidikan dari semua program STA.',
     steps: [
       {
-        title: 'Fokus pada Satu Batch EduXplore',
-        detail: '1. Di bagian atas layar, temukan tombol filter "Semua Program".\n2. Klik dan pilih program spesifik (misal: "EduXplore #4 Lombok").\n3. Tabel antrean di sebelah kiri sekarang hanya menampilkan pendaftar untuk ke Lombok saja.',
+        title: 'Fokus pada Satu Program Relawan',
+        detail: '1. Di bagian atas layar, temukan tombol filter "Semua Program".\n2. Klik dan pilih program spesifik (misal: "EduXplore Pujananting").\n3. Tabel antrean di sebelah kiri sekarang hanya menampilkan pendaftar untuk program tersebut saja.',
         visual: (
           <div className="flex gap-2 p-3 bg-slate-50 border border-slate-200 rounded-xl max-w-sm">
             <Filter size={16} className="text-slate-400 mt-1.5 shrink-0" />
             <div className="w-full h-8 bg-white border border-slate-200 rounded-md flex items-center px-3 text-xs text-slate-600 font-medium justify-between shadow-sm">
-              <span>EduXplore #4 Lombok</span>
+              <span>EduXplore Pujananting</span>
               <ChevronDown size={14} className="text-slate-400" />
             </div>
           </div>
@@ -308,26 +308,19 @@ const GUIDE_SECTIONS: GuideSection[] = [
         detail: '1. Pastikan Anda di tab "Tampilan Website".\n2. Di bagian "Hero Banner", Anda akan melihat urutan banner yang ada sekarang.\n3. Klik "+ Tambah Slide" jika ingin menambah gambar baru. Atau klik gambar yang sudah ada untuk menukarnya.\n4. Isi kotak Judul yang akan tampil melayang di atas gambar tersebut.\n5. Tekan "Simpan Perubahan" di paling bawah.',
       },
       {
-        title: 'Cara Khusus: Menautkan Relawan ke Google Form',
-        detail: 'Jika yayasan Anda sedang tidak ingin menggunakan form website untuk pendaftaran EduXplore, dan lebih memilih menggunakan Google Forms/Typeform:\n\n1. Buka tab "Program Relawan".\n2. Edit program EduXplore yang diinginkan.\n3. Di dalam formulir, cari kotak bernama "Link Eksternal".\n4. Tempelkan (Paste) link Google Form Anda ke situ.\n5. Selesai! Kini setiap tombol "Daftar Sekarang" di website akan melempar pengguna ke link Google Form tersebut.',
+        title: 'Menampilkan Program Relawan di Hero Banner Beranda',
+        detail: 'Jika Anda ingin poster program relawan tertentu muncul secara mencolok di halaman depan website yayasan:\n\n1. Buka tab "Program Relawan".\n2. Klik ikon Pensil (Edit) pada program yang diinginkan atau buat baru.\n3. Centang pilihan "Tampilkan di Hero Beranda" di bagian paling bawah formulir.\n4. Klik "Simpan Program". Program tersebut kini otomatis muncul sebagai salah satu slide utama di halaman depan.',
         visual: (
-          <div className="flex flex-col gap-4 p-4 bg-slate-50 border border-slate-200 rounded-xl max-w-sm w-full">
+          <div className="flex gap-4 p-4 bg-slate-50 border border-slate-200 rounded-xl max-w-sm w-full items-center justify-between">
             <div>
-              <label className="text-xs font-bold text-slate-700">Link Pendaftaran Eksternal (Opsional)</label>
-              <div className="mt-1 flex items-center gap-2 px-3 py-2 bg-white border border-slate-200 rounded-md text-xs text-slate-500 shadow-sm">
-                <ExternalLink size={14} className="text-slate-400" />
-                <span className="truncate">https://forms.gle/xyz123...</span>
-              </div>
+              <span className="text-xs font-bold text-slate-700">Tampilkan di Hero Beranda</span>
+              <p className="text-[10px] text-slate-500 mt-0.5">Otomatis muncul sebagai slide utama di halaman Beranda</p>
             </div>
-            <div className="flex items-center justify-between border-t border-slate-200 pt-3">
-              <span className="text-xs font-bold text-slate-700">Jadikan Hero Banner</span>
-              <div className="w-8 h-5 bg-emerald-500 rounded-full flex items-center justify-end px-1 shadow-inner">
-                <div className="w-3.5 h-3.5 bg-white rounded-full shadow-sm"></div>
-              </div>
+            <div className="w-8 h-5 bg-emerald-500 rounded-full flex items-center justify-end px-1 shadow-inner shrink-0">
+              <div className="w-3.5 h-3.5 bg-white rounded-full shadow-sm"></div>
             </div>
           </div>
         ),
-        tip: 'Di tab Program Relawan yang sama, jika Anda menyalakan tombol (toggle) "Jadikan Hero Banner" menjadi warna hijau, poster relawan tersebut akan memaksa masuk ke urutan paling depan di banner raksasa halaman beranda secara otomatis.'
       }
     ],
   }

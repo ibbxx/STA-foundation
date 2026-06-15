@@ -3,12 +3,14 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { cn } from '../../lib/utils';
+import { Skeleton } from '../ui/skeleton';
 import { fetchHeroContent, DEFAULT_HERO_SLIDES, type HeroSlide } from '../../lib/admin-hero';
 import { fetchHeroVolunteerPrograms } from '../../lib/admin/repository';
 import type { VolunteerProgramRow } from '../../lib/supabase/types';
 import { logError } from '../../lib/error-logger';
+import { sanitizeHTML } from '../../lib/sanitize';
 
-/** Extended slide type — adds optional CTA fields for auto-injected EduXplore slides */
+/** Extended slide type — adds optional CTA fields for auto-injected volunteer program slides */
 interface DisplaySlide extends HeroSlide {
   buttonText?: string;
   buttonLink?: string;
@@ -19,7 +21,7 @@ export default function HeroSlideshow() {
   const [currentSlideIndex, setCurrentSlideIndex] = React.useState(0);
   const [isLoading, setIsLoading] = React.useState(true);
 
-  // Fetch hero slides from Supabase + auto-inject EduXplore programs
+  // Fetch hero slides from Supabase + auto-inject volunteer programs
   React.useEffect(() => {
     async function loadSlides() {
       try {
@@ -32,13 +34,13 @@ export default function HeroSlideshow() {
         const volunteerSlides: DisplaySlide[] = ((volunteerRes.data || []) as VolunteerProgramRow[]).map((p) => ({
           id: `eduxplore-${p.id}`,
           title: p.title.toUpperCase(),
-          subtitle: p.description || '',
+          subtitle: p.short_description || p.description || '',
           imageUrl: p.image_url || '',
-          buttonText: 'Daftar EduXplore',
+          buttonText: p.status === 'open' ? `Daftar ${p.title}` : `Detail ${p.title}`,
           buttonLink: `/eduxplore/${p.slug}`,
         }));
 
-        // EduXplore slides go first (priority), then admin-managed slides
+        // Volunteer program slides go first (priority), then admin-managed slides
         const combined: DisplaySlide[] = [...volunteerSlides, ...heroContent.slides];
         if (combined.length > 0) {
           // Preload the first slide's image to prevent "blank screen" during image load
@@ -85,10 +87,32 @@ export default function HeroSlideshow() {
             initial={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.8 }}
-            className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-emerald-950"
+            className="absolute inset-0 z-50 bg-neutral-900 flex items-end pb-16 sm:pb-32 pt-28"
           >
-            <div className="h-10 w-10 animate-spin rounded-full border-4 border-emerald-500/30 border-t-emerald-500 mb-4" />
-            <p className="text-emerald-500/70 text-sm font-medium tracking-widest uppercase animate-pulse">Memuat...</p>
+            <div className="flex flex-col px-5 sm:px-8 lg:px-12 w-full animate-pulse">
+              <div className="max-w-3xl text-left space-y-6">
+                {/* Tag/Badge Skeleton */}
+                <Skeleton className="h-4 w-32 bg-neutral-800/60 rounded-full" />
+                
+                {/* Title Skeleton */}
+                <div className="space-y-3">
+                  <Skeleton className="h-10 w-5/6 sm:h-12 lg:h-16 bg-neutral-800/60" />
+                  <Skeleton className="h-10 w-2/3 sm:h-12 lg:h-16 bg-neutral-800/60" />
+                </div>
+                
+                {/* Description Skeleton */}
+                <div className="space-y-2 max-w-xl">
+                  <Skeleton className="h-4 w-full bg-neutral-800/60" />
+                  <Skeleton className="h-4 w-4/5 bg-neutral-800/60" />
+                </div>
+                
+                {/* Buttons Skeleton */}
+                <div className="flex flex-col gap-3 sm:flex-row pt-4">
+                  <Skeleton className="h-11 w-40 sm:h-12 bg-neutral-800/60 rounded-full" />
+                  <Skeleton className="h-11 w-44 sm:h-12 bg-neutral-800/60 rounded-full" />
+                </div>
+              </div>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -164,9 +188,10 @@ export default function HeroSlideshow() {
                   })()}
                 </h1>
                 {currentSlide.subtitle && (
-                  <p className="mt-4 max-w-xl text-balance text-sm font-light leading-relaxed text-[#F5F1E8]/85 sm:mt-6 sm:text-base">
-                    {currentSlide.subtitle}
-                  </p>
+                  <div
+                    className="mt-4 max-w-xl text-balance text-sm font-light leading-relaxed text-[#F5F1E8]/85 sm:mt-6 sm:text-base"
+                    dangerouslySetInnerHTML={{ __html: sanitizeHTML(currentSlide.subtitle) }}
+                  />
                 )}
 
                 <div className="mt-8 flex flex-col items-start gap-3 sm:mt-12 sm:flex-row">

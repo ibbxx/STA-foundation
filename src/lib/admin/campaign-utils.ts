@@ -3,6 +3,7 @@ import type { ImagePreviewItem } from '../image-preview';
 
 export const defaultCampaignValues: CampaignManagerValues = {
   title: '',
+  slug: '',
   category_id: '',
   target_amount: 0,
   start_date: '',

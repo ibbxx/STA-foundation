@@ -7,6 +7,7 @@ import AdminHeroManager from '../../components/admin/AdminHeroManager';
 import AdminOtherPagesHero from '../../components/admin/AdminOtherPagesHero';
 import AdminVolunteerPrograms from '../../components/admin/AdminVolunteerPrograms';
 import { adminProgramSchema, programIconOptions, type AdminProgramValues } from '../../lib/admin/schemas';
+import { slugify } from '../../lib/admin/campaign-utils';
 import { formatAdminDate } from '../../lib/admin/helpers';
 import { deleteProgram, fetchProgramRows, insertProgram, updateProgram, fetchSiteContentRows, upsertSiteContent } from '../../lib/admin/repository';
 import {
@@ -111,11 +112,19 @@ export default function AdminContent() {
     reset,
     setValue,
     watch,
-    formState: { errors, isSubmitting },
+    formState: { errors, isSubmitting, dirtyFields },
   } = useForm<AdminProgramValues>({
     resolver: zodResolver(adminProgramSchema),
     defaultValues: defaultProgramValues,
   });
+
+  const watchedTitle = watch('title');
+
+  useEffect(() => {
+    if (mode === 'create' && !dirtyFields.slug) {
+      setValue('slug', slugify(watchedTitle || ''), { shouldValidate: true });
+    }
+  }, [watchedTitle, mode, setValue, dirtyFields.slug]);
 
   async function loadPrograms() {
     setLoading(true);
@@ -387,7 +396,7 @@ export default function AdminContent() {
         {[
           { id: 'website', label: 'Tampilan Website' },
           { id: 'programs', label: 'Program Utama (STA)' },
-          { id: 'volunteer', label: 'Program Relawan (EduXplore)' },
+          { id: 'volunteer', label: 'Program Relawan' },
         ].map((tab) => (
           <button
             key={tab.id}
@@ -419,7 +428,7 @@ export default function AdminContent() {
           </div>
         )}
 
-        {/* ═══════ SECTION: PROGRAM VOLUNTEER (EDUXPLORE) ═══════ */}
+        {/* ═══════ SECTION: PROGRAM VOLUNTEER ═══════ */}
         {activeTab === 'volunteer' && (
           <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
             <AdminVolunteerPrograms />
@@ -663,6 +672,16 @@ export default function AdminContent() {
         )}
       >
         <form id="program-form" onSubmit={handleSubmit(onSubmit)} className="space-y-8">
+          {error && (
+            <div className="flex items-start gap-3 p-4 rounded-xl border border-rose-200 bg-rose-50 text-sm text-rose-700">
+              <AlertCircle size={18} className="shrink-0 mt-0.5" />
+              <div>
+                <p className="font-semibold">Terjadi Kesalahan</p>
+                <p className="mt-1">{error}</p>
+              </div>
+            </div>
+          )}
+
           {/* ── SEKSI 1: IDENTITAS & NAVIGASI ── */}
           <div className="p-5 bg-white border border-slate-200 rounded-2xl space-y-5 shadow-sm">
             <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">

@@ -7,7 +7,7 @@ type GuestRouteProps = {
 };
 
 export default function GuestRoute({ children }: GuestRouteProps) {
-  const { session, loading } = useAuth();
+  const { session, isAdmin, loading } = useAuth();
 
   if (loading) {
     return (
@@ -17,7 +17,7 @@ export default function GuestRoute({ children }: GuestRouteProps) {
     );
   }
 
-  if (session) {
+  if (session && isAdmin) {
     return <Navigate to="/admin" replace />;
   }
 

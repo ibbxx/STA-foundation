@@ -219,24 +219,43 @@ export default function AdminSchoolReports() {
     setUpdatingId(report.id);
 
     // Block WA number
-    await addToBlacklist({
+    const { error: phoneBlockError } = await addToBlacklist({
       identifier: report.reporter_phone,
       reason: `Spam report: ${report.school_name} (by admin)`,
     });
+    if (phoneBlockError && phoneBlockError.code !== '23505') {
+      logError('AdminSchoolReports.blockSpammer.phone', phoneBlockError, { reportId: report.id });
+      setError(phoneBlockError.message);
+      setUpdatingId(null);
+      return;
+    }
 
     // Block IP if available
     if (report.reporter_ip) {
-      await addToBlacklist({
+      const { error: ipBlockError } = await addToBlacklist({
         identifier: report.reporter_ip,
         reason: `Spam IP from: ${report.reporter_phone} (by admin)`,
       });
+      if (ipBlockError && ipBlockError.code !== '23505') {
+        logError('AdminSchoolReports.blockSpammer.ip', ipBlockError, { reportId: report.id });
+        setError(ipBlockError.message);
+        setUpdatingId(null);
+        return;
+      }
     }
 
     // Delete the report
-    await updateSchoolReportStatus(report.id, { status: 'actioned' });
+    const { error: updateError } = await updateSchoolReportStatus(report.id, { status: 'actioned' });
+    if (updateError) {
+      logError('AdminSchoolReports.blockSpammer.status', updateError, { reportId: report.id });
+      setError(updateError.message);
+      setUpdatingId(null);
+      return;
+    }
 
     setUpdatingId(null);
     setSelectedReport(null);
+    setNotice('Pelapor berhasil diblokir dan laporan ditandai telah ditindaklanjuti.');
     await loadReports();
   }
 

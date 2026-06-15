@@ -28,6 +28,7 @@ export type AdminProgramValues = z.infer<typeof adminProgramSchema>;
 export const campaignManagerSchema = z
   .object({
     title: z.string().trim().min(1, 'Title wajib diisi.'),
+    slug: z.string().trim().min(1, 'Slug wajib diisi.'),
     category_id: z.string().trim().min(1, 'Kategori wajib dipilih.'),
     target_amount: z.number().min(1, 'Target dana wajib diisi.'),
     start_date: z.string().trim().optional().or(z.literal('')),

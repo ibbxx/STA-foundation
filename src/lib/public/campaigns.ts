@@ -188,5 +188,19 @@ export async function fetchPublicCampaignDetail(slug: string) {
 
 export async function fetchPublicCampaignForDonate(slug: string) {
   const detail = await fetchPublicCampaignDetail(slug);
-  return detail?.campaign ?? null;
+  const campaign = detail?.campaign ?? null;
+  if (!campaign || campaign.status !== 'active') {
+    return null;
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const startDate = campaign.start_date ? new Date(`${campaign.start_date}T00:00:00`) : null;
+  const endDate = campaign.end_date ? new Date(`${campaign.end_date}T00:00:00`) : null;
+
+  if ((startDate && today < startDate) || (endDate && today > endDate)) {
+    return null;
+  }
+
+  return campaign;
 }

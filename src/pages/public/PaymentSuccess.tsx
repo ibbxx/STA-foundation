@@ -1,5 +1,5 @@
-import { Link, useLocation } from 'react-router-dom';
-import { CheckCircle2, ArrowRight, Share2, Heart } from 'lucide-react';
+import { Link, Navigate, useLocation } from 'react-router-dom';
+import { Clock3, ArrowRight, Share2 } from 'lucide-react';
 import { formatCurrency } from '../../lib/utils';
 
 /**
@@ -15,6 +15,25 @@ export default function PaymentSuccess() {
     transactionId?: string | null;
   } | null;
 
+  if (!paymentState?.transactionId || !paymentState.amount || !paymentState.paymentMethod) {
+    return <Navigate to="/campaigns" replace />;
+  }
+
+  async function handleShare() {
+    const shareData = {
+      title: 'Sekolah Tanah Air',
+      text: 'Saya baru mencatat niat donasi untuk campaign Sekolah Tanah Air.',
+      url: window.location.origin,
+    };
+
+    if (navigator.share) {
+      await navigator.share(shareData);
+      return;
+    }
+
+    await navigator.clipboard.writeText(shareData.url);
+  }
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 pt-24 pb-12 sm:pt-32 sm:pb-20">
       <div className="relative w-full max-w-xl overflow-hidden rounded-[2rem] border border-gray-100 bg-white p-6 text-center shadow-xl shadow-emerald-100 sm:rounded-[3rem] sm:p-10 md:p-16 md:shadow-2xl">
@@ -24,29 +43,29 @@ export default function PaymentSuccess() {
 
         <div className="space-y-8 relative z-10">
           <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-emerald-100 animate-bounce sm:h-24 sm:w-24">
-            <CheckCircle2 size={48} className="text-emerald-600" />
+            <Clock3 size={48} className="text-amber-600" />
           </div>
 
           <div className="space-y-4">
-            <h1 className="text-3xl font-black text-gray-900 md:text-4xl">Donasi Berhasil!</h1>
+            <h1 className="text-3xl font-black text-gray-900 md:text-4xl">Donasi Tercatat</h1>
             <p className="text-base leading-relaxed text-gray-500 sm:text-lg">
-              Terima kasih atas kebaikan Anda. Donasi Anda telah kami terima dan akan segera disalurkan untuk membantu sesama.
+              Data donasi Anda sudah tercatat dan masih menunggu konfirmasi pembayaran. Total campaign baru akan diperbarui setelah pembayaran diverifikasi.
             </p>
           </div>
 
           <div className="space-y-4 rounded-[1.5rem] border border-emerald-100 bg-emerald-50 p-5 sm:rounded-3xl sm:p-6">
             <div className="flex items-center justify-between gap-4 text-sm">
               <span className="text-gray-500 font-bold uppercase tracking-wider">Jumlah Donasi</span>
-              <span className="text-emerald-700 font-black text-xl">{formatCurrency(paymentState?.amount ?? 50000)}</span>
+              <span className="text-emerald-700 font-black text-xl">{formatCurrency(paymentState.amount)}</span>
             </div>
             <div className="h-px bg-emerald-100 w-full" />
             <div className="flex items-center justify-between gap-4 text-sm">
               <span className="text-gray-500 font-bold uppercase tracking-wider">Metode</span>
-              <span className="text-gray-900 font-bold">{paymentState?.paymentMethod ?? 'QRIS / GoPay'}</span>
+              <span className="text-gray-900 font-bold">{paymentState.paymentMethod}</span>
             </div>
             <div className="flex items-center justify-between gap-4 text-sm">
               <span className="text-gray-500 font-bold uppercase tracking-wider">ID Transaksi</span>
-              <span className="text-gray-900 font-mono font-bold">{paymentState?.transactionId ?? 'TA-98234123'}</span>
+              <span className="break-all text-right text-gray-900 font-mono font-bold">{paymentState.transactionId}</span>
             </div>
           </div>
 
@@ -57,7 +76,11 @@ export default function PaymentSuccess() {
             >
               Lihat Campaign Lainnya
             </Link>
-            <button className="w-full flex items-center justify-center space-x-2 py-4 text-emerald-600 font-bold hover:bg-emerald-50 rounded-2xl transition-all">
+            <button
+              type="button"
+              onClick={() => void handleShare()}
+              className="w-full flex items-center justify-center space-x-2 py-4 text-emerald-600 font-bold hover:bg-emerald-50 rounded-2xl transition-all"
+            >
               <Share2 size={20} />
               <span>Bagikan Kebaikan Ini</span>
             </button>

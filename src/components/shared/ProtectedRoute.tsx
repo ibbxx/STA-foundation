@@ -7,7 +7,7 @@ type ProtectedRouteProps = {
 };
 
 export default function ProtectedRoute({ children }: ProtectedRouteProps) {
-  const { session, loading } = useAuth();
+  const { session, isAdmin, loading } = useAuth();
   const location = useLocation();
 
   if (loading) {
@@ -18,8 +18,8 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
     );
   }
 
-  if (!session) {
-    return <Navigate to="/admin/login" replace state={{ from: location }} />;
+  if (!session || !isAdmin) {
+    return <Navigate to="/admin/login" replace state={{ from: location, accessDenied: Boolean(session) }} />;
   }
 
   return <>{children}</>;

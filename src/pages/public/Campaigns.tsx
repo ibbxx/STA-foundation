@@ -2,9 +2,39 @@ import { Search } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useEffect, useMemo, useState } from 'react';
 import CampaignCard from '../../components/shared/CampaignCard';
+import { Skeleton } from '../../components/ui/skeleton';
 import { logError } from '../../lib/error-logger';
 import { fetchPublicCampaigns } from '../../lib/public-campaigns';
 import { Campaign } from '../../lib/supabase';
+
+function CampaignCardSkeleton() {
+  return (
+    <div className="flex flex-col overflow-hidden bg-white border border-gray-100 rounded-sm shadow-sm">
+      <Skeleton className="aspect-video w-full sm:aspect-[16/10] rounded-none" />
+      <div className="flex flex-col flex-1 p-3.5 sm:p-6 space-y-4">
+        <div className="space-y-2">
+          <Skeleton className="h-5 w-5/6" />
+          <Skeleton className="h-5 w-2/3" />
+        </div>
+        <div className="hidden sm:block space-y-2">
+          <Skeleton className="h-4 w-full" />
+          <Skeleton className="h-4 w-4/5" />
+        </div>
+        <div className="mt-auto space-y-3 pt-2">
+          <div className="flex justify-between items-center">
+            <Skeleton className="h-4 w-24" />
+            <Skeleton className="hidden sm:block h-4 w-28" />
+          </div>
+          <Skeleton className="h-1 w-full rounded-none" />
+          <div className="flex justify-between items-center pt-2 border-t border-gray-50">
+            <Skeleton className="h-4 w-16" />
+            <Skeleton className="h-4 w-20" />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function Campaigns() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
@@ -135,13 +165,10 @@ export default function Campaigns() {
             {error}
           </div>
         ) : loading ? (
-          <div className="rounded-none border border-gray-100 bg-white px-6 py-16 text-center text-sm text-gray-500 shadow-sm">
-            <motion.div 
-              animate={{ opacity: [0.4, 1, 0.4] }} 
-              transition={{ repeat: Infinity, duration: 1.5 }}
-            >
-              Memuat campaign...
-            </motion.div>
+          <div className="grid gap-4 sm:gap-6 lg:grid-cols-3 xl:gap-8">
+            <CampaignCardSkeleton />
+            <CampaignCardSkeleton />
+            <CampaignCardSkeleton />
           </div>
         ) : filteredCampaigns.length === 0 ? (
           <div className="rounded-sm border border-dashed border-gray-200 bg-white px-6 py-16 text-center">

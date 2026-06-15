@@ -14,8 +14,9 @@ import {
 } from 'lucide-react';
 import { logError } from '../../lib/error-logger';
 import { fetchPublicCampaignForDonate } from '../../lib/public-campaigns';
-import { Campaign, DonationInsert, supabase } from '../../lib/supabase';
+import { Campaign, supabase } from '../../lib/supabase';
 import { formatCurrency, cn } from '../../lib/utils';
+import { Skeleton } from '../../components/ui/skeleton';
 
 const donationSchema = z.object({
   amount: z.number().min(10000, 'Minimal donasi Rp 10.000'),
@@ -38,6 +39,71 @@ const PAYMENT_METHODS = [
   { id: 'gopay', name: 'GoPay', icon: Wallet },
   { id: 'shopeepay', name: 'ShopeePay', icon: Wallet },
 ] as const;
+
+function DonateSkeleton() {
+  return (
+    <div className="min-h-screen bg-gray-50 pb-40 md:pb-24 animate-pulse">
+      {/* Header Spacer */}
+      <div className="border-b border-gray-100 bg-white pt-24 pb-8 sm:pt-32 sm:pb-10">
+        <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
+          <Skeleton className="h-4 w-36 mb-6" />
+          <div className="flex items-start space-x-4 sm:items-center">
+            <Skeleton className="h-14 w-14 rounded-2xl sm:h-16 sm:w-16" />
+            <div className="space-y-2 flex-1">
+              <Skeleton className="h-7 w-48 sm:h-8" />
+              <Skeleton className="h-4 w-64" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="mx-auto mt-6 max-w-3xl px-4 sm:mt-10 sm:px-6 lg:px-8 space-y-6 sm:space-y-8">
+        {/* Nominal Section */}
+        <div className="space-y-5 rounded-[1.5rem] border border-gray-100 bg-white p-5 shadow-lg sm:rounded-[2rem] sm:p-8">
+          <div className="flex items-center space-x-3 mb-2">
+            <Skeleton className="h-8 w-8 rounded-lg" />
+            <Skeleton className="h-5 w-40" />
+          </div>
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+            {[...Array(6)].map((_, i) => (
+              <Skeleton key={i} className="h-14 rounded-2xl" />
+            ))}
+          </div>
+          <div className="space-y-2">
+            <Skeleton className="h-3 w-28" />
+            <Skeleton className="h-12 w-full rounded-2xl" />
+          </div>
+        </div>
+
+        {/* Form Info Section */}
+        <div className="space-y-5 rounded-[1.5rem] border border-gray-100 bg-white p-5 shadow-lg sm:rounded-[2rem] sm:p-8">
+          <div className="flex items-center space-x-3 mb-2">
+            <Skeleton className="h-8 w-8 rounded-lg" />
+            <Skeleton className="h-5 w-40" />
+          </div>
+          <div className="grid gap-6 md:grid-cols-2">
+            <div className="space-y-2">
+              <Skeleton className="h-3 w-24" />
+              <Skeleton className="h-12 w-full rounded-2xl" />
+            </div>
+            <div className="space-y-2">
+              <Skeleton className="h-3 w-24" />
+              <Skeleton className="h-12 w-full rounded-2xl" />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Skeleton className="h-3 w-24" />
+            <Skeleton className="h-12 w-full rounded-2xl" />
+          </div>
+          <div className="space-y-2">
+            <Skeleton className="h-3 w-24" />
+            <Skeleton className="h-24 w-full rounded-2xl" />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function Donate() {
   const { slug = '' } = useParams();
@@ -111,23 +177,16 @@ export default function Donate() {
     setIsSubmitting(true);
     setPageError(null);
 
-    const payload: DonationInsert = {
-      campaign_id: campaign.id,
-      donor_name: data.name.trim(),
-      donor_email: data.email.trim(),
-      donor_phone: data.whatsapp.trim(),
-      amount: data.amount,
-      payment_status: 'success',
-      payment_method: data.paymentMethod,
-      message: data.message?.trim() || null,
-      is_anonymous: data.isAnonymous,
-    };
-
-    const { data: insertedDonationData, error } = await supabase
-      .from('donations')
-      .insert(payload as never)
-      .select('id')
-      .single();
+    const { data: insertedDonationId, error } = await supabase.rpc('create_pending_donation', {
+      p_campaign_id: campaign.id,
+      p_donor_name: data.name.trim(),
+      p_donor_email: data.email.trim(),
+      p_donor_phone: data.whatsapp.trim(),
+      p_amount: data.amount,
+      p_payment_method: data.paymentMethod,
+      p_message: data.message?.trim() || '',
+      p_is_anonymous: data.isAnonymous,
+    });
 
     if (error) {
       logError('Donate.submitDonation', error, {
@@ -140,25 +199,17 @@ export default function Donate() {
     }
 
     const paymentMethodLabel = PAYMENT_METHODS.find((method) => method.id === data.paymentMethod)?.name ?? data.paymentMethod;
-    const insertedDonation = insertedDonationData as { id: string } | null;
-
     navigate('/payment/success', {
       state: {
         amount: data.amount,
         paymentMethod: paymentMethodLabel,
-        transactionId: insertedDonation?.id ?? null,
+        transactionId: insertedDonationId,
       },
     });
   };
 
   if (loadingCampaign) {
-    return (
-      <div className="min-h-screen bg-gray-50 px-4 pt-32 pb-20 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-3xl rounded-[2rem] border border-gray-200 bg-white px-6 py-16 text-center text-sm text-gray-500 shadow-sm">
-          Memuat halaman donasi...
-        </div>
-      </div>
-    );
+    return <DonateSkeleton />;
   }
 
   if (!campaign) {

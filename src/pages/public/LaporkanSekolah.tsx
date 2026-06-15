@@ -25,7 +25,7 @@ import {
   type ReportSchoolAssets,
   type ReportSchoolFormValues,
 } from '../../lib/report-school';
-import { checkIPRateLimit, checkIsBlacklisted, insertSchoolReport, uploadSchoolReportPhotos } from '../../lib/admin/repository';
+import { getEdgeFunctionErrorMessage, submitSchoolReport } from '../../lib/admin/repository';
 import { logError } from '../../lib/error-logger';
 import { supabase } from '../../lib/supabase/types';
 
@@ -177,63 +177,43 @@ export default function LaporkanSekolah() {
     const typedValues = values as ReportSchoolFormValues;
 
     try {
-      // ── Anti-Spam Layer 1: Blacklist Check ──
-      const isBlacklisted = await checkIsBlacklisted(userIP, typedValues.reporterWhatsapp);
-      if (isBlacklisted) {
-        setSpamError('Akses Anda telah dibatasi oleh sistem keamanan kami. Jika ini kesalahan, hubungi admin STA.');
-        setIsSubmitting(false);
-        return;
-      }
-
-      // ── Anti-Spam Layer 2: IP Rate Limit ──
-      if (userIP !== 'unknown') {
-        const isRateLimited = await checkIPRateLimit(userIP);
-        if (isRateLimited) {
-          setSpamError('Terlalu banyak laporan dari perangkat ini. Silakan coba lagi dalam 1 jam.');
-          setIsSubmitting(false);
-          return;
-        }
-      }
-
-      // 1. Upload foto ke Supabase Storage (wajib min 1)
-      const photoUrls = await uploadSchoolReportPhotos(assets.schoolPhotos);
-
-      // 2. Build description terstruktur dari seluruh data form
+      // 1. Build description terstruktur dari seluruh data form
       const description = buildReportDescription(typedValues);
       const location = typedValues.schoolMapsUrl
         ? `${typedValues.schoolAddress} | Maps: ${typedValues.schoolMapsUrl}`
         : typedValues.schoolAddress;
 
-      // 3. INSERT ke tabel school_reports (dengan IP)
-      const { error: insertError } = await insertSchoolReport({
+      // 2. Verifikasi Turnstile, upload foto, dan simpan laporan melalui Edge Function.
+      const { error: insertError } = await submitSchoolReport({
         reporter_name: typedValues.reporterName,
         reporter_phone: typedValues.reporterWhatsapp,
         reporter_ip: userIP,
         school_name: typedValues.schoolName,
         location,
         description,
-        image_urls: photoUrls,
         status: 'pending',
-      });
+      }, assets.schoolPhotos, turnstileToken);
 
       if (insertError) {
         logError('LaporkanSekolah.insertSchoolReport', insertError);
+        throw new Error(await getEdgeFunctionErrorMessage(insertError, 'Laporan gagal dikirim.'));
       }
+
+      // 4. Tampilkan sukses hanya setelah laporan tersimpan.
+      const whatsappUrl = createWhatsAppReportUrl(values as ReportSchoolFormValues, assets);
+      setIsSuccess(true);
+      clearReportSchoolDraft();
+
+      // 5. Delay WhatsApp redirect agar animasi sukses sempat terlihat.
+      setTimeout(() => {
+        window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
+      }, 2500);
     } catch (err) {
-      // Jika INSERT gagal, tetap lanjut ke WhatsApp agar data tidak hilang
       logError('LaporkanSekolah.onSubmit', err);
+      setSpamError(err instanceof Error ? err.message : 'Laporan gagal dikirim. Silakan coba lagi.');
+    } finally {
+      setIsSubmitting(false);
     }
-
-    // 4. Show success state first to play animation
-    const whatsappUrl = createWhatsAppReportUrl(values as ReportSchoolFormValues, assets);
-    setIsSuccess(true);
-    setIsSubmitting(false);
-    clearReportSchoolDraft();
-
-    // 5. Delay WhatsApp redirect so user can see the "WOW" animation
-    setTimeout(() => {
-      window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
-    }, 2500);
   });
 
   return (

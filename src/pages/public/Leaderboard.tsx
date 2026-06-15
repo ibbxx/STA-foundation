@@ -4,6 +4,37 @@ import { Trophy, Medal, Star, Heart } from 'lucide-react';
 import { fetchLeaderboard, LeaderboardEntry } from '../../lib/leaderboard';
 import { formatCurrency, cn } from '../../lib/utils';
 import { Link } from 'react-router-dom';
+import { Skeleton } from '../../components/ui/skeleton';
+
+function LeaderboardSkeleton() {
+  return (
+    <div className="space-y-3 animate-pulse">
+      {[...Array(5)].map((_, i) => (
+        <div
+          key={i}
+          className="flex items-center p-4 md:p-6 rounded-2xl border border-gray-100 bg-white"
+        >
+          {/* Rank Badge */}
+          <div className="flex items-center justify-center w-12 shrink-0">
+            <Skeleton className="w-8 h-8 rounded-full" />
+          </div>
+
+          {/* Donor Info */}
+          <div className="flex-1 min-w-0 px-4 space-y-2">
+            <Skeleton className="h-5 w-1/3" />
+            <Skeleton className="h-4 w-1/4" />
+          </div>
+
+          {/* Amount */}
+          <div className="text-right shrink-0 space-y-1">
+            <Skeleton className="h-6 w-28 ml-auto" />
+            {i === 0 && <Skeleton className="h-4 w-20 rounded-full ml-auto" />}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 export default function Leaderboard() {
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
@@ -78,7 +109,7 @@ export default function Leaderboard() {
         {/* Leaderboard List */}
         <div className="space-y-3">
           {loading ? (
-            <div className="text-center py-20 text-gray-500">Memuat data pejuang...</div>
+            <LeaderboardSkeleton />
           ) : entries.length === 0 ? (
             <div className="text-center py-20 bg-white rounded-3xl border border-gray-100">
               <p className="text-gray-500">Belum ada data donasi yang masuk ke leaderboard.</p>

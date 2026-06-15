@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase';
 
 interface UseAuthReturn {
   session: Session | null;
+  isAdmin: boolean;
   loading: boolean;
 }
 
@@ -14,7 +15,9 @@ interface UseAuthReturn {
  */
 export function useAuth(): UseAuthReturn {
   const [session, setSession] = useState<Session | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [adminLoading, setAdminLoading] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     let ignore = false;
@@ -31,12 +34,12 @@ export function useAuth(): UseAuthReturn {
           logError('useAuth.signOutAfterSessionError', signOutError);
         }
         setSession(null);
-        setLoading(false);
+        setAuthLoading(false);
         return;
       }
 
       setSession(data.session);
-      setLoading(false);
+      setAuthLoading(false);
     }
 
     loadSession();
@@ -47,7 +50,7 @@ export function useAuth(): UseAuthReturn {
       if (ignore) return;
       setSession(nextSession);
       if (event !== 'INITIAL_SESSION') {
-        setLoading(false);
+        setAuthLoading(false);
       }
     });
 
@@ -57,5 +60,46 @@ export function useAuth(): UseAuthReturn {
     };
   }, []);
 
-  return { session, loading };
+  const [verifiedUserId, setVerifiedUserId] = useState<string | null>(null);
+
+  useEffect(() => {
+    let ignore = false;
+
+    if (!session) {
+      setIsAdmin(false);
+      setAdminLoading(false);
+      setVerifiedUserId(null);
+      return;
+    }
+
+    const currentUserId = session.user.id;
+    if (verifiedUserId === currentUserId) {
+      return;
+    }
+
+    setAdminLoading(true);
+    supabase
+      .rpc('is_admin')
+      .then(({ data, error }) => {
+        if (ignore) return;
+        if (error) {
+          logError('useAuth.isAdmin', error);
+          setIsAdmin(false);
+        } else {
+          setIsAdmin(data === true);
+          setVerifiedUserId(currentUserId);
+        }
+        setAdminLoading(false);
+      });
+
+    return () => {
+      ignore = true;
+    };
+  }, [session, verifiedUserId]);
+
+  return {
+    session,
+    isAdmin,
+    loading: authLoading || Boolean(session && adminLoading),
+  };
 }

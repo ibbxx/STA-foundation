@@ -31,8 +31,13 @@ const FontSize = Extension.create({
         attributes: {
           fontSize: {
             default: null,
-            parseHTML: (element) => element.style.fontSize?.replace('px', '') || null,
+            parseHTML: (element) => {
+              const parsed = element.style.fontSize?.replace('px', '') || null;
+              console.log('[FontSize Extension] parseHTML fontSize attribute:', parsed);
+              return parsed;
+            },
             renderHTML: (attributes) => {
+              console.log('[FontSize Extension] renderHTML fontSize attributes:', attributes);
               if (!attributes.fontSize) return {};
               return { style: `font-size: ${attributes.fontSize}px` };
             },
@@ -46,11 +51,13 @@ const FontSize = Extension.create({
       setFontSize:
         (fontSize: string) =>
         ({ chain }: any) => {
+          console.log('[FontSize Extension] setFontSize command invoked with:', fontSize);
           return chain().setMark('textStyle', { fontSize }).run();
         },
       unsetFontSize:
         () =>
         ({ chain }: any) => {
+          console.log('[FontSize Extension] unsetFontSize command invoked');
           return chain().setMark('textStyle', { fontSize: null }).unsetMark('textStyle').run();
         },
     } as any;
@@ -149,9 +156,12 @@ function MenuBar({ editor }: { editor: Editor }) {
   const handleFontSizeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     e.preventDefault();
     const size = e.target.value;
+    console.log('[STA Editor] Font size dropdown changed to:', size);
     if (!size) {
+      console.log('[STA Editor] Unsetting font size');
       (editor.chain().focus() as any).unsetFontSize().run();
     } else {
+      console.log('[STA Editor] Setting font size to:', size);
       (editor.chain().focus() as any).setFontSize(size).run();
     }
   };
@@ -254,7 +264,7 @@ export default function RichTextEditor({
       FontSize,
     ],
     content: value,
-    immediatelyRender: true,
+    immediatelyRender: false,
     shouldRerenderOnTransaction: false,
     editorProps: {
       attributes: {
@@ -268,11 +278,14 @@ export default function RichTextEditor({
   });
 
   useEffect(() => {
+    if (!editor || editor.isDestroyed) return;
+
     if (isUpdatingFromEditor.current) {
       isUpdatingFromEditor.current = false;
       return;
     }
-    if (editor && !editor.isDestroyed && value !== editor.getHTML()) {
+
+    if (!editor.isFocused && value !== editor.getHTML()) {
       editor.commands.setContent(value, { emitUpdate: false });
     }
   }, [editor, value]);

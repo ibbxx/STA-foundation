@@ -1,0 +1,102 @@
+// @ts-nocheck
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { corsHeaders, jsonResponse, safeFileName, validateImage } from '../_shared/http.ts';
+import { verifyTurnstile } from '../_shared/turnstile.ts';
+
+Deno.serve(async (request) => {
+  if (request.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders });
+  }
+  if (request.method !== 'POST') {
+    return jsonResponse({ error: 'Method not allowed.' }, 405);
+  }
+
+  const uploadedPaths: string[] = [];
+
+  try {
+    const form = await request.formData();
+    const payload = JSON.parse(String(form.get('payload') ?? '{}'));
+    const token = String(form.get('turnstile_token') ?? '');
+
+    const isHuman = await verifyTurnstile(token);
+    if (!isHuman) {
+      return jsonResponse({ error: 'Verifikasi keamanan gagal atau kedaluwarsa.' }, 403);
+    }
+
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+    );
+
+    // Verify program is open
+    const { data: program, error: programError } = await supabase
+      .from('volunteer_programs')
+      .select('status')
+      .eq('id', payload.program_id)
+      .single();
+
+    if (programError || program?.status !== 'open') {
+      return jsonResponse({ error: 'Pendaftaran program sedang ditutup.' }, 400);
+    }
+
+    const uploadPrivateFile = async (prefix: string, file: File) => {
+      const path = `${prefix}/${Date.now()}_${crypto.randomUUID()}_${safeFileName(file.name)}`;
+      const { error } = await supabase.storage
+        .from('volunteer-assets')
+        .upload(path, file, { contentType: file.type, cacheControl: '3600', upsert: false });
+      if (error) throw error;
+      uploadedPaths.push(path);
+      return path;
+    };
+
+    // Dynamically process and upload files in form
+    const uploadedFiles: Record<string, string> = {};
+    for (const [key, value] of form.entries()) {
+      if (value instanceof File) {
+        validateImage(value);
+        const path = await uploadPrivateFile(key, value);
+        uploadedFiles[key] = path;
+      }
+    }
+
+    const answers = {
+      ...(payload.answers || {}),
+      ...uploadedFiles,
+    };
+
+    const { data: inserted, error: insertError } = await supabase
+      .from('volunteer_registrations')
+      .insert({
+        program_id: payload.program_id,
+        nama_lengkap: payload.nama_lengkap,
+        email: payload.email,
+        whatsapp: payload.whatsapp,
+        whatsapp_emergency: answers['whatsapp_emergency'] || null,
+        alamat: answers['alamat'] || null,
+        tanggal_lahir: answers['tanggal_lahir'] || null,
+        size_baju: answers['size_baju'] || null,
+        pendidikan: answers['pendidikan'] || null,
+        bidang_diminati: answers['bidang_diminati'] || null,
+        riwayat_penyakit: answers['riwayat_penyakit'] || null,
+        bukti_dp_url: uploadedFiles['bukti_dp'] || null,
+        bukti_follow_url: uploadedFiles['bukti_follow_ig'] || null,
+        foto_id_url: uploadedFiles['foto_id_card'] || null,
+        answers: answers,
+      })
+      .select('id')
+      .single();
+
+    if (insertError) throw insertError;
+
+    return jsonResponse({ id: inserted.id }, 201);
+  } catch (error) {
+    if (uploadedPaths.length > 0) {
+      const cleanupClient = createClient(
+        Deno.env.get('SUPABASE_URL') ?? '',
+        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+      );
+      await cleanupClient.storage.from('volunteer-assets').remove(uploadedPaths);
+    }
+    return jsonResponse({ error: error instanceof Error ? error.message : 'Pendaftaran gagal dikirim.' }, 400);
+  }
+});

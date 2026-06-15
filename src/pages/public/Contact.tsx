@@ -11,6 +11,7 @@ import { logError } from '../../lib/error-logger';
  */
 export default function Contact() {
   const [heroImage, setHeroImage] = React.useState<string | null>(null);
+  const [formNotice, setFormNotice] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     async function loadHero() {
@@ -24,6 +25,24 @@ export default function Contact() {
     }
     loadHero();
   }, []);
+
+  function handleContactSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const name = String(form.get('name') ?? '').trim();
+    const email = String(form.get('email') ?? '').trim();
+    const subject = String(form.get('subject') ?? '').trim();
+    const message = String(form.get('message') ?? '').trim();
+
+    if (!name || !email || !subject || !message) {
+      setFormNotice('Lengkapi seluruh kolom sebelum mengirim pesan.');
+      return;
+    }
+
+    const body = `Nama: ${name}\nEmail: ${email}\n\n${message}`;
+    window.location.href = `mailto:halo@tanahair.org?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    setFormNotice('Aplikasi email Anda sedang dibuka.');
+  }
 
   return (
     <div className="bg-white">
@@ -88,12 +107,14 @@ export default function Contact() {
 
             {/* Antarmuka Formulir Pengiriman Pesan (Contact Form) */}
             <div className="rounded-[2rem] border border-gray-100 bg-white p-6 shadow-xl shadow-emerald-100/30 sm:rounded-[3rem] sm:p-10 sm:shadow-2xl">
-              <form className="space-y-6">
+              <form className="space-y-6" onSubmit={handleContactSubmit}>
                 <div className="grid md:grid-cols-2 gap-6">
                   <div className="space-y-2">
                     <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Nama Lengkap</label>
                     <input
                       type="text"
+                      name="name"
+                      required
                       className="w-full px-6 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
                       placeholder="Nama Anda"
                     />
@@ -102,6 +123,8 @@ export default function Contact() {
                     <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Email</label>
                     <input
                       type="email"
+                      name="email"
+                      required
                       className="w-full px-6 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
                       placeholder="email@anda.com"
                     />
@@ -111,6 +134,8 @@ export default function Contact() {
                   <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Subjek</label>
                   <input
                     type="text"
+                    name="subject"
+                    required
                     className="w-full px-6 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
                     placeholder="Apa yang ingin Anda tanyakan?"
                   />
@@ -118,12 +143,15 @@ export default function Contact() {
                 <div className="space-y-2">
                   <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Pesan</label>
                   <textarea
+                    name="message"
+                    required
                     rows={5}
                     className="w-full px-6 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
                     placeholder="Tulis pesan Anda di sini..."
                   />
                 </div>
-                <button className="flex w-full items-center justify-center space-x-2 rounded-2xl bg-emerald-600 py-4 text-base font-bold text-white shadow-lg shadow-emerald-200 transition-all hover:bg-emerald-700 sm:py-5 sm:text-lg sm:shadow-xl">
+                {formNotice ? <p className="text-sm font-medium text-emerald-700">{formNotice}</p> : null}
+                <button type="submit" className="flex w-full items-center justify-center space-x-2 rounded-2xl bg-emerald-600 py-4 text-base font-bold text-white shadow-lg shadow-emerald-200 transition-all hover:bg-emerald-700 sm:py-5 sm:text-lg sm:shadow-xl">
                   <Send size={20} />
                   <span>Kirim Pesan</span>
                 </button>

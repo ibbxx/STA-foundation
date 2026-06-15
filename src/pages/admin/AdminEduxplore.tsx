@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { fetchAllVolunteerRegistrations, fetchVolunteerPrograms, updateVolunteerRegistrationStatus, deleteVolunteerRegistrations } from '../../lib/admin/repository';
 import type { VolunteerRegistrationRow, VolunteerProgramRow } from '../../lib/supabase/types';
+import { supabase } from '../../lib/supabase/types';
 import { formatAdminDate } from '../../lib/admin/helpers';
 import {
   Loader2, RefreshCw, CheckCircle2, XCircle, Search, ExternalLink,
@@ -9,7 +10,6 @@ import {
   FileImage, Filter, FileSpreadsheet, Trash2
 } from 'lucide-react';
 import { logError } from '../../lib/error-logger';
-import * as XLSX from 'xlsx';
 
 type StatusFilter = 'all' | 'pending' | 'verified' | 'rejected';
 
@@ -24,6 +24,69 @@ export default function AdminEduxplore() {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [updating, setUpdating] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [signedUrls, setSignedUrls] = useState<Record<string, string>>({});
+
+  // Resolve dynamic signed URLs for selected registration files
+  useEffect(() => {
+    if (!selected) {
+      setSignedUrls({});
+      return;
+    }
+
+    async function resolveUrls() {
+      const urls: Record<string, string> = {};
+      const answersObj: Record<string, any> = typeof selected!.answers === 'string'
+        ? JSON.parse(selected!.answers as string)
+        : (selected!.answers as Record<string, any> || {});
+
+      // Find program formConfig
+      const prog = programs.find(p => p.id === selected!.program_id);
+      const progConfig = prog?.form_config
+        ? (Array.isArray(prog.form_config) ? prog.form_config : JSON.parse(prog.form_config as string))
+        : null;
+
+      const activeConfig = Array.isArray(progConfig) && progConfig.length > 0
+        ? progConfig
+        : [
+            { id: 'bukti_dp', type: 'file' },
+            { id: 'bukti_follow_ig', type: 'file' },
+            { id: 'foto_id_card', type: 'file' }
+          ];
+
+      const fileQuestions = activeConfig.filter((q: any) => q.type === 'file');
+
+      await Promise.all(
+        fileQuestions.map(async (q: any) => {
+          let pathOrUrl = answersObj[q.id];
+
+          // Fallback to table columns
+          if (!pathOrUrl) {
+            if (q.id === 'bukti_dp') pathOrUrl = selected!.bukti_dp_url;
+            else if (q.id === 'bukti_follow_ig') pathOrUrl = selected!.bukti_follow_url;
+            else if (q.id === 'foto_id_card') pathOrUrl = selected!.foto_id_url;
+          }
+
+          if (pathOrUrl) {
+            if (pathOrUrl.startsWith('http')) {
+              urls[q.id] = pathOrUrl;
+            } else {
+              const { data, error } = await supabase.storage
+                .from('volunteer-assets')
+                .createSignedUrl(pathOrUrl, 60 * 60);
+
+              if (!error && data) {
+                urls[q.id] = data.signedUrl;
+              }
+            }
+          }
+        })
+      );
+
+      setSignedUrls(urls);
+    }
+
+    resolveUrls();
+  }, [selected, programs]);
 
   async function loadData() {
     setLoading(true);
@@ -111,49 +174,108 @@ export default function AdminEduxplore() {
     rejected: registrations.filter(r => r.status === 'rejected').length,
   };
 
-  const exportExcel = () => {
-    // Siapkan data untuk Excel
-    const excelData = filtered.map(r => ({
-      'Nama Lengkap': r.nama_lengkap,
-      'Email': r.email,
-      'WhatsApp': r.whatsapp, // SheetJS automatically handles strings well, but to be absolutely safe with leading 0s, we ensure it's a string.
-      'Kontak Darurat': r.whatsapp_emergency,
-      'Alamat': r.alamat,
-      'Tanggal Lahir': r.tanggal_lahir,
-      'Ukuran Baju': r.size_baju,
-      'Latar Belakang Pendidikan': r.pendidikan || '-',
-      'Bidang Diminati': r.bidang_diminati || '-',
-      'Riwayat Penyakit': r.riwayat_penyakit || '-',
-      'Program EduXplore': programs.find(p => p.id === r.program_id)?.title || '-',
-      'Status Pendaftaran': r.status === 'verified' ? 'Diterima' : r.status === 'rejected' ? 'Ditolak' : 'Perlu Review',
-      'Tanggal Daftar': formatAdminDate(r.created_at)
-    }));
-
-    // Buat worksheet dan workbook
-    const worksheet = XLSX.utils.json_to_sheet(excelData);
-    
-    // Set column widths agar rapi
-    worksheet['!cols'] = [
-      { wch: 25 }, // Nama Lengkap
-      { wch: 25 }, // Email
-      { wch: 15 }, // WhatsApp
-      { wch: 15 }, // Darurat
-      { wch: 40 }, // Alamat
-      { wch: 15 }, // Tgl Lahir
-      { wch: 12 }, // Baju
-      { wch: 30 }, // Pendidikan
-      { wch: 30 }, // Bidang
-      { wch: 20 }, // Penyakit
-      { wch: 25 }, // Program
-      { wch: 18 }, // Status
-      { wch: 20 }, // Tgl Daftar
+  const exportCsv = () => {
+    // Determine fields to export based on dynamic configs
+    let fieldsToExport: { id: string; label: string }[] = [
+      { id: 'nama_lengkap', label: 'Nama Lengkap' },
+      { id: 'email', label: 'Email' },
+      { id: 'whatsapp', label: 'WhatsApp' },
     ];
 
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Data Volunteer');
+    if (selectedProgram !== 'all') {
+      const prog = programs.find(p => p.id === selectedProgram);
+      const progConfig = prog?.form_config
+        ? (Array.isArray(prog.form_config) ? prog.form_config : JSON.parse(prog.form_config as string))
+        : [];
+      if (Array.isArray(progConfig)) {
+        progConfig.forEach((q: any) => {
+          if (!['nama_lengkap', 'email', 'whatsapp'].includes(q.id)) {
+            fieldsToExport.push({ id: q.id, label: q.label });
+          }
+        });
+      }
+    } else {
+      // General exporter includes standard fields
+      fieldsToExport.push(
+        { id: 'whatsapp_emergency', label: 'Kontak Darurat' },
+        { id: 'alamat', label: 'Alamat' },
+        { id: 'tanggal_lahir', label: 'Tanggal Lahir' },
+        { id: 'size_baju', label: 'Ukuran Baju' },
+        { id: 'pendidikan', label: 'Latar Belakang Pendidikan' },
+        { id: 'bidang_diminati', label: 'Bidang Diminati' },
+        { id: 'riwayat_penyakit', label: 'Riwayat Penyakit' }
+      );
 
-    // Generate dan download file Excel
-    XLSX.writeFile(workbook, `Data_Volunteer_EduXplore_${new Date().toISOString().split('T')[0]}.xlsx`);
+      // Accumulate any other dynamic answers that might be in the database
+      const foundKeys = new Set<string>();
+      filtered.forEach(r => {
+        const answersObj: Record<string, any> = typeof r.answers === 'string'
+          ? JSON.parse(r.answers)
+          : (r.answers as Record<string, any> || {});
+        Object.keys(answersObj).forEach(key => {
+          if (!fieldsToExport.some(f => f.id === key) && !['bukti_dp', 'bukti_follow_ig', 'foto_id_card'].includes(key)) {
+            foundKeys.add(key);
+          }
+        });
+      });
+      foundKeys.forEach(key => {
+        fieldsToExport.push({ id: key, label: key });
+      });
+    }
+
+    // Add metadata
+    fieldsToExport.push(
+      { id: 'program_title', label: 'Program Relawan' },
+      { id: 'status_label', label: 'Status Pendaftaran' },
+      { id: 'created_at_label', label: 'Tanggal Daftar' }
+    );
+
+    const exportData = filtered.map(r => {
+      const answersObj: Record<string, any> = typeof r.answers === 'string'
+        ? JSON.parse(r.answers)
+        : (r.answers as Record<string, any> || {});
+
+      const row: Record<string, string> = {};
+
+      fieldsToExport.forEach(f => {
+        if (f.id === 'nama_lengkap') row[f.label] = r.nama_lengkap;
+        else if (f.id === 'email') row[f.label] = r.email;
+        else if (f.id === 'whatsapp') row[f.label] = r.whatsapp;
+        else if (f.id === 'program_title') row[f.label] = programs.find(p => p.id === r.program_id)?.title || '-';
+        else if (f.id === 'status_label') row[f.label] = r.status === 'verified' ? 'Diterima' : r.status === 'rejected' ? 'Ditolak' : 'Perlu Review';
+        else if (f.id === 'created_at_label') row[f.label] = formatAdminDate(r.created_at);
+        else {
+          let val = answersObj[f.id];
+          if (val === undefined || val === null) {
+            const colName = f.id as keyof VolunteerRegistrationRow;
+            val = r[colName] !== undefined ? r[colName] : '-';
+          }
+          row[f.label] = String(val ?? '-');
+        }
+      });
+
+      return row;
+    });
+
+    if (exportData.length === 0) return;
+
+    const escapeCsvCell = (value: unknown) => {
+      let text = String(value ?? '');
+      if (/^[=+\-@]/.test(text)) text = `'${text}`;
+      return `"${text.replaceAll('"', '""')}"`;
+    };
+
+    const headers = fieldsToExport.map(f => f.label);
+    const rows = exportData.map((row) => (
+      headers.map((header) => escapeCsvCell(row[header])).join(',')
+    ));
+    const csv = `\uFEFF${headers.map(escapeCsvCell).join(',')}\n${rows.join('\n')}`;
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `Data_Volunteer_STA_${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
   };
 
   const getProgramName = (id: string) => programs.find(p => p.id === id)?.title || 'Unknown';
@@ -170,21 +292,59 @@ export default function AdminEduxplore() {
     return 'Perlu Review';
   };
 
+  const program = programs.find(p => p.id === selected?.program_id);
+  const formConfig = program?.form_config
+    ? (Array.isArray(program.form_config) ? program.form_config : JSON.parse(program.form_config as string))
+    : null;
+
+  const activeFormConfig = Array.isArray(formConfig) && formConfig.length > 0
+    ? formConfig
+    : [
+        { id: 'whatsapp_emergency', type: 'text', label: 'WA Darurat', required: true },
+        { id: 'alamat', type: 'textarea', label: 'Alamat', required: true },
+        { id: 'tanggal_lahir', type: 'date', label: 'Tanggal Lahir', required: true },
+        { id: 'size_baju', type: 'select', label: 'Ukuran Baju', required: true, options: ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL'] },
+        { id: 'pendidikan', type: 'text', label: 'Latar Belakang Pendidikan', required: true },
+        { id: 'bidang_diminati', type: 'select', label: 'Bidang yang Diminati', required: true, options: ['Pengembangan Pemuda', 'Pendidikan dan Pengajaran Siswa Guru', 'Media dan Promosi serta Branding Desa', 'Branding Budaya dan Lingkungan Lokal'] },
+        { id: 'riwayat_penyakit', type: 'textarea', label: 'Riwayat Penyakit', required: false },
+        { id: 'bukti_dp', type: 'file', label: 'Bukti DP', required: true },
+        { id: 'bukti_follow_ig', type: 'file', label: 'Bukti Follow IG', required: true },
+        { id: 'foto_id_card', type: 'file', label: 'Pas Foto (untuk ID Card)', required: true }
+      ];
+
+  const parsedAnswers: Record<string, any> = selected
+    ? (typeof selected.answers === 'string'
+      ? JSON.parse(selected.answers as string)
+      : (selected.answers as Record<string, any> || {}))
+    : {};
+
+  const getAnswerValue = (qId: string) => {
+    if (!selected) return null;
+    if (parsedAnswers && parsedAnswers[qId] !== undefined) {
+      return parsedAnswers[qId];
+    }
+    const colName = qId as keyof VolunteerRegistrationRow;
+    if (selected[colName] !== undefined) {
+      return selected[colName];
+    }
+    return null;
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">Pendaftar EduXplore</h1>
-          <p className="text-sm text-slate-500 mt-0.5">Tinjau dan verifikasi setiap pendaftar volunteer.</p>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">Pendaftar Relawan</h1>
+          <p className="text-sm text-slate-500 mt-0.5">Tinjau dan verifikasi setiap pendaftar volunteer dari semua program.</p>
         </div>
         <div className="flex items-center gap-2">
           <button
-            onClick={exportExcel}
+            onClick={exportCsv}
             disabled={filtered.length === 0}
             className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-xl hover:bg-emerald-500 transition-colors text-sm font-semibold shadow-sm disabled:opacity-40"
           >
-            <FileSpreadsheet size={15} /> Export Excel
+            <FileSpreadsheet size={15} /> Export CSV
           </button>
           <button onClick={loadData} className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 transition-colors text-sm">
 
@@ -371,17 +531,13 @@ export default function AdminEduxplore() {
               </div>
 
               <div className="px-6 py-5 space-y-6">
-                {/* Personal Info */}
+                {/* Core Contact Info */}
                 <div>
-                  <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Informasi Pribadi</h3>
+                  <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Kontak Utama</h3>
                   <div className="space-y-3">
                     {[
                       { icon: Mail, label: 'Email', value: selected.email },
                       { icon: Phone, label: 'WhatsApp', value: selected.whatsapp },
-                      { icon: Phone, label: 'Kontak Darurat', value: selected.whatsapp_emergency },
-                      { icon: MapPin, label: 'Alamat', value: selected.alamat },
-                      { icon: Cake, label: 'Tanggal Lahir', value: selected.tanggal_lahir },
-                      { icon: Shirt, label: 'Ukuran Baju', value: selected.size_baju },
                     ].map(({ icon: Icon, label, value }) => (
                       <div key={label} className="flex items-start gap-3">
                         <div className="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center flex-shrink-0 mt-0.5">
@@ -396,68 +552,80 @@ export default function AdminEduxplore() {
                   </div>
                 </div>
 
-                {/* Background */}
-                <div>
-                  <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Latar Belakang</h3>
-                  <div className="space-y-3">
-                    <div className="flex items-start gap-3">
-                      <div className="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0 mt-0.5">
-                        <BookOpen size={14} className="text-blue-500" />
-                      </div>
-                      <div>
-                        <p className="text-[11px] text-slate-400 font-medium">Pendidikan</p>
-                        <p className="text-sm text-slate-800 font-medium">{selected.pendidikan || <span className="italic text-slate-300">Belum diisi</span>}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-3">
-                      <div className="w-7 h-7 rounded-lg bg-emerald-50 flex items-center justify-center flex-shrink-0 mt-0.5">
-                        <Target size={14} className="text-emerald-500" />
-                      </div>
-                      <div>
-                        <p className="text-[11px] text-slate-400 font-medium">Bidang yang Diminati</p>
-                        <p className="text-sm text-emerald-700 font-bold">{selected.bidang_diminati || <span className="italic text-slate-300 font-normal">Belum diisi</span>}</p>
-                      </div>
-                    </div>
-                    {selected.riwayat_penyakit && (
-                      <div className="flex items-start gap-3">
-                        <div className="w-7 h-7 rounded-lg bg-rose-50 flex items-center justify-center flex-shrink-0 mt-0.5">
-                          <AlertCircle size={14} className="text-rose-500" />
-                        </div>
-                        <div>
-                          <p className="text-[11px] text-slate-400 font-medium">Riwayat Penyakit</p>
-                          <p className="text-sm text-rose-700 font-medium">{selected.riwayat_penyakit}</p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
+                {/* Dynamic Form Information */}
+                {activeFormConfig.filter((q: any) => q.type !== 'file').length > 0 && (
+                  <div>
+                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Detail Jawaban</h3>
+                    <div className="space-y-4">
+                      {activeFormConfig
+                        .filter((q: any) => q.type !== 'file')
+                        .map((q: any) => {
+                          const val = getAnswerValue(q.id);
 
-                {/* Documents */}
-                <div>
-                  <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Dokumen Pendaftaran</h3>
-                  <div className="grid grid-cols-1 gap-2">
-                    {[
-                      { label: 'Bukti Pembayaran DP', url: selected.bukti_dp_url, color: 'bg-blue-50 text-blue-700 border-blue-100 hover:bg-blue-100' },
-                      { label: 'Bukti Follow Instagram', url: selected.bukti_follow_url, color: 'bg-indigo-50 text-indigo-700 border-indigo-100 hover:bg-indigo-100' },
-                      { label: 'Pas Foto (untuk ID Card)', url: selected.foto_id_url, color: 'bg-violet-50 text-violet-700 border-violet-100 hover:bg-violet-100' },
-                    ].map(({ label, url, color }) => url ? (
-                      <a key={label} href={url} target="_blank" rel="noreferrer"
-                        className={`flex items-center justify-between px-4 py-3 rounded-xl border text-sm font-medium transition-colors ${color}`}
-                      >
-                        <div className="flex items-center gap-2.5">
-                          <FileImage size={16} />
-                          <span>{label}</span>
-                        </div>
-                        <ExternalLink size={14} className="opacity-60" />
-                      </a>
-                    ) : (
-                      <div key={label} className="flex items-center gap-2.5 px-4 py-3 rounded-xl border border-dashed border-slate-200 text-sm text-slate-400">
-                        <FileImage size={16} /> <span>{label}</span>
-                        <span className="ml-auto text-[11px]">Tidak diunggah</span>
-                      </div>
-                    ))}
+                          // Determine color/icon for specific standard questions to look premium
+                          let icon = Target;
+                          let bgClass = 'bg-slate-100 text-slate-600';
+                          if (q.id === 'alamat') { icon = MapPin; bgClass = 'bg-slate-100 text-slate-600'; }
+                          else if (q.id === 'tanggal_lahir') { icon = Cake; bgClass = 'bg-slate-100 text-slate-600'; }
+                          else if (q.id === 'size_baju') { icon = Shirt; bgClass = 'bg-slate-100 text-slate-600'; }
+                          else if (q.id === 'pendidikan') { icon = BookOpen; bgClass = 'bg-blue-50 text-blue-500'; }
+                          else if (q.id === 'bidang_diminati') { icon = Target; bgClass = 'bg-emerald-50 text-emerald-500'; }
+                          else if (q.id === 'riwayat_penyakit') { icon = AlertCircle; bgClass = 'bg-rose-50 text-rose-500'; }
+
+                          const Icon = icon;
+
+                          return (
+                            <div key={q.id} className="flex items-start gap-3">
+                              <div className={`w-7 h-7 rounded-lg ${bgClass} flex items-center justify-center flex-shrink-0 mt-0.5`}>
+                                <Icon size={14} />
+                              </div>
+                              <div>
+                                <p className="text-[11px] text-slate-400 font-medium">{q.label}</p>
+                                <p className="text-sm text-slate-800 font-semibold leading-relaxed">
+                                  {val || <span className="italic text-slate-300 font-normal">Belum diisi</span>}
+                                </p>
+                              </div>
+                            </div>
+                          );
+                        })}
+                    </div>
                   </div>
-                </div>
+                )}
+
+                {/* Dynamic Documents */}
+                {activeFormConfig.filter((q: any) => q.type === 'file').length > 0 && (
+                  <div>
+                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Dokumen Pendaftaran</h3>
+                    <div className="grid grid-cols-1 gap-2">
+                      {activeFormConfig
+                        .filter((q: any) => q.type === 'file')
+                        .map((q: any) => {
+                          const url = signedUrls[q.id];
+                          let color = 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100';
+                          if (q.id === 'bukti_dp') color = 'bg-blue-50 text-blue-700 border-blue-100 hover:bg-blue-100';
+                          else if (q.id === 'bukti_follow_ig') color = 'bg-indigo-50 text-indigo-700 border-indigo-100 hover:bg-indigo-100';
+                          else if (q.id === 'foto_id_card') color = 'bg-violet-50 text-violet-700 border-violet-100 hover:bg-violet-100';
+
+                          return url ? (
+                            <a key={q.id} href={url} target="_blank" rel="noreferrer"
+                              className={`flex items-center justify-between px-4 py-3 rounded-xl border text-sm font-medium transition-colors ${color}`}
+                            >
+                              <div className="flex items-center gap-2.5">
+                                <FileImage size={16} />
+                                <span>{q.label}</span>
+                              </div>
+                              <ExternalLink size={14} className="opacity-60" />
+                            </a>
+                          ) : (
+                            <div key={q.id} className="flex items-center gap-2.5 px-4 py-3 rounded-xl border border-dashed border-slate-200 text-sm text-slate-400">
+                              <FileImage size={16} /> <span>{q.label}</span>
+                              <span className="ml-auto text-[11px]">Tidak diunggah</span>
+                            </div>
+                          );
+                        })}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -465,7 +633,7 @@ export default function AdminEduxplore() {
             <div className="border-t border-slate-100 px-6 py-4 bg-slate-50/60 space-y-3">
               {/* WhatsApp */}
               <a
-                href={`https://wa.me/${(selected.whatsapp || '').replace(/\D/g, '')}?text=${encodeURIComponent(`Halo ${selected.nama_lengkap}, kami ingin menginformasikan mengenai pendaftaran EduXplore Anda.`)}`}
+                href={`https://wa.me/${(selected.whatsapp || '').replace(/\D/g, '')}?text=${encodeURIComponent(`Halo ${selected.nama_lengkap}, kami ingin menginformasikan mengenai pendaftaran relawan ${getProgramName(selected.program_id)} Anda.`)}`}
                 target="_blank" rel="noreferrer"
                 className="flex items-center justify-center gap-2 w-full py-3 bg-[#25D366] text-white rounded-xl font-semibold text-sm hover:bg-[#1EB85A] transition-colors shadow-sm"
               >

@@ -19,7 +19,13 @@ export function sanitizeHTML(dirty: string): string {
     ],
     ALLOWED_ATTR: [
       'href', 'target', 'rel', 'src', 'alt', 'class',
-      'width', 'height',
+      'width', 'height', 'style',
+    ],
+    ALLOWED_CSS_PROPERTIES: [
+      'text-align', 'font-size', 'color', 'background-color',
+      'font-weight', 'font-style', 'text-decoration',
+      'margin', 'padding', 'margin-left', 'padding-left',
+      'list-style-type',
     ],
     ALLOW_DATA_ATTR: false,
     ADD_ATTR: ['target'],

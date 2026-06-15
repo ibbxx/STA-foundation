@@ -11,6 +11,7 @@ import {
   ZoomIn,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Skeleton } from '../../components/ui/skeleton';
 import OptimizedImage from '../../components/ui/OptimizedImage';
 import ImageLightbox from '../../components/ui/ImageLightbox';
 import { CampaignPartners } from '../../components/ui/campaign-partners';
@@ -28,7 +29,89 @@ import { calculateProgress, formatCurrency, formatLongDate } from '../../lib/uti
 import { sanitizeHTML } from '../../lib/sanitize';
 import CampaignStatusBadge, { getCampaignTemporalStatus } from '../../components/admin/campaigns/CampaignStatusBadge';
 
+function CampaignDetailSkeleton() {
+  return (
+    <div className="min-h-screen bg-white pb-24 pt-20 sm:pt-28 animate-pulse">
+      {/* Breadcrumbs */}
+      <div className="mx-auto max-w-7xl px-4 pb-4 sm:px-6 sm:pb-6 lg:px-8">
+        <div className="flex items-center space-x-2">
+          <Skeleton className="h-3 w-16" />
+          <span className="text-gray-300">/</span>
+          <Skeleton className="h-3 w-16" />
+          <span className="text-gray-300">/</span>
+          <Skeleton className="h-3 w-32" />
+        </div>
+      </div>
 
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8">
+          <div className="lg:col-span-8 space-y-5 md:space-y-6">
+            {/* Header Title Area */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-3">
+                <Skeleton className="h-4 w-20" />
+                <Skeleton className="h-4 w-16" />
+              </div>
+              <Skeleton className="h-8 w-5/6 sm:h-10" />
+              <Skeleton className="h-8 w-2/3 sm:h-10" />
+            </div>
+
+            {/* Banner Image */}
+            <Skeleton className="aspect-video w-full rounded-sm" />
+
+            {/* Tabs */}
+            <div className="rounded-sm border border-gray-100 bg-white overflow-hidden">
+              <div className="border-b border-gray-100 px-4 sm:px-6 py-3 flex gap-6">
+                <Skeleton className="h-4 w-20" />
+                <Skeleton className="h-4 w-20" />
+                <Skeleton className="h-4 w-20" />
+              </div>
+              {/* Content area */}
+              <div className="p-4 sm:p-6 space-y-4">
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-5/6" />
+                <Skeleton className="h-4 w-4/5" />
+                <Skeleton className="h-4 w-full" />
+              </div>
+            </div>
+          </div>
+
+          {/* Sidebar */}
+          <div className="hidden lg:block lg:col-span-4 space-y-4">
+            <div className="rounded-sm border border-gray-100 bg-white p-6 space-y-6">
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-32" />
+                <Skeleton className="h-7 w-48" />
+              </div>
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <Skeleton className="h-4 w-20" />
+                  <Skeleton className="h-4 w-24" />
+                </div>
+                <Skeleton className="h-2 w-full" />
+              </div>
+              <div className="flex justify-between items-center pt-2">
+                <Skeleton className="h-4 w-16" />
+                <Skeleton className="h-4 w-20" />
+              </div>
+              <Skeleton className="h-11 w-full" />
+            </div>
+
+            {/* Collaborator */}
+            <div className="flex items-center space-x-4 rounded-sm border border-gray-100 bg-white p-4">
+              <Skeleton className="w-10 h-10 rounded-sm" />
+              <div className="space-y-2 flex-1">
+                <Skeleton className="h-3 w-24" />
+                <Skeleton className="h-4 w-36" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function CampaignDetail() {
   const { slug = '' } = useParams();
@@ -85,13 +168,7 @@ export default function CampaignDetail() {
   const daysLeft = getDaysLeft(campaign?.end_date ?? campaign?.deadline);
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 px-4 pt-32 pb-12 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-7xl rounded-sm border border-gray-100 bg-white px-6 py-12 text-center text-sm text-gray-400">
-          Memuat detail campaign...
-        </div>
-      </div>
-    );
+    return <CampaignDetailSkeleton />;
   }
 
   if (error) {

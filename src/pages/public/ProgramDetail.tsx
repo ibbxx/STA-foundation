@@ -7,6 +7,7 @@ import { getProgramBySlug, PROGRAMS } from '../../lib/programs';
 import type { HomeProgramSlide } from '../../lib/admin/home-programs';
 import { supabase } from '../../lib/supabase/types';
 import { logError } from '../../lib/error-logger';
+import { sanitizeHTML } from '../../lib/sanitize';
 
 /** Type guard for parsed content JSON from DB */
 interface ProgramContentJson {
@@ -309,6 +310,12 @@ export default function ProgramDetail() {
               <p className="text-base sm:text-lg text-gray-600 font-light leading-relaxed">
                 {'overview' in program ? program.overview : 'Program ini dirancang untuk menciptakan dampak berkelanjutan bagi pendidikan di pelosok negeri.'}
               </p>
+              {('body_content' in program && typeof program.body_content === 'string' && program.body_content) && (
+                <div
+                  className="prose text-gray-600 text-sm sm:text-base leading-relaxed mt-6"
+                  dangerouslySetInnerHTML={{ __html: sanitizeHTML(program.body_content) }}
+                />
+              )}
               <div className="grid sm:grid-cols-2 gap-4 sm:gap-6">
                 {[
                   { title: 'Dampak Terukur', desc: 'Setiap progres dipantau dengan matriks yang jelas.', icon: Target },

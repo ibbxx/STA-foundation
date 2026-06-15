@@ -31,7 +31,11 @@ export default function CampaignStatsCard({
 }: CampaignStatsCardProps) {
   const isDesktop = variant === 'full';
   const temporalStatus = getCampaignTemporalStatus(startDate, endDate);
-  const status = dbStatus === 'upcoming' ? 'Upcoming' : temporalStatus;
+  const status = dbStatus === 'upcoming'
+    ? 'Upcoming'
+    : dbStatus === 'completed' || dbStatus === 'draft'
+      ? 'Ended'
+      : temporalStatus;
   const canDonate = status === 'Ongoing';
 
   return (

@@ -28,7 +28,11 @@ type CampaignStatusBadgeProps = {
 
 export default function CampaignStatusBadge({ startDate, endDate, className, slug, dbStatus }: CampaignStatusBadgeProps) {
   const temporalStatus = getCampaignTemporalStatus(startDate, endDate);
-  const status = dbStatus === 'upcoming' ? 'Upcoming' : temporalStatus;
+  const status = dbStatus === 'upcoming'
+    ? 'Upcoming'
+    : dbStatus === 'completed' || dbStatus === 'draft'
+      ? 'Ended'
+      : temporalStatus;
 
   const badge = (
     <span

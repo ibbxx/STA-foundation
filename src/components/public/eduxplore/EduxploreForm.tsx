@@ -7,20 +7,15 @@ import { Upload, X, Loader2, Image as ImageIcon } from 'lucide-react';
 import { SecureTurnstile } from '../../shared/SecureTurnstile';
 import EduxploreSuccess from './EduxploreSuccess';
 import {
-  eduxploreFormSchema,
-  type EduxploreFormValues,
-  type EduxploreAssets,
-  EDUXPLORE_DEFAULT_VALUES,
-  SIZE_OPTIONS,
-  BIDANG_OPTIONS,
+  createDynamicSchema,
   loadEduxploreDraft,
   persistEduxploreDraft,
   clearEduxploreDraft,
   createEduxploreWhatsAppUrl,
 } from '../../../lib/eduxplore';
 import {
-  uploadVolunteerFile,
-  insertVolunteerRegistration,
+  getEdgeFunctionErrorMessage,
+  submitVolunteerRegistration,
 } from '../../../lib/admin/repository';
 import { compressImage } from '../../../lib/image-compression';
 import { logError } from '../../../lib/error-logger';
@@ -29,11 +24,36 @@ interface Props {
   programId: string;
   programTitle: string;
   isOpen: boolean;
+  formConfig?: any;
+  externalLink?: string | null;
 }
 
-export default function EduxploreForm({ programId, programTitle, isOpen }: Props) {
+const DEFAULT_FORM_CONFIG = [
+  { id: 'nama_lengkap', type: 'text', label: 'Nama Lengkap', required: true },
+  { id: 'email', type: 'email', label: 'Email Aktif', required: true },
+  { id: 'whatsapp', type: 'tel', label: 'No. WhatsApp', required: true },
+  { id: 'whatsapp_emergency', type: 'tel', label: 'WA Darurat', required: true },
+  { id: 'alamat', type: 'textarea', label: 'Alamat', required: true },
+  { id: 'tanggal_lahir', type: 'date', label: 'Tanggal Lahir', required: true },
+  { id: 'size_baju', type: 'select', label: 'Ukuran Baju', required: true, options: ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL'] },
+  { id: 'pendidikan', type: 'text', label: 'Latar Belakang Pendidikan', required: true },
+  { id: 'bidang_diminati', type: 'select', label: 'Bidang yang Diminati', required: true, options: ['Pengembangan Pemuda', 'Pendidikan dan Pengajaran Siswa Guru', 'Media dan Promosi serta Branding Desa', 'Branding Budaya dan Lingkungan Lokal'] },
+  { id: 'riwayat_penyakit', type: 'textarea', label: 'Riwayat Penyakit', required: false },
+  { id: 'bukti_dp', type: 'file', label: 'Bukti DP', required: true },
+  { id: 'bukti_follow_ig', type: 'file', label: 'Bukti Follow IG', required: true },
+  { id: 'foto_id_card', type: 'file', label: 'Pas Foto (untuk ID Card)', required: true },
+];
+
+export default function EduxploreForm({ programId, programTitle, isOpen, formConfig, externalLink }: Props) {
+  // Semua field sepenuhnya dari form_config — tidak ada hardcode
+  const activeFormConfig = Array.isArray(formConfig) && formConfig.length > 0
+    ? formConfig
+    : DEFAULT_FORM_CONFIG;
+
+  const dynamicSchema = createDynamicSchema(activeFormConfig);
+
   const [draftValues] = useState(() => loadEduxploreDraft());
-  const [assets, setAssets] = useState<EduxploreAssets>({ bukti_dp: null, bukti_follow_ig: null, foto_id_card: null });
+  const [assets, setAssets] = useState<Record<string, File | null>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
@@ -44,26 +64,25 @@ export default function EduxploreForm({ programId, programTitle, isOpen }: Props
     handleSubmit,
     watch,
     formState: { errors },
-  } = useForm<EduxploreFormValues>({
-    resolver: zodResolver(eduxploreFormSchema),
+  } = useForm<any>({
+    resolver: zodResolver(dynamicSchema),
     defaultValues: draftValues,
     mode: 'onTouched',
   });
 
-  // Persist draft tanpa memicu re-render di setiap ketikan (mengurangi lag)
+  // Persist draft tanpa memicu re-render di setiap ketikan
   useEffect(() => {
     const subscription = watch((value) => {
-      if (!isSuccess) persistEduxploreDraft(value as EduxploreFormValues);
+      if (!isSuccess) persistEduxploreDraft(value as any);
     });
     return () => subscription.unsubscribe();
   }, [watch, isSuccess]);
 
   // File handler
-  const handleFileChange = (key: keyof EduxploreAssets) => (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = (key: string) => (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Validate: max 5MB, image only
     if (!file.type.startsWith('image/')) {
       setErrorMsg('File harus berupa gambar (JPG, PNG, dll).');
       return;
@@ -77,7 +96,7 @@ export default function EduxploreForm({ programId, programTitle, isOpen }: Props
     setAssets((prev) => ({ ...prev, [key]: file }));
   };
 
-  const removeFile = (key: keyof EduxploreAssets) => {
+  const removeFile = (key: string) => {
     setAssets((prev) => ({ ...prev, [key]: null }));
   };
 
@@ -86,65 +105,66 @@ export default function EduxploreForm({ programId, programTitle, isOpen }: Props
       setErrorMsg('Mohon selesaikan verifikasi keamanan.');
       return;
     }
-    if (!assets.bukti_dp) {
-      setErrorMsg('Bukti DP wajib diunggah.');
-      return;
-    }
-    if (!assets.bukti_follow_ig) {
-      setErrorMsg('Bukti follow IG wajib diunggah.');
-      return;
-    }
-    if (!assets.foto_id_card) {
-      setErrorMsg('Pas Foto (untuk ID Card) wajib diunggah.');
-      return;
+
+    // Validate files
+    const fileQuestions = activeFormConfig.filter((q: any) => q.type === 'file');
+    for (const q of fileQuestions) {
+      if (q.required && !assets[q.id]) {
+        setErrorMsg(`${q.label} wajib diunggah.`);
+        return;
+      }
     }
 
     setIsSubmitting(true);
     setErrorMsg(null);
 
     try {
-      // 1. Compress & Upload files
-      const compressedDp = await compressImage(assets.bukti_dp);
-      const compressedFollow = await compressImage(assets.bukti_follow_ig);
-      const compressedId = await compressImage(assets.foto_id_card);
+      // Compress all files
+      const compressedFiles: Record<string, File> = {};
+      for (const q of fileQuestions) {
+        const file = assets[q.id];
+        if (file) {
+          compressedFiles[q.id] = await compressImage(file);
+        }
+      }
 
-      const [dpUrl, followUrl, idUrl] = await Promise.all([
-        uploadVolunteerFile(compressedDp, 'dp'),
-        uploadVolunteerFile(compressedFollow, 'follow'),
-        uploadVolunteerFile(compressedId, 'id_card'),
-      ]);
+      // Pisahkan field inti dari jawaban dinamis
+      const { nama_lengkap, email, whatsapp, ...answers } = values;
 
-      // 2. Insert registration
-      const { error: insertError } = await insertVolunteerRegistration({
-        program_id: programId,
-        nama_lengkap: values.nama_lengkap,
-        email: values.email,
-        whatsapp: values.whatsapp,
-        whatsapp_emergency: values.whatsapp_emergency,
-        alamat: values.alamat,
-        tanggal_lahir: values.tanggal_lahir,
-        size_baju: values.size_baju,
-        pendidikan: values.pendidikan,
-        bidang_diminati: values.bidang_diminati,
-        riwayat_penyakit: values.riwayat_penyakit || null,
-        bukti_dp_url: dpUrl,
-        bukti_follow_url: followUrl,
-        foto_id_url: idUrl,
-        status: 'pending',
+      // Pastikan semua field config terdaftar di answers (null jika kosong)
+      activeFormConfig.forEach((q: any) => {
+        if (q.type === 'file') return;
+        if (['nama_lengkap', 'email', 'whatsapp'].includes(q.id)) return;
+        if (answers[q.id] === undefined) {
+          answers[q.id] = null;
+        }
       });
+
+      const payload = {
+        program_id: programId,
+        nama_lengkap,
+        email,
+        whatsapp,
+        answers,
+      };
+
+      const { error: insertError } = await submitVolunteerRegistration(
+        payload,
+        compressedFiles,
+        turnstileToken
+      );
 
       if (insertError) {
         logError('EduxploreForm.insertRegistration', insertError);
-        throw insertError;
+        throw new Error(await getEdgeFunctionErrorMessage(insertError, 'Pendaftaran gagal dikirim.'));
       }
 
-      // 3. Success
-      const whatsappUrl = createEduxploreWhatsAppUrl(values, programTitle);
+      // WhatsApp URL
+      const whatsappUrl = createEduxploreWhatsAppUrl(values, programTitle, activeFormConfig);
       setIsSuccess(true);
       setIsSubmitting(false);
       clearEduxploreDraft();
 
-      // 4. Delay WhatsApp redirect
       setTimeout(() => {
         window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
       }, 2500);
@@ -165,6 +185,10 @@ export default function EduxploreForm({ programId, programTitle, isOpen }: Props
       </div>
     );
   }
+
+  const hasBuktiDp = activeFormConfig.some((q: any) => q.id === 'bukti_dp');
+
+  const inputClass = 'w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-colors';
 
   return (
     <section id="form-pendaftaran" className="relative z-10 py-10 sm:py-24 bg-white">
@@ -190,262 +214,157 @@ export default function EduxploreForm({ programId, programTitle, isOpen }: Props
               </div>
 
               <form onSubmit={onSubmit} className="space-y-6">
-                {/* Nama Lengkap */}
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-1.5">Nama Lengkap *</label>
-                  <input
-                    {...register('nama_lengkap')}
-                    type="text"
-                    placeholder="Nama lengkap Anda"
-                    className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-colors"
-                  />
-                  {errors.nama_lengkap && <p className="text-xs text-red-500 mt-1">{errors.nama_lengkap.message}</p>}
-                </div>
-
-                {/* Email */}
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-1.5">Email *</label>
-                  <input
-                    {...register('email')}
-                    type="email"
-                    placeholder="email@contoh.com"
-                    className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-colors"
-                  />
-                  {errors.email && <p className="text-xs text-red-500 mt-1">{errors.email.message}</p>}
-                </div>
-
-                {/* WhatsApp Row */}
-                <div className="grid sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-1.5">WhatsApp *</label>
-                    <input
-                      {...register('whatsapp')}
-                      type="tel"
-                      placeholder="08xxxxxxxxxx"
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-colors"
-                    />
-                    {errors.whatsapp && <p className="text-xs text-red-500 mt-1">{errors.whatsapp.message}</p>}
-                  </div>
-                  <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-1.5">WA Darurat *</label>
-                    <input
-                      {...register('whatsapp_emergency')}
-                      type="tel"
-                      placeholder="08xxxxxxxxxx"
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-colors"
-                    />
-                    {errors.whatsapp_emergency && <p className="text-xs text-red-500 mt-1">{errors.whatsapp_emergency.message}</p>}
-                  </div>
-                </div>
-
-                {/* Alamat */}
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-1.5">Alamat *</label>
-                  <textarea
-                    {...register('alamat')}
-                    rows={2}
-                    placeholder="Alamat lengkap Anda"
-                    className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-colors resize-none"
-                  />
-                  {errors.alamat && <p className="text-xs text-red-500 mt-1">{errors.alamat.message}</p>}
-                </div>
-
-                {/* Tanggal Lahir & Size Baju */}
-                <div className="grid sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-1.5">Tanggal Lahir *</label>
-                    <input
-                      {...register('tanggal_lahir')}
-                      type="date"
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-colors"
-                    />
-                    {errors.tanggal_lahir && <p className="text-xs text-red-500 mt-1">{errors.tanggal_lahir.message}</p>}
-                  </div>
-                  <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-1.5">Ukuran Baju *</label>
-                    <select
-                      {...register('size_baju')}
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-colors bg-white"
-                    >
-                      <option value="">Pilih ukuran</option>
-                      {SIZE_OPTIONS.map((size) => (
-                        <option key={size} value={size}>{size}</option>
-                      ))}
-                    </select>
-                    {errors.size_baju && <p className="text-xs text-red-500 mt-1">{errors.size_baju.message}</p>}
-                  </div>
-                </div>
-
-                {/* Latar Belakang Pendidikan */}
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-1.5">Latar Belakang Pendidikan *</label>
-                  <input
-                    {...register('pendidikan')}
-                    type="text"
-                    placeholder="Contoh: S1 Pendidikan Biologi - Universitas Hasanuddin"
-                    className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-colors"
-                  />
-                  {errors.pendidikan && <p className="text-xs text-red-500 mt-1">{errors.pendidikan.message}</p>}
-                </div>
-
-                {/* Bidang yang Diminati */}
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-1.5">Bidang yang Diminati *</label>
-                  <select
-                    {...register('bidang_diminati')}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-colors bg-white"
-                  >
-                    <option value="">Pilih bidang</option>
-                    {BIDANG_OPTIONS.map((option) => (
-                      <option key={option} value={option}>{option}</option>
-                    ))}
-                  </select>
-                  {errors.bidang_diminati && <p className="text-xs text-red-500 mt-1">{errors.bidang_diminati.message}</p>}
-                </div>
-
-                {/* Riwayat Penyakit */}
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-1.5">
-                    Riwayat Penyakit <span className="text-gray-400 font-normal">(opsional)</span>
-                  </label>
-                  <textarea
-                    {...register('riwayat_penyakit')}
-                    rows={2}
-                    placeholder="Tuliskan jika ada riwayat penyakit..."
-                    className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-colors resize-none"
-                  />
-                </div>
-
-                {/* Informasi Pembayaran & QRIS */}
-                <div className="bg-emerald-50 rounded-2xl p-6 border border-emerald-200">
-                  <div className="text-center mb-5">
-                    <h3 className="text-sm sm:text-base font-bold text-emerald-900 mb-2">
-                      Informasi Pembayaran (DP)
-                    </h3>
-                    <p className="text-xs sm:text-sm text-emerald-700 leading-relaxed max-w-lg mx-auto">
-                      Silakan lakukan pembayaran Down Payment (DP) sebesar <strong className="font-bold text-emerald-900">Rp 300.000</strong> melalui scan QRIS di bawah ini sebelum mengunggah bukti pendaftaran.
-                    </p>
-                  </div>
-                  <div className="flex justify-center">
-                    <a 
-                      href="/images/qris-payment.jpeg" 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="bg-white p-3 rounded-2xl shadow-sm border border-emerald-100 hover:shadow-md hover:border-emerald-300 transition-all group block cursor-pointer"
-                    >
-                      <div className="relative overflow-hidden rounded-xl">
-                        <img 
-                          src="/images/qris-payment.jpeg" 
-                          alt="QRIS Pembayaran Eduxplore" 
-                          className="max-w-[200px] sm:max-w-[240px] w-full rounded-xl group-hover:scale-105 transition-transform duration-300"
-                        />
-                        <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl">
-                          <span className="text-white text-sm font-bold flex items-center gap-2">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 3h6v6"/><path d="M9 21H3v-6"/><path d="M21 3l-7 7"/><path d="M3 21l7-7"/></svg>
-                            Perbesar
-                          </span>
+                {/* Semua field dirender secara dinamis */}
+                {activeFormConfig.map((q: any) => {
+                  return (
+                    <div key={q.id}>
+                      {/* Banner QRIS DP — hanya sebelum field bukti_dp */}
+                      {q.id === 'bukti_dp' && hasBuktiDp && (
+                        <div className="bg-emerald-50 rounded-2xl p-6 border border-emerald-200 mb-6">
+                          <div className="text-center mb-5">
+                            <h3 className="text-sm sm:text-base font-bold text-emerald-900 mb-2">
+                              Informasi Pembayaran (DP)
+                            </h3>
+                            <p className="text-xs sm:text-sm text-emerald-700 leading-relaxed max-w-lg mx-auto">
+                              Silakan lakukan pembayaran Down Payment (DP) sebesar <strong className="font-bold text-emerald-900">Rp 300.000</strong> melalui scan QRIS di bawah ini sebelum mengunggah bukti pendaftaran.
+                            </p>
+                          </div>
+                          <div className="flex justify-center">
+                            <a
+                              href="/images/qris-payment.jpeg"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="bg-white p-3 rounded-2xl shadow-sm border border-emerald-100 hover:shadow-md hover:border-emerald-300 transition-all group block cursor-pointer"
+                            >
+                              <div className="relative overflow-hidden rounded-xl">
+                                <img
+                                  src="/images/qris-payment.jpeg"
+                                  alt="QRIS Pembayaran Eduxplore"
+                                  className="max-w-[200px] sm:max-w-[240px] w-full rounded-xl group-hover:scale-105 transition-transform duration-300"
+                                />
+                                <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl">
+                                  <span className="text-white text-sm font-bold flex items-center gap-2">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 3h6v6"/><path d="M9 21H3v-6"/><path d="M21 3l-7 7"/><path d="M3 21l7-7"/></svg>
+                                    Perbesar
+                                  </span>
+                                </div>
+                              </div>
+                              <p className="text-center text-[10px] text-emerald-600 mt-2 font-medium">Klik untuk memperbesar</p>
+                            </a>
+                          </div>
                         </div>
-                      </div>
-                      <p className="text-center text-[10px] text-emerald-600 mt-2 font-medium">Klik untuk memperbesar</p>
-                    </a>
-                  </div>
-                </div>
+                      )}
 
-                {/* File Uploads */}
-                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {/* Bukti DP */}
-                  <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-1.5">Bukti DP *</label>
-                    {assets.bukti_dp ? (
-                      <div className="relative flex items-center gap-3 p-3 bg-emerald-50 border border-emerald-200 rounded-xl">
-                        <ImageIcon size={16} className="text-emerald-600 flex-shrink-0" />
-                        <span className="text-xs text-emerald-800 font-medium truncate flex-1">
-                          {assets.bukti_dp.name}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => removeFile('bukti_dp')}
-                          className="w-6 h-6 rounded-full bg-emerald-200 text-emerald-700 flex items-center justify-center hover:bg-emerald-300 transition-colors"
-                        >
-                          <X size={12} />
-                        </button>
-                      </div>
-                    ) : (
-                      <label className="flex items-center gap-3 p-3 border-2 border-dashed border-gray-200 rounded-xl cursor-pointer hover:border-emerald-400 hover:bg-emerald-50/50 transition-colors">
-                        <Upload size={16} className="text-gray-400" />
-                        <span className="text-xs text-gray-500">Upload bukti DP</span>
-                        <input
-                          type="file"
-                          accept="image/*"
-                          className="hidden"
-                          onChange={handleFileChange('bukti_dp')}
-                        />
+                      <label className="block text-sm font-bold text-gray-700 mb-1.5">
+                        {q.label} {q.required && '*'}
                       </label>
-                    )}
-                  </div>
 
-                  {/* Bukti Follow IG */}
-                  <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-1.5">Bukti Follow IG *</label>
-                    {assets.bukti_follow_ig ? (
-                      <div className="relative flex items-center gap-3 p-3 bg-emerald-50 border border-emerald-200 rounded-xl">
-                        <ImageIcon size={16} className="text-emerald-600 flex-shrink-0" />
-                        <span className="text-xs text-emerald-800 font-medium truncate flex-1">
-                          {assets.bukti_follow_ig.name}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => removeFile('bukti_follow_ig')}
-                          className="w-6 h-6 rounded-full bg-emerald-200 text-emerald-700 flex items-center justify-center hover:bg-emerald-300 transition-colors"
-                        >
-                          <X size={12} />
-                        </button>
-                      </div>
-                    ) : (
-                      <label className="flex items-center gap-3 p-3 border-2 border-dashed border-gray-200 rounded-xl cursor-pointer hover:border-emerald-400 hover:bg-emerald-50/50 transition-colors">
-                        <Upload size={16} className="text-gray-400" />
-                        <span className="text-xs text-gray-500">Upload bukti follow</span>
-                        <input
-                          type="file"
-                          accept="image/*"
-                          className="hidden"
-                          onChange={handleFileChange('bukti_follow_ig')}
+                      {q.type === 'textarea' ? (
+                        <textarea
+                          {...register(q.id)}
+                          rows={3}
+                          placeholder={`${q.label} Anda`}
+                          className={`${inputClass} resize-none`}
                         />
-                      </label>
-                    )}
-                  </div>
+                      ) : q.type === 'select' ? (
+                        <select
+                          {...register(q.id)}
+                          className={`${inputClass} bg-white`}
+                        >
+                          <option value="">Pilih {q.label.toLowerCase()}</option>
+                          {(q.options || []).map((option: string) => (
+                            <option key={option} value={option}>{option}</option>
+                          ))}
+                        </select>
+                      ) : q.type === 'date' ? (
+                        <input {...register(q.id)} type="date" className={inputClass} />
+                      ) : q.type === 'file' ? (
+                        <div>
+                          {assets[q.id] ? (
+                            <div className="relative flex items-center gap-3 p-3 bg-emerald-50 border border-emerald-200 rounded-xl">
+                              <ImageIcon size={16} className="text-emerald-600 flex-shrink-0" />
+                              <span className="text-xs text-emerald-800 font-medium truncate flex-1">
+                                {assets[q.id]!.name}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => removeFile(q.id)}
+                                className="w-6 h-6 rounded-full bg-emerald-200 text-emerald-700 flex items-center justify-center hover:bg-emerald-300 transition-colors"
+                              >
+                                <X size={12} />
+                              </button>
+                            </div>
+                          ) : (
+                            <label className="flex items-center gap-3 p-3 border-2 border-dashed border-gray-200 rounded-xl cursor-pointer hover:border-emerald-400 hover:bg-emerald-50/50 transition-colors">
+                              <Upload size={16} className="text-gray-400" />
+                              <span className="text-xs text-gray-500">Upload {q.label.toLowerCase()}</span>
+                              <input
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                onChange={handleFileChange(q.id)}
+                              />
+                            </label>
+                          )}
+                        </div>
+                      ) : q.type === 'number' ? (
+                        <input
+                          {...register(q.id)}
+                          type="number"
+                          placeholder={`${q.label} Anda`}
+                          className={inputClass}
+                        />
+                      ) : q.type === 'email' ? (
+                        <input
+                          {...register(q.id)}
+                          type="email"
+                          placeholder="email@contoh.com"
+                          className={inputClass}
+                        />
+                      ) : q.type === 'tel' ? (
+                        <input
+                          {...register(q.id)}
+                          type="tel"
+                          placeholder="08xxxxxxxxxx"
+                          className={inputClass}
+                        />
+                      ) : (
+                        <input
+                          {...register(q.id)}
+                          type="text"
+                          placeholder={`${q.label} Anda`}
+                          className={inputClass}
+                        />
+                      )}
 
-                  {/* Pas Foto */}
-                  <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-1.5">Pas Foto (untuk ID Card) *</label>
-                    {assets.foto_id_card ? (
-                      <div className="relative flex items-center gap-3 p-3 bg-emerald-50 border border-emerald-200 rounded-xl">
-                        <ImageIcon size={16} className="text-emerald-600 flex-shrink-0" />
-                        <span className="text-xs text-emerald-800 font-medium truncate flex-1">
-                          {assets.foto_id_card.name}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => removeFile('foto_id_card')}
-                          className="w-6 h-6 rounded-full bg-emerald-200 text-emerald-700 flex items-center justify-center hover:bg-emerald-300 transition-colors"
-                        >
-                          <X size={12} />
-                        </button>
+                      {errors[q.id] && <p className="text-xs text-red-500 mt-1">{errors[q.id].message as string}</p>}
+                    </div>
+                  );
+                })}
+
+                {/* Guidebook */}
+                {externalLink && (
+                  <div className="bg-emerald-50 rounded-2xl p-6 border border-emerald-200">
+                    <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                      <div className="text-center sm:text-left">
+                        <h3 className="text-sm sm:text-base font-bold text-emerald-900 mb-1">
+                          Panduan Kegiatan (Guidebook)
+                        </h3>
+                        <p className="text-xs text-emerald-700 leading-relaxed">
+                          Silakan lihat dokumen panduan untuk informasi detail mengenai program ini.
+                        </p>
                       </div>
-                    ) : (
-                      <label className="flex items-center gap-3 p-3 border-2 border-dashed border-gray-200 rounded-xl cursor-pointer hover:border-emerald-400 hover:bg-emerald-50/50 transition-colors">
-                        <Upload size={16} className="text-gray-400" />
-                        <span className="text-xs text-gray-500">Upload foto</span>
-                        <input
-                          type="file"
-                          accept="image/*"
-                          className="hidden"
-                          onChange={handleFileChange('foto_id_card')}
-                        />
-                      </label>
-                    )}
+                      <a
+                        href={externalLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-6 text-xs font-bold text-white transition-all hover:bg-emerald-500 active:scale-95 shadow-md shadow-emerald-900/10 cursor-pointer shrink-0 w-full sm:w-auto text-center"
+                      >
+                        Lihat Guidebook
+                      </a>
+                    </div>
                   </div>
-                </div>
+                )}
 
                 {/* Error */}
                 {errorMsg && (

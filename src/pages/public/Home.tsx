@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { CircularTestimonials } from '../../components/ui/circular-testimonials';
 import { Link } from 'react-router-dom';
+import { Skeleton } from '../../components/ui/skeleton';
 import { Campaign } from '../../lib/supabase/types';
 import { logError } from '../../lib/error-logger';
 import { fetchPublicCampaigns } from '../../lib/public/campaigns';
@@ -153,8 +154,49 @@ export default function Home() {
                 {featuredCampaignError}
               </div>
             ) : loadingFeaturedCampaigns ? (
-              <div className="rounded-2xl border border-gray-100 bg-white p-20 text-center text-sm text-gray-400">
-                Memuat campaign...
+              <div className="grid grid-cols-1 gap-6 lg:grid-cols-12 lg:items-stretch animate-pulse">
+                {/* Main Featured Campaign Skeleton */}
+                <div className="lg:col-span-7 xl:col-span-8">
+                  <div className="flex h-full flex-col lg:flex-row overflow-hidden rounded-2xl border border-gray-100 bg-white">
+                    <Skeleton className="aspect-[16/9] w-full lg:aspect-auto lg:w-[55%] rounded-none" />
+                    <div className="flex flex-col justify-center p-4 sm:p-7 lg:flex-1 space-y-4">
+                      <div className="space-y-2">
+                        <Skeleton className="h-6 w-5/6" />
+                        <Skeleton className="h-4 w-2/3" />
+                      </div>
+                      <div className="space-y-2">
+                        <Skeleton className="h-4 w-full" />
+                        <Skeleton className="h-4 w-4/5" />
+                      </div>
+                      <div className="mt-auto space-y-3 pt-4 border-t border-gray-50">
+                        <div className="flex justify-between">
+                          <Skeleton className="h-4 w-24" />
+                          <Skeleton className="h-4 w-12" />
+                        </div>
+                        <Skeleton className="h-1.5 w-full rounded-full" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Side Campaigns Grid Skeleton */}
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:col-span-5 lg:grid-cols-1 xl:col-span-4">
+                  {[...Array(3)].map((_, i) => (
+                    <div key={i} className="flex h-full items-center gap-4 overflow-hidden rounded-xl border border-gray-50 bg-white p-3">
+                      <Skeleton className="aspect-square w-20 shrink-0 rounded-lg sm:w-24 bg-gray-200" />
+                      <div className="flex min-w-0 flex-1 flex-col justify-center space-y-3">
+                        <Skeleton className="h-4 w-5/6" />
+                        <div className="space-y-2 mt-auto">
+                          <Skeleton className="h-1.5 w-full rounded-full" />
+                          <div className="flex justify-between">
+                            <Skeleton className="h-3 w-16" />
+                            <Skeleton className="h-3 w-8" />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             ) : featuredCampaigns.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-gray-200 bg-white p-20 text-center">

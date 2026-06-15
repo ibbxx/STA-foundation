@@ -52,7 +52,7 @@ const menuGroups: AdminNavGroup[] = [
   {
     title: 'Relawan & Laporan',
     items: [
-      { name: 'Pendaftar EduXplore', path: '/admin/eduxplore', icon: Users },
+      { name: 'Pendaftar Relawan', path: '/admin/eduxplore', icon: Users },
       { name: 'Laporan Sekolah', path: '/admin/school-reports', icon: Building2 },
     ],
   },
@@ -97,7 +97,7 @@ export default function AdminLayout() {
       }
 
       setAdminIdentity(user.email ?? user.phone ?? user.id);
-      setAdminRole(user.role ?? 'authenticated');
+      setAdminRole('admin');
     }
 
     loadUser();

@@ -35,6 +35,7 @@ export default function EduxploreDetailView() {
           // Parse JSONB fields safely
           let timeline: VolunteerTimelineItem[] = [];
           let requirements: string[] = [];
+          let formConfig: any = null;
 
           try {
             timeline = Array.isArray(data.timeline) ? data.timeline as unknown as VolunteerTimelineItem[] : JSON.parse(data.timeline as string);
@@ -43,6 +44,12 @@ export default function EduxploreDetailView() {
           try {
             requirements = Array.isArray(data.requirements) ? data.requirements as unknown as string[] : JSON.parse(data.requirements as string);
           } catch { requirements = []; }
+
+          try {
+            formConfig = data.form_config
+              ? (Array.isArray(data.form_config) ? data.form_config : JSON.parse(data.form_config as string))
+              : null;
+          } catch { formConfig = null; }
 
           setProgram({
             id: data.id,
@@ -53,8 +60,12 @@ export default function EduxploreDetailView() {
             timeline,
             requirements,
             description: data.description,
+            short_description: data.short_description,
             show_in_hero: data.show_in_hero,
+            program_type: data.program_type || 'eduxplore',
             status: data.status,
+            form_config: formConfig,
+            external_link: data.external_link,
           });
         }
       } catch (err) {
@@ -116,11 +127,14 @@ export default function EduxploreDetailView() {
       <EduxploreDetail
         description={program.description}
         requirements={program.requirements}
+        programTitle={program.title}
       />
       <EduxploreForm
         programId={program.id}
         programTitle={program.title}
         isOpen={program.status === 'open'}
+        formConfig={program.form_config}
+        externalLink={program.external_link}
       />
     </div>
   );

@@ -6,12 +6,71 @@ import { fetchImpactMapLocations, type EventMapLocation } from '../../lib/public
 import { cn } from '../../lib/utils';
 import { useShare } from '../../hooks/useShare';
 import ShareToast from '../../components/shared/ShareToast';
+import { Skeleton } from '../../components/ui/skeleton';
 
 const fadeUp = {
   initial: { opacity: 0, y: 20 },
   animate: { opacity: 1, y: 0 },
   transition: { duration: 0.6, ease: [0.22, 1, 0.36, 1] as [number, number, number, number] },
 };
+
+function JourneyDetailSkeleton() {
+  return (
+    <div className="bg-[#FAF9F6] min-h-screen pb-24 animate-pulse">
+      {/* Hero Section Banner */}
+      <div className="relative h-[60vh] sm:h-[70vh] w-full bg-gray-200 flex flex-col justify-end pb-12 px-6">
+        <div className="mx-auto max-w-5xl w-full space-y-4">
+          <Skeleton className="h-4 w-32 bg-gray-300" />
+          <div className="flex gap-3">
+            <Skeleton className="h-5 w-24 bg-gray-300 rounded-full" />
+            <Skeleton className="h-5 w-20 bg-gray-300 rounded-full" />
+          </div>
+          <Skeleton className="h-10 w-3/4 sm:h-12 bg-gray-300" />
+        </div>
+      </div>
+
+      {/* Content Section */}
+      <div className="mx-auto max-w-5xl px-6 -mt-8 relative z-20">
+        <div className="grid gap-8 lg:gap-12 lg:grid-cols-3">
+          {/* Main Story */}
+          <div className="lg:col-span-2 space-y-8">
+            <div className="bg-white p-6 rounded-2xl border border-emerald-100/50 space-y-4">
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-5/6" />
+            </div>
+            <div className="space-y-4">
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-4/5" />
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-5/6" />
+            </div>
+          </div>
+
+          {/* Sidebar */}
+          <div>
+            <div className="rounded-3xl bg-white p-8 border border-emerald-100 shadow-xl space-y-6">
+              <Skeleton className="h-5 w-28" />
+              <div className="space-y-4">
+                {[...Array(3)].map((_, i) => (
+                  <div key={i} className="flex gap-4">
+                    <Skeleton className="h-10 w-10 rounded-full" />
+                    <div className="space-y-2 flex-1">
+                      <Skeleton className="h-3 w-16" />
+                      <Skeleton className="h-4 w-28" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <Skeleton className="h-11 w-full rounded-2xl mt-6" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function JourneyDetail() {
   const { id } = useParams<{ id: string }>();
@@ -42,11 +101,7 @@ export default function JourneyDetail() {
   }, [id]);
 
   if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-[#FAF9F6]">
-        <div className="h-12 w-12 animate-spin rounded-full border-4 border-emerald-100 border-t-emerald-600" />
-      </div>
-    );
+    return <JourneyDetailSkeleton />;
   }
 
   if (error || !journey) {

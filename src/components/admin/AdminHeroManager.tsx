@@ -290,7 +290,7 @@ export default function AdminHeroManager() {
       {/* Info EduXplore */}
       <div className="flex items-center gap-3 rounded-xl bg-emerald-50 border border-emerald-200 px-4 py-3 text-sm text-emerald-800">
         <span className="text-lg">💡</span>
-        <p>Program EduXplore yang dicentang <strong>"Tampilkan di Hero Beranda"</strong> akan otomatis muncul di slide paling depan. Kelola di seksi <strong>Program EduXplore</strong> di bawah.</p>
+        <p>Program Relawan yang dicentang <strong>"Tampilkan di Hero Beranda"</strong> akan otomatis muncul di slide paling depan. Kelola di seksi <strong>Program Relawan</strong> di bawah.</p>
       </div>
 
       {/* Notices */}

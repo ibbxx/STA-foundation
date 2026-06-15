@@ -32,8 +32,12 @@ export interface VolunteerProgramData {
   timeline: VolunteerTimelineItem[];
   requirements: string[];
   description: string | null;
+  short_description: string | null;
   show_in_hero: boolean;
+  program_type: 'jelajah' | 'eduxplore' | 'bangun-asa';
   status: 'open' | 'closed' | 'ongoing';
+  form_config?: any;
+  external_link?: string | null;
 }
 
 // ── Zod Schema ──
@@ -61,6 +65,62 @@ export const eduxploreFormSchema = z.object({
   pendidikan: z.string().min(3, 'Latar belakang pendidikan wajib diisi'),
   bidang_diminati: z.string().min(1, 'Pilihan bidang wajib dipilih'),
 });
+
+export function createDynamicSchema(formConfig: any) {
+  const baseSchema: Record<string, any> = {};
+
+  const questions = Array.isArray(formConfig) ? formConfig : [];
+
+  questions.forEach((q: any) => {
+    let fieldSchema: any;
+
+    if (q.type === 'file') {
+      fieldSchema = z.any().optional().nullable();
+    } else if (q.type === 'email' || q.id === 'email') {
+      fieldSchema = z.string().email('Format email tidak valid');
+      if (!q.required) fieldSchema = fieldSchema.optional().nullable().or(z.literal(''));
+    } else if (q.type === 'tel' || q.id === 'whatsapp' || q.id === 'whatsapp_emergency') {
+      fieldSchema = waSchema;
+      if (!q.required) fieldSchema = fieldSchema.optional().nullable().or(z.literal(''));
+    } else if (q.id === 'nama_lengkap') {
+      fieldSchema = z.string().min(3, 'Nama lengkap wajib diisi (min 3 karakter)');
+    } else if (q.id === 'alamat') {
+      fieldSchema = z.string().min(5, 'Alamat wajib diisi');
+    } else if (q.id === 'tanggal_lahir') {
+      fieldSchema = z.string().min(1, 'Tanggal lahir wajib diisi');
+    } else if (q.id === 'size_baju') {
+      fieldSchema = z.string().min(1, 'Ukuran baju wajib dipilih');
+    } else if (q.id === 'pendidikan') {
+      fieldSchema = z.string().min(3, 'Latar belakang pendidikan wajib diisi');
+    } else if (q.id === 'bidang_diminati') {
+      fieldSchema = z.string().min(1, 'Pilihan bidang wajib dipilih');
+    } else if (q.type === 'number') {
+      fieldSchema = z.string();
+      if (q.required) {
+        fieldSchema = fieldSchema
+          .min(1, `${q.label} wajib diisi`)
+          .regex(/^\d+$/, `${q.label} harus berupa angka`);
+      } else {
+        fieldSchema = fieldSchema
+          .regex(/^\d+$/, `${q.label} harus berupa angka`);
+      }
+    } else {
+      if (q.required) {
+        fieldSchema = z.string().min(1, `${q.label} wajib diisi`);
+      } else {
+        fieldSchema = z.string().optional().nullable();
+      }
+    }
+
+    if (!q.required && q.type !== 'file' && q.type !== 'email' && q.type !== 'tel') {
+      fieldSchema = fieldSchema.optional().nullable().or(z.literal(''));
+    }
+
+    baseSchema[q.id] = fieldSchema;
+  });
+
+  return z.object(baseSchema);
+}
 
 export type EduxploreFormValues = z.infer<typeof eduxploreFormSchema>;
 
@@ -121,10 +181,12 @@ export function clearEduxploreDraft() {
 // ── WhatsApp Builder (Dynamic) ──
 
 export function buildEduxploreWhatsAppMessage(
-  values: EduxploreFormValues,
+  values: Record<string, any>,
   programTitle: string,
+  formConfig?: any,
 ): string {
-  return [
+  const activeFormConfig = Array.isArray(formConfig) ? formConfig : [];
+  const lines = [
     'Salam, Tim Sekolah Tanah Air.',
     '',
     `Saya telah mendaftar sebagai volunteer ${programTitle}:`,
@@ -132,24 +194,33 @@ export function buildEduxploreWhatsAppMessage(
     `• Nama: ${values.nama_lengkap}`,
     `• Email: ${values.email}`,
     `• WA: ${values.whatsapp}`,
-    `• WA Darurat: ${values.whatsapp_emergency}`,
-    `• Alamat: ${values.alamat}`,
-    `• Tanggal Lahir: ${values.tanggal_lahir}`,
-    `• Size Baju: ${values.size_baju}`,
-    `• Pendidikan: ${values.pendidikan}`,
-    `• Bidang Diminati: ${values.bidang_diminati}`,
-    `• Riwayat Penyakit: ${values.riwayat_penyakit || 'Tidak ada'}`,
-    '',
-    'Bukti DP, bukti follow IG, dan pas foto (untuk ID Card) telah diunggah melalui portal STA.',
-    '',
-    'Mohon konfirmasinya. Terima kasih!',
-  ].join('\n');
+  ];
+
+  activeFormConfig.forEach((q: any) => {
+    if (['nama_lengkap', 'email', 'whatsapp'].includes(q.id)) return;
+    if (q.type === 'file') return;
+    const val = values[q.id];
+    if (val !== undefined && val !== null && val !== '') {
+      lines.push(`• ${q.label}: ${val}`);
+    }
+  });
+
+  const fileFields = activeFormConfig.filter((q: any) => q.type === 'file');
+  if (fileFields.length > 0) {
+    lines.push('');
+    lines.push(`${fileFields.map((q: any) => q.label).join(', ')} telah diunggah melalui portal STA.`);
+  }
+
+  lines.push('');
+  lines.push('Mohon konfirmasinya. Terima kasih!');
+  return lines.join('\n');
 }
 
 export function createEduxploreWhatsAppUrl(
-  values: EduxploreFormValues,
+  values: Record<string, any>,
   programTitle: string,
+  formConfig?: any,
 ): string {
-  const message = buildEduxploreWhatsAppMessage(values, programTitle);
+  const message = buildEduxploreWhatsAppMessage(values, programTitle, formConfig);
   return `https://wa.me/${EDUXPLORE_ADMIN_NUMBER}?text=${encodeURIComponent(message)}`;
 }

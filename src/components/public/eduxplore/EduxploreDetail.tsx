@@ -1,12 +1,14 @@
 import { motion } from 'framer-motion';
 import { CheckCircle2, Heart, BookOpen, Users } from 'lucide-react';
+import { sanitizeHTML } from '../../../lib/sanitize';
 
 interface Props {
   description: string | null;
   requirements: string[];
+  programTitle?: string;
 }
 
-export default function EduxploreDetail({ description, requirements }: Props) {
+export default function EduxploreDetail({ description, requirements, programTitle }: Props) {
   return (
     <section className="py-16 sm:py-24 bg-gray-50/50">
       <div className="max-w-7xl mx-auto px-5 md:px-8">
@@ -23,14 +25,15 @@ export default function EduxploreDetail({ description, requirements }: Props) {
                 Tentang Program
               </p>
               <h2 className="text-xl sm:text-3xl md:text-4xl font-black text-gray-900 tracking-tight leading-tight">
-                Apa itu EduXplore?
+                {programTitle ? `Apa itu ${programTitle}?` : 'Tentang Program Ini'}
               </h2>
             </div>
 
             {description && (
-              <p className="text-sm sm:text-base text-gray-600 font-light leading-relaxed">
-                {description}
-              </p>
+              <div
+                className="prose text-sm sm:text-base text-gray-600 font-light leading-relaxed text-justify max-w-none"
+                dangerouslySetInnerHTML={{ __html: sanitizeHTML(description) }}
+              />
             )}
 
             <div className="grid sm:grid-cols-3 gap-4">

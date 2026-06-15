@@ -17,6 +17,7 @@ import {
 import { uploadAdminImage } from '../../lib/supabase/storage';
 import { logError } from '../../lib/error-logger';
 import { useConfirmDialog } from './ConfirmDialog';
+import { slugify } from '../../lib/admin/campaign-utils';
 
 function ProgramSlideCard({
   slide,
@@ -205,7 +206,21 @@ export default function AdminHomeProgramsManager() {
   }, [loadPrograms]);
 
   function updateSlide(id: string, field: keyof HomeProgramSlide, value: string) {
-    setSlides((prev) => prev.map((s) => (s.id === id ? { ...s, [field]: value } : s)));
+    setSlides((prev) => prev.map((s) => {
+      if (s.id === id) {
+        if (field === 'title') {
+          const oldSlugifiedTitle = slugify(s.title);
+          const isSlugAuto = !s.slug || s.slug === oldSlugifiedTitle;
+          return {
+            ...s,
+            title: value,
+            slug: isSlugAuto ? slugify(value) : (s.slug || ''),
+          };
+        }
+        return { ...s, [field]: value };
+      }
+      return s;
+    }));
   }
 
   function addSlide() {
