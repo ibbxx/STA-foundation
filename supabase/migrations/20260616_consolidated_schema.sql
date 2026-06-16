@@ -1308,6 +1308,12 @@ GRANT EXECUTE ON FUNCTION public.create_pending_donation(uuid, text, text, text,
 GRANT EXECUTE ON FUNCTION public.submit_school_report(text, text, text, text, text, text, jsonb) TO service_role;
 GRANT EXECUTE ON FUNCTION public.submit_volunteer_registration(uuid, text, text, text, text, text, date, text, text, text, text, text, text, text) TO service_role;
 
+GRANT EXECUTE ON FUNCTION public.apply_campaign_donation_delta(uuid, numeric, integer) TO service_role;
+GRANT EXECUTE ON FUNCTION public.sync_campaign_amount_after_donation() TO service_role;
+GRANT EXECUTE ON FUNCTION public.sync_campaign_category_name() TO service_role;
+GRANT EXECUTE ON FUNCTION public.record_audit_log() TO service_role;
+GRANT EXECUTE ON FUNCTION public.set_updated_at() TO service_role;
+
 REVOKE ALL ON FUNCTION public.record_audit_log() FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.set_updated_at() FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.sync_campaign_category_name() FROM PUBLIC, anon, authenticated;
