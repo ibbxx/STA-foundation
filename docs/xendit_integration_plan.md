@@ -1,16 +1,16 @@
 # Dokumentasi Integrasi Xendit - Sekolah Tanah Air
 
-Dokumen ini menjelaskan arsitektur dan langkah-langkah implementasi integrasi pembayaran Xendit menggunakan **Supabase Edge Functions**. Pendekatan ini dipilih untuk menjaga keamanan *Secret Key* tanpa harus membangun server backend terpisah.
+Dokumen ini menjelaskan target arsitektur integrasi pembayaran Xendit menggunakan **Supabase Edge Functions**. Repo saat ini belum memiliki implementasi Xendit aktif; flow produksi yang ada masih membuat donasi `pending` lalu dikonfirmasi dari admin panel.
 
 ## 1. Arsitektur Integrasi
 
 Sistem menggunakan pola **Serverless Proxy**:
 
-1.  **Frontend (Vite)** memanggil Edge Function `create-invoice`.
+1.  **Frontend (Vite)** memanggil Edge Function `create-xendit-invoice`.
 2.  **Edge Function** melakukan autentikasi ke Xendit (Server-to-Server) dan mengembalikan URL pembayaran.
 3.  **User** melakukan pembayaran di halaman Xendit.
 4.  **Xendit** mengirimkan Webhook ke Edge Function `xendit-webhook` saat pembayaran sukses.
-5.  **Edge Function** mengupdate status tabel `donations` di database Supabase.
+5.  **Edge Function** mengupdate kolom `payment_status` pada tabel `donations` di database Supabase.
 
 ---
 
@@ -48,8 +48,8 @@ Variabel berikut harus diset di dashboard Supabase atau via CLI:
 Fungsi ini dipanggil oleh Frontend saat user klik "Donasi Sekarang".
 
 **Tugas Utama:**
-- Menerima `campaign_id`, `amount`, `donor_name`, dan `donor_email`.
-- Membuat record awal di tabel `donations` dengan status `pending`.
+- Menerima `campaign_id`, `amount`, `donor_name`, `donor_email`, dan `donor_phone`.
+- Membuat record awal di tabel `donations` dengan `payment_status = 'pending'`.
 - Memanggil API Xendit `POST https://api.xendit.co/v2/invoices`.
 - Mengembalikan `invoice_url` ke user.
 
@@ -59,7 +59,8 @@ Fungsi ini bersifat pasif, menunggu "ketukan" dari server Xendit.
 **Tugas Utama:**
 - Memvalidasi header `x-callback-token` agar sesuai dengan rahasia sistem.
 - Mengambil `external_id` (ID Donasi) dari payload Xendit.
-- Melakukan SQL Update: `UPDATE donations SET status = 'success', paid_at = now() WHERE id = external_id`.
+- Melakukan update yang sesuai dengan schema live:
+  `UPDATE public.donations SET payment_status = 'success' WHERE id = external_id::uuid`.
 
 ---
 
@@ -73,10 +74,10 @@ supabase functions new xendit-webhook
 ```
 
 ### Step 2: Integrasi Frontend
-Gunakan `supabase.functions.invoke()` pada komponen `Donate.tsx`:
+Ganti alur saat ini di `Donate.tsx` yang memakai `create_pending_donation` langsung, menjadi `supabase.functions.invoke()`:
 ```typescript
 const { data, error } = await supabase.functions.invoke('create-xendit-invoice', {
-  body: { campaignId, amount, donorEmail }
+  body: { campaignId, amount, donorName, donorEmail, donorPhone, message, isAnonymous }
 })
 if (data?.invoice_url) window.location.href = data.invoice_url;
 ```
@@ -89,7 +90,7 @@ Masukkan URL fungsi webhook Anda ke Dashboard Xendit:
 
 ## 6. Checklist Pengujian
 - [ ] Simulasi pembayaran di Xendit Sandbox.
-- [ ] Cek tabel `donations` apakah status berubah otomatis.
+- [ ] Cek tabel `donations` apakah `payment_status` berubah otomatis dari `pending` ke `success`.
 - [ ] Cek progress bar di Beranda apakah sudah bertambah setelah pembayaran sukses.
 
 ---

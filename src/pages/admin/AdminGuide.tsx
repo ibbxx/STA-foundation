@@ -129,7 +129,7 @@ const GUIDE_SECTIONS: GuideSection[] = [
             </div>
           </div>
         ),
-        info: 'Anda TIDAK PERLU mengubah status dari Kuning ke Hijau secara manual. Sistem kami terhubung dengan Xendit, sehingga begitu donatur transfer via bank/e-wallet, statusnya akan otomatis berubah menjadi Hijau detik itu juga.'
+        info: 'Untuk alur yang aktif saat ini, status Pending belum berubah otomatis. Setelah pembayaran benar-benar terverifikasi, admin perlu membuka detail transaksi lalu menekan "Konfirmasi Pembayaran". Langkah manual ini baru bisa dihapus jika webhook Xendit sudah benar-benar diimplementasikan.'
       },
       {
         title: 'Melacak Donasi Bermasalah',

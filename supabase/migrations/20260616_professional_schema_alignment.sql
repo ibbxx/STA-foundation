@@ -1,180 +1,132 @@
 -- ============================================================
--- Sekolah Tanah Air - Combined Full Database Setup Migration
+-- Sekolah Tanah Air - Professional Schema Alignment
 -- ============================================================
--- Cara pakai:
--- 1. Buka Supabase Dashboard > SQL Editor.
--- 2. Paste seluruh isi file ini.
--- 3. Run sekali.
+-- Dipakai untuk DATABASE EXISTING yang sudah hidup.
+-- File ini:
+-- - menyelaraskan repo dengan schema live,
+-- - menutup mismatch constraint/kolom utama,
+-- - menjaga jalur publik tetap aman untuk skala produksi.
 --
--- File ini dipakai untuk environment BARU / kosong.
--- Untuk database existing gunakan:
--- supabase/migrations/20260616_professional_schema_alignment.sql
+-- Untuk environment baru dari nol, gunakan:
+-- supabase/migrations/20260615_full_database_setup.sql
 -- ============================================================
 
--- ============================================================
--- 1. Extensions
--- ============================================================
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 -- ============================================================
--- 2. Core Tables
+-- 1. Column alignment
 -- ============================================================
 
--- Categories
-CREATE TABLE IF NOT EXISTS public.categories (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  name text NOT NULL UNIQUE,
-  slug text NOT NULL UNIQUE,
-  created_at timestamp with time zone NOT NULL DEFAULT now()
-);
+ALTER TABLE IF EXISTS public.campaigns
+  ADD COLUMN IF NOT EXISTS category_id uuid REFERENCES public.categories(id) ON UPDATE CASCADE ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS images text[] NOT NULL DEFAULT '{}'::text[],
+  ADD COLUMN IF NOT EXISTS start_date date,
+  ADD COLUMN IF NOT EXISTS end_date date,
+  ADD COLUMN IF NOT EXISTS is_featured boolean NOT NULL DEFAULT false,
+  ADD COLUMN IF NOT EXISTS donor_count integer NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS collaborators jsonb DEFAULT '[]'::jsonb;
 
--- Programs
-CREATE TABLE IF NOT EXISTS public.programs (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  slug text NOT NULL UNIQUE,
-  title text NOT NULL,
-  description text NOT NULL,
-  icon_name text,
-  content text,
-  image_url text,
-  created_at timestamp with time zone NOT NULL DEFAULT now(),
-  updated_at timestamp with time zone NOT NULL DEFAULT now()
-);
+UPDATE public.campaigns
+SET
+  images = coalesce(images, '{}'::text[]),
+  is_featured = coalesce(is_featured, false),
+  donor_count = coalesce(donor_count, 0),
+  collaborators = coalesce(collaborators, '[]'::jsonb)
+WHERE
+  images IS NULL
+  OR is_featured IS NULL
+  OR donor_count IS NULL
+  OR collaborators IS NULL;
 
--- Campaigns
-CREATE TABLE IF NOT EXISTS public.campaigns (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  slug text NOT NULL UNIQUE,
-  title text NOT NULL,
-  category_id uuid REFERENCES public.categories(id) ON UPDATE CASCADE ON DELETE SET NULL,
-  description text NOT NULL,
-  image_url text,
-  category text,
-  status text NOT NULL DEFAULT 'draft' CHECK (status = ANY (ARRAY['draft', 'active', 'completed', 'upcoming'])),
-  start_date date,
-  end_date date,
-  is_featured boolean NOT NULL DEFAULT false,
-  target_amount bigint NOT NULL DEFAULT 0 CHECK (target_amount >= 0),
-  current_amount bigint NOT NULL DEFAULT 0 CHECK (current_amount >= 0),
-  donor_count integer NOT NULL DEFAULT 0 CHECK (donor_count >= 0),
-  images text[] NOT NULL DEFAULT '{}'::text[],
-  collaborators jsonb DEFAULT '[]'::jsonb,
-  created_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
-  updated_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now())
-);
+ALTER TABLE IF EXISTS public.campaigns
+  ALTER COLUMN images SET DEFAULT '{}'::text[],
+  ALTER COLUMN is_featured SET DEFAULT false,
+  ALTER COLUMN donor_count SET DEFAULT 0,
+  ALTER COLUMN collaborators SET DEFAULT '[]'::jsonb,
+  ALTER COLUMN status SET DEFAULT 'draft';
 
--- Donations
-CREATE TABLE IF NOT EXISTS public.donations (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  campaign_id uuid NOT NULL REFERENCES public.campaigns(id) ON UPDATE CASCADE ON DELETE CASCADE,
-  donor_name text NOT NULL,
-  donor_email text,
-  donor_phone text,
-  amount bigint NOT NULL CHECK (amount > 0),
-  payment_status text NOT NULL DEFAULT 'pending' CHECK (payment_status = ANY (ARRAY['pending', 'success', 'failed'])),
-  payment_method text,
-  message text,
-  is_anonymous boolean NOT NULL DEFAULT false,
-  created_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now())
-);
+DO $$
+DECLARE
+  constraint_name text;
+BEGIN
+  SELECT conname
+  INTO constraint_name
+  FROM pg_constraint
+  WHERE conrelid = 'public.campaigns'::regclass
+    AND contype = 'c'
+    AND pg_get_constraintdef(oid) ILIKE '%status%';
 
--- Campaign Updates
-CREATE TABLE IF NOT EXISTS public.campaign_updates (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  campaign_id uuid NOT NULL REFERENCES public.campaigns(id) ON UPDATE CASCADE ON DELETE CASCADE,
-  title text NOT NULL,
-  content text NOT NULL,
-  image_url text,
-  images text[],
-  update_type text NOT NULL DEFAULT 'General' CHECK (update_type = ANY (ARRAY['General', 'Fundraising Progress', 'Distribution'])),
-  created_at timestamp with time zone NOT NULL DEFAULT now()
-);
+  IF constraint_name IS NOT NULL THEN
+    EXECUTE format('ALTER TABLE public.campaigns DROP CONSTRAINT %I', constraint_name);
+  END IF;
 
--- School Reports
-CREATE TABLE IF NOT EXISTS public.school_reports (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  reporter_name text NOT NULL,
-  reporter_phone text NOT NULL,
-  reporter_ip text,
-  school_name text NOT NULL,
-  location text NOT NULL,
-  description text NOT NULL,
-  image_urls jsonb NOT NULL DEFAULT '[]'::jsonb,
-  status text NOT NULL DEFAULT 'pending' CHECK (status = ANY (ARRAY['pending', 'verified', 'actioned'])),
-  created_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
-  updated_at timestamp with time zone NOT NULL DEFAULT now()
-);
+  ALTER TABLE public.campaigns
+    ADD CONSTRAINT campaigns_status_check
+    CHECK (status = ANY (ARRAY['draft'::text, 'active'::text, 'completed'::text, 'upcoming'::text]));
+END $$;
 
--- Site Content
-CREATE TABLE IF NOT EXISTS public.site_content (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  key text NOT NULL UNIQUE,
-  value jsonb NOT NULL DEFAULT '{}'::jsonb,
-  updated_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now())
-);
+ALTER TABLE IF EXISTS public.donations
+  ADD COLUMN IF NOT EXISTS donor_phone text;
 
--- Admin Users
-CREATE TABLE IF NOT EXISTS public.admin_users (
-  user_id uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-  created_at timestamp with time zone NOT NULL DEFAULT now()
-);
+ALTER TABLE IF EXISTS public.school_reports
+  ADD COLUMN IF NOT EXISTS reporter_ip text;
 
--- Spammer Blacklist
-CREATE TABLE IF NOT EXISTS public.spammer_blacklist (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  identifier text NOT NULL UNIQUE,
-  reason text,
-  created_at timestamp with time zone NOT NULL DEFAULT now()
-);
+ALTER TABLE IF EXISTS public.volunteer_programs
+  ADD COLUMN IF NOT EXISTS show_in_hero boolean NOT NULL DEFAULT false,
+  ADD COLUMN IF NOT EXISTS external_link text,
+  ADD COLUMN IF NOT EXISTS program_type text NOT NULL DEFAULT 'eduxplore',
+  ADD COLUMN IF NOT EXISTS form_config jsonb NOT NULL DEFAULT '[{"id": "whatsapp_emergency", "type": "text", "label": "WA Darurat", "required": true}, {"id": "alamat", "type": "textarea", "label": "Alamat", "required": true}, {"id": "tanggal_lahir", "type": "date", "label": "Tanggal Lahir", "required": true}, {"id": "size_baju", "type": "select", "label": "Ukuran Baju", "options": ["XS", "S", "M", "L", "XL", "XXL", "XXXL"], "required": true}, {"id": "pendidikan", "type": "text", "label": "Latar Belakang Pendidikan", "required": true}, {"id": "bidang_diminati", "type": "select", "label": "Bidang yang Diminati", "options": ["Pengembangan Pemuda", "Pendidikan dan Pengajaran Siswa Guru", "Media dan Promosi serta Branding Desa", "Branding Budaya dan Lingkungan Lokal"], "required": true}, {"id": "riwayat_penyakit", "type": "textarea", "label": "Riwayat Penyakit", "required": false}, {"id": "bukti_dp", "type": "file", "label": "Bukti DP", "required": true}, {"id": "bukti_follow_ig", "type": "file", "label": "Bukti Follow IG", "required": true}, {"id": "foto_id_card", "type": "file", "label": "Pas Foto (untuk ID Card)", "required": true}]'::jsonb,
+  ADD COLUMN IF NOT EXISTS short_description text;
 
--- Volunteer Programs
-CREATE TABLE IF NOT EXISTS public.volunteer_programs (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  slug text NOT NULL UNIQUE,
-  title text NOT NULL,
-  location text NOT NULL,
-  image_url text,
-  timeline jsonb NOT NULL DEFAULT '[]'::jsonb,
-  requirements jsonb NOT NULL DEFAULT '[]'::jsonb,
-  description text,
-  short_description text,
-  show_in_hero boolean NOT NULL DEFAULT false,
-  external_link text,
-  program_type text NOT NULL DEFAULT 'eduxplore' CHECK (program_type = ANY (ARRAY['jelajah', 'eduxplore', 'bangun-asa'])),
-  status text NOT NULL DEFAULT 'open' CHECK (status = ANY (ARRAY['open', 'closed', 'ongoing'])),
-  form_config jsonb NOT NULL DEFAULT '[{"id": "whatsapp_emergency", "type": "text", "label": "WA Darurat", "required": true}, {"id": "alamat", "type": "textarea", "label": "Alamat", "required": true}, {"id": "tanggal_lahir", "type": "date", "label": "Tanggal Lahir", "required": true}, {"id": "size_baju", "type": "select", "label": "Ukuran Baju", "options": ["XS", "S", "M", "L", "XL", "XXL", "XXXL"], "required": true}, {"id": "pendidikan", "type": "text", "label": "Latar Belakang Pendidikan", "required": true}, {"id": "bidang_diminati", "type": "select", "label": "Bidang yang Diminati", "options": ["Pengembangan Pemuda", "Pendidikan dan Pengajaran Siswa Guru", "Media dan Promosi serta Branding Desa", "Branding Budaya dan Lingkungan Lokal"], "required": true}, {"id": "riwayat_penyakit", "type": "textarea", "label": "Riwayat Penyakit", "required": false}, {"id": "bukti_dp", "type": "file", "label": "Bukti DP", "required": true}, {"id": "bukti_follow_ig", "type": "file", "label": "Bukti Follow IG", "required": true}, {"id": "foto_id_card", "type": "file", "label": "Pas Foto (untuk ID Card)", "required": true}]'::jsonb,
-  created_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
-  updated_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now())
-);
+UPDATE public.volunteer_programs
+SET
+  show_in_hero = coalesce(show_in_hero, false),
+  form_config = coalesce(form_config, '[{"id": "whatsapp_emergency", "type": "text", "label": "WA Darurat", "required": true}, {"id": "alamat", "type": "textarea", "label": "Alamat", "required": true}, {"id": "tanggal_lahir", "type": "date", "label": "Tanggal Lahir", "required": true}, {"id": "size_baju", "type": "select", "label": "Ukuran Baju", "options": ["XS", "S", "M", "L", "XL", "XXL", "XXXL"], "required": true}, {"id": "pendidikan", "type": "text", "label": "Latar Belakang Pendidikan", "required": true}, {"id": "bidang_diminati", "type": "select", "label": "Bidang yang Diminati", "options": ["Pengembangan Pemuda", "Pendidikan dan Pengajaran Siswa Guru", "Media dan Promosi serta Branding Desa", "Branding Budaya dan Lingkungan Lokal"], "required": true}, {"id": "riwayat_penyakit", "type": "textarea", "label": "Riwayat Penyakit", "required": false}, {"id": "bukti_dp", "type": "file", "label": "Bukti DP", "required": true}, {"id": "bukti_follow_ig", "type": "file", "label": "Bukti Follow IG", "required": true}, {"id": "foto_id_card", "type": "file", "label": "Pas Foto (untuk ID Card)", "required": true}]'::jsonb)
+WHERE show_in_hero IS NULL OR form_config IS NULL;
 
--- Volunteer Registrations
-CREATE TABLE IF NOT EXISTS public.volunteer_registrations (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  program_id uuid NOT NULL REFERENCES public.volunteer_programs(id) ON DELETE CASCADE,
-  nama_lengkap text NOT NULL,
-  email text NOT NULL,
-  whatsapp text NOT NULL,
-  whatsapp_emergency text,
-  alamat text,
-  tanggal_lahir date,
-  size_baju text,
-  riwayat_penyakit text,
-  pendidikan text,
-  bidang_diminati text,
-  bukti_dp_url text,
-  bukti_follow_url text,
-  foto_id_url text,
-  status text NOT NULL DEFAULT 'pending' CHECK (status = ANY (ARRAY['pending', 'verified', 'rejected'])),
-  answers jsonb NOT NULL DEFAULT '{}'::jsonb,
-  created_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now())
-);
+ALTER TABLE IF EXISTS public.volunteer_programs
+  ALTER COLUMN show_in_hero SET DEFAULT false,
+  ALTER COLUMN program_type SET DEFAULT 'eduxplore',
+  ALTER COLUMN form_config SET DEFAULT '[{"id": "whatsapp_emergency", "type": "text", "label": "WA Darurat", "required": true}, {"id": "alamat", "type": "textarea", "label": "Alamat", "required": true}, {"id": "tanggal_lahir", "type": "date", "label": "Tanggal Lahir", "required": true}, {"id": "size_baju", "type": "select", "label": "Ukuran Baju", "options": ["XS", "S", "M", "L", "XL", "XXL", "XXXL"], "required": true}, {"id": "pendidikan", "type": "text", "label": "Latar Belakang Pendidikan", "required": true}, {"id": "bidang_diminati", "type": "select", "label": "Bidang yang Diminati", "options": ["Pengembangan Pemuda", "Pendidikan dan Pengajaran Siswa Guru", "Media dan Promosi serta Branding Desa", "Branding Budaya dan Lingkungan Lokal"], "required": true}, {"id": "riwayat_penyakit", "type": "textarea", "label": "Riwayat Penyakit", "required": false}, {"id": "bukti_dp", "type": "file", "label": "Bukti DP", "required": true}, {"id": "bukti_follow_ig", "type": "file", "label": "Bukti Follow IG", "required": true}, {"id": "foto_id_card", "type": "file", "label": "Pas Foto (untuk ID Card)", "required": true}]'::jsonb;
 
--- Audit Logs
+DO $$
+DECLARE
+  constraint_name text;
+BEGIN
+  SELECT conname
+  INTO constraint_name
+  FROM pg_constraint
+  WHERE conrelid = 'public.volunteer_programs'::regclass
+    AND contype = 'c'
+    AND pg_get_constraintdef(oid) ILIKE '%program_type%';
+
+  IF constraint_name IS NOT NULL THEN
+    EXECUTE format('ALTER TABLE public.volunteer_programs DROP CONSTRAINT %I', constraint_name);
+  END IF;
+
+  ALTER TABLE public.volunteer_programs
+    ADD CONSTRAINT volunteer_programs_program_type_check
+    CHECK (program_type = ANY (ARRAY['jelajah'::text, 'eduxplore'::text, 'bangun-asa'::text]));
+END $$;
+
+ALTER TABLE IF EXISTS public.volunteer_registrations
+  ADD COLUMN IF NOT EXISTS foto_id_url text,
+  ADD COLUMN IF NOT EXISTS pendidikan text,
+  ADD COLUMN IF NOT EXISTS bidang_diminati text,
+  ADD COLUMN IF NOT EXISTS answers jsonb NOT NULL DEFAULT '{}'::jsonb;
+
+UPDATE public.volunteer_registrations
+SET answers = coalesce(answers, '{}'::jsonb)
+WHERE answers IS NULL;
+
+ALTER TABLE IF EXISTS public.volunteer_registrations
+  ALTER COLUMN answers SET DEFAULT '{}'::jsonb;
+
 CREATE TABLE IF NOT EXISTS public.audit_logs (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id uuid,
   user_email text,
-  action_type text NOT NULL CHECK (action_type = ANY (ARRAY['INSERT', 'UPDATE', 'DELETE'])),
+  action_type text NOT NULL CHECK (action_type = ANY (ARRAY['INSERT'::text, 'UPDATE'::text, 'DELETE'::text])),
   entity_type text NOT NULL,
   entity_id text NOT NULL,
   old_values jsonb,
@@ -182,9 +134,15 @@ CREATE TABLE IF NOT EXISTS public.audit_logs (
   created_at timestamp with time zone NOT NULL DEFAULT now()
 );
 
+CREATE TABLE IF NOT EXISTS public.admin_users (
+  user_id uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  created_at timestamp with time zone NOT NULL DEFAULT now()
+);
+
 -- ============================================================
--- 3. Enabling Row Level Security (RLS)
+-- 2. Row Level Security
 -- ============================================================
+
 ALTER TABLE public.categories ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.programs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.campaigns ENABLE ROW LEVEL SECURITY;
@@ -199,10 +157,9 @@ ALTER TABLE public.volunteer_registrations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.audit_logs ENABLE ROW LEVEL SECURITY;
 
 -- ============================================================
--- 4. Shared Functions & Triggers
+-- 3. Shared Functions & Triggers
 -- ============================================================
 
--- Function: Set Updated At
 CREATE OR REPLACE FUNCTION public.set_updated_at()
 RETURNS TRIGGER
 LANGUAGE plpgsql
@@ -213,42 +170,6 @@ BEGIN
 END;
 $$;
 
--- Trigger: programs set_updated_at
-DROP TRIGGER IF EXISTS trg_programs_set_updated_at ON public.programs;
-CREATE TRIGGER trg_programs_set_updated_at
-BEFORE UPDATE ON public.programs
-FOR EACH ROW
-EXECUTE FUNCTION public.set_updated_at();
-
--- Trigger: campaigns set_updated_at
-DROP TRIGGER IF EXISTS trg_campaigns_set_updated_at ON public.campaigns;
-CREATE TRIGGER trg_campaigns_set_updated_at
-BEFORE UPDATE ON public.campaigns
-FOR EACH ROW
-EXECUTE FUNCTION public.set_updated_at();
-
--- Trigger: school_reports set_updated_at
-DROP TRIGGER IF EXISTS trg_school_reports_set_updated_at ON public.school_reports;
-CREATE TRIGGER trg_school_reports_set_updated_at
-BEFORE UPDATE ON public.school_reports
-FOR EACH ROW
-EXECUTE FUNCTION public.set_updated_at();
-
--- Trigger: site_content set_updated_at
-DROP TRIGGER IF EXISTS trg_site_content_set_updated_at ON public.site_content;
-CREATE TRIGGER trg_site_content_set_updated_at
-BEFORE UPDATE ON public.site_content
-FOR EACH ROW
-EXECUTE FUNCTION public.set_updated_at();
-
--- Trigger: volunteer_programs set_updated_at
-DROP TRIGGER IF EXISTS trg_volunteer_programs_set_updated_at ON public.volunteer_programs;
-CREATE TRIGGER trg_volunteer_programs_set_updated_at
-BEFORE UPDATE ON public.volunteer_programs
-FOR EACH ROW
-EXECUTE FUNCTION public.set_updated_at();
-
--- Function: Sync Campaign Category Name
 CREATE OR REPLACE FUNCTION public.sync_campaign_category_name()
 RETURNS TRIGGER
 LANGUAGE plpgsql
@@ -256,21 +177,13 @@ AS $$
 BEGIN
   IF NEW.category_id IS NOT NULL THEN
     SELECT name INTO NEW.category
-    from public.categories
+    FROM public.categories
     WHERE id = NEW.category_id;
   END IF;
   RETURN NEW;
 END;
 $$;
 
--- Trigger: sync_campaign_category_name
-DROP TRIGGER IF EXISTS trg_sync_campaign_category_name ON public.campaigns;
-CREATE TRIGGER trg_sync_campaign_category_name
-BEFORE INSERT OR UPDATE ON public.campaigns
-FOR EACH ROW
-EXECUTE FUNCTION public.sync_campaign_category_name();
-
--- Function: Apply Campaign Donation Delta
 CREATE OR REPLACE FUNCTION public.apply_campaign_donation_delta(
   target_campaign_id uuid,
   amount_delta numeric,
@@ -292,7 +205,6 @@ BEGIN
 END;
 $$;
 
--- Function: Sync Campaign Amount After Donation
 CREATE OR REPLACE FUNCTION public.sync_campaign_amount_after_donation()
 RETURNS TRIGGER
 LANGUAGE plpgsql
@@ -340,60 +252,40 @@ BEGIN
 END;
 $$;
 
--- Trigger: sync_campaign_amount_after_donation
-DROP TRIGGER IF EXISTS trg_sync_campaign_amount_after_donation ON public.donations;
-CREATE TRIGGER trg_sync_campaign_amount_after_donation
-AFTER INSERT OR UPDATE OR DELETE ON public.donations
-FOR EACH ROW
-EXECUTE FUNCTION public.sync_campaign_amount_after_donation();
-
--- Function: Record Audit Log
 CREATE OR REPLACE FUNCTION public.record_audit_log()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, auth
+AS $$
 DECLARE
   v_user_id uuid;
   v_user_email text;
 BEGIN
   v_user_id := auth.uid();
-  
+
   IF v_user_id IS NOT NULL THEN
     SELECT email INTO v_user_email FROM auth.users WHERE id = v_user_id;
   END IF;
 
-  IF (TG_OP = 'INSERT') THEN
+  IF TG_OP = 'INSERT' THEN
     INSERT INTO public.audit_logs (user_id, user_email, action_type, entity_type, entity_id, new_values)
     VALUES (v_user_id, v_user_email, 'INSERT', TG_TABLE_NAME, NEW.id::text, row_to_json(NEW)::jsonb);
     RETURN NEW;
-  ELSIF (TG_OP = 'UPDATE') THEN
+  ELSIF TG_OP = 'UPDATE' THEN
     INSERT INTO public.audit_logs (user_id, user_email, action_type, entity_type, entity_id, old_values, new_values)
     VALUES (v_user_id, v_user_email, 'UPDATE', TG_TABLE_NAME, NEW.id::text, row_to_json(OLD)::jsonb, row_to_json(NEW)::jsonb);
     RETURN NEW;
-  ELSIF (TG_OP = 'DELETE') THEN
+  ELSIF TG_OP = 'DELETE' THEN
     INSERT INTO public.audit_logs (user_id, user_email, action_type, entity_type, entity_id, old_values)
     VALUES (v_user_id, v_user_email, 'DELETE', TG_TABLE_NAME, OLD.id::text, row_to_json(OLD)::jsonb);
     RETURN OLD;
   END IF;
+
   RETURN NULL;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, auth;
+$$;
 
--- Triggers for Audit Logging
-DROP TRIGGER IF EXISTS audit_campaigns_trigger ON public.campaigns;
-CREATE TRIGGER audit_campaigns_trigger
-AFTER INSERT OR UPDATE OR DELETE ON public.campaigns
-FOR EACH ROW EXECUTE FUNCTION public.record_audit_log();
-
-DROP TRIGGER IF EXISTS audit_site_content_trigger ON public.site_content;
-CREATE TRIGGER audit_site_content_trigger
-AFTER INSERT OR UPDATE OR DELETE ON public.site_content
-FOR EACH ROW EXECUTE FUNCTION public.record_audit_log();
-
-DROP TRIGGER IF EXISTS audit_programs_trigger ON public.programs;
-CREATE TRIGGER audit_programs_trigger
-AFTER INSERT OR UPDATE OR DELETE ON public.programs
-FOR EACH ROW EXECUTE FUNCTION public.record_audit_log();
-
--- Function: Is Admin
 CREATE OR REPLACE FUNCTION public.is_admin()
 RETURNS boolean
 LANGUAGE plpgsql
@@ -411,11 +303,6 @@ BEGIN
 END;
 $$;
 
--- ============================================================
--- 5. RPC Functions (API endpoints)
--- ============================================================
-
--- RPC: Create Pending Donation
 CREATE OR REPLACE FUNCTION public.create_pending_donation(
   p_campaign_id uuid,
   p_donor_name text,
@@ -499,7 +386,6 @@ BEGIN
 END;
 $$;
 
--- RPC: Submit School Report
 CREATE OR REPLACE FUNCTION public.submit_school_report(
   p_reporter_name text,
   p_reporter_phone text,
@@ -572,7 +458,6 @@ BEGIN
 END;
 $$;
 
--- RPC: Submit Volunteer Registration
 CREATE OR REPLACE FUNCTION public.submit_volunteer_registration(
   p_program_id uuid,
   p_nama_lengkap text,
@@ -653,11 +538,67 @@ BEGIN
 END;
 $$;
 
+DROP TRIGGER IF EXISTS trg_programs_set_updated_at ON public.programs;
+CREATE TRIGGER trg_programs_set_updated_at
+BEFORE UPDATE ON public.programs
+FOR EACH ROW
+EXECUTE FUNCTION public.set_updated_at();
+
+DROP TRIGGER IF EXISTS trg_campaigns_set_updated_at ON public.campaigns;
+CREATE TRIGGER trg_campaigns_set_updated_at
+BEFORE UPDATE ON public.campaigns
+FOR EACH ROW
+EXECUTE FUNCTION public.set_updated_at();
+
+DROP TRIGGER IF EXISTS trg_school_reports_set_updated_at ON public.school_reports;
+CREATE TRIGGER trg_school_reports_set_updated_at
+BEFORE UPDATE ON public.school_reports
+FOR EACH ROW
+EXECUTE FUNCTION public.set_updated_at();
+
+DROP TRIGGER IF EXISTS trg_site_content_set_updated_at ON public.site_content;
+CREATE TRIGGER trg_site_content_set_updated_at
+BEFORE UPDATE ON public.site_content
+FOR EACH ROW
+EXECUTE FUNCTION public.set_updated_at();
+
+DROP TRIGGER IF EXISTS trg_volunteer_programs_set_updated_at ON public.volunteer_programs;
+CREATE TRIGGER trg_volunteer_programs_set_updated_at
+BEFORE UPDATE ON public.volunteer_programs
+FOR EACH ROW
+EXECUTE FUNCTION public.set_updated_at();
+
+DROP TRIGGER IF EXISTS trg_sync_campaign_category_name ON public.campaigns;
+CREATE TRIGGER trg_sync_campaign_category_name
+BEFORE INSERT OR UPDATE ON public.campaigns
+FOR EACH ROW
+EXECUTE FUNCTION public.sync_campaign_category_name();
+
+DROP TRIGGER IF EXISTS trg_sync_campaign_amount_after_donation ON public.donations;
+CREATE TRIGGER trg_sync_campaign_amount_after_donation
+AFTER INSERT OR UPDATE OR DELETE ON public.donations
+FOR EACH ROW
+EXECUTE FUNCTION public.sync_campaign_amount_after_donation();
+
+DROP TRIGGER IF EXISTS audit_campaigns_trigger ON public.campaigns;
+CREATE TRIGGER audit_campaigns_trigger
+AFTER INSERT OR UPDATE OR DELETE ON public.campaigns
+FOR EACH ROW EXECUTE FUNCTION public.record_audit_log();
+
+DROP TRIGGER IF EXISTS audit_site_content_trigger ON public.site_content;
+CREATE TRIGGER audit_site_content_trigger
+AFTER INSERT OR UPDATE OR DELETE ON public.site_content
+FOR EACH ROW EXECUTE FUNCTION public.record_audit_log();
+
+DROP TRIGGER IF EXISTS audit_programs_trigger ON public.programs;
+CREATE TRIGGER audit_programs_trigger
+AFTER INSERT OR UPDATE OR DELETE ON public.programs
+FOR EACH ROW EXECUTE FUNCTION public.record_audit_log();
+
 -- ============================================================
--- 6. Views
+-- 4. Views
 -- ============================================================
 
--- View: Public Campaign Donations
 CREATE OR REPLACE VIEW public.public_campaign_donations
 WITH (security_invoker = false) AS
 SELECT
@@ -674,150 +615,110 @@ SELECT
 FROM public.donations
 WHERE payment_status = 'success';
 
--- View: Public Campaign Stats
 CREATE OR REPLACE VIEW public.public_campaign_stats
 WITH (security_invoker = true) AS
 SELECT
-  id as campaign_id,
+  id AS campaign_id,
   current_amount,
   donor_count,
   updated_at
 FROM public.campaigns
 WHERE status <> 'draft';
 
--- View: Leaderboard
 CREATE OR REPLACE VIEW public.leaderboard
 WITH (security_invoker = false) AS
 SELECT
   md5(coalesce(nullif(lower(donor_email), ''), nullif(lower(donor_name), ''), id::text)) AS identifier,
   max(coalesce(nullif(donor_name, ''), 'Tanpa nama')) AS display_name,
   sum(amount) AS total_amount,
-  count(*)::integer as donation_count
+  count(*)::integer AS donation_count
 FROM public.donations
 WHERE payment_status = 'success'
   AND NOT is_anonymous
 GROUP BY md5(coalesce(nullif(lower(donor_email), ''), nullif(lower(donor_name), ''), id::text));
 
 -- ============================================================
--- 7. Indexes
+-- 5. Indexes
 -- ============================================================
-CREATE INDEX IF NOT EXISTS idx_categories_slug ON public.categories(slug);
-CREATE UNIQUE INDEX IF NOT EXISTS idx_categories_slug_unique ON public.categories(slug);
-CREATE INDEX IF NOT EXISTS idx_categories_name ON public.categories(name, id);
 
-CREATE INDEX IF NOT EXISTS idx_programs_slug ON public.programs(slug);
-CREATE UNIQUE INDEX IF NOT EXISTS idx_programs_slug_unique ON public.programs(slug);
 CREATE INDEX IF NOT EXISTS idx_programs_updated_at_desc ON public.programs(updated_at DESC, id);
-
-CREATE INDEX IF NOT EXISTS idx_campaigns_slug ON public.campaigns(slug);
-CREATE UNIQUE INDEX IF NOT EXISTS idx_campaigns_slug_unique ON public.campaigns(slug);
-CREATE INDEX IF NOT EXISTS idx_campaigns_created_at_desc ON public.campaigns(created_at DESC, id);
 CREATE INDEX IF NOT EXISTS idx_campaigns_status_created_at_desc ON public.campaigns(status, created_at DESC, id);
 CREATE INDEX IF NOT EXISTS idx_campaigns_category_created_at_desc ON public.campaigns(category_id, created_at DESC, id);
 CREATE INDEX IF NOT EXISTS idx_campaigns_public_list ON public.campaigns(created_at DESC, id) WHERE status <> 'draft';
 CREATE INDEX IF NOT EXISTS idx_campaigns_active_list ON public.campaigns(created_at DESC, id) WHERE status = 'active';
 CREATE INDEX IF NOT EXISTS idx_campaigns_featured_public_list ON public.campaigns(created_at DESC, id) WHERE status <> 'draft' AND is_featured = true;
-
-CREATE INDEX IF NOT EXISTS idx_donations_created_at_desc ON public.donations(created_at DESC, id);
 CREATE INDEX IF NOT EXISTS idx_donations_status_created_at_desc ON public.donations(payment_status, created_at DESC, id);
-CREATE INDEX IF NOT EXISTS idx_donations_campaign_created_at_desc ON public.donations(campaign_id, created_at DESC, id);
 CREATE INDEX IF NOT EXISTS idx_donations_success_campaign_created_at_desc ON public.donations(campaign_id, created_at DESC, id) WHERE payment_status = 'success';
-
-CREATE INDEX IF NOT EXISTS idx_campaign_updates_campaign_created_at_desc ON public.campaign_updates(campaign_id, created_at DESC, id);
-CREATE INDEX IF NOT EXISTS idx_campaign_updates_type_created_at_desc ON public.campaign_updates(update_type, created_at DESC, id);
-
-CREATE INDEX IF NOT EXISTS idx_school_reports_updated_at_desc ON public.school_reports(updated_at DESC, id);
 CREATE INDEX IF NOT EXISTS idx_school_reports_status_updated_at_desc ON public.school_reports(status, updated_at DESC, id);
-
-CREATE INDEX IF NOT EXISTS idx_site_content_key ON public.site_content(key);
-CREATE UNIQUE INDEX IF NOT EXISTS idx_site_content_key_unique ON public.site_content(key);
-CREATE INDEX IF NOT EXISTS idx_site_content_updated_at_desc ON public.site_content(updated_at DESC, id);
-
 CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at_desc ON public.audit_logs(created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_audit_logs_entity_type ON public.audit_logs(entity_type);
-CREATE INDEX IF NOT EXISTS idx_audit_logs_user_id ON public.audit_logs(user_id);
-
-CREATE INDEX IF NOT EXISTS idx_volunteer_programs_slug ON public.volunteer_programs(slug);
-CREATE UNIQUE INDEX IF NOT EXISTS idx_volunteer_programs_slug_unique ON public.volunteer_programs(slug);
 CREATE INDEX IF NOT EXISTS idx_volunteer_registrations_program ON public.volunteer_registrations(program_id);
 
 -- ============================================================
--- 8. Row Level Security Policies
+-- 6. Policies
 -- ============================================================
 
--- categories
 DROP POLICY IF EXISTS "categories_public_select" ON public.categories;
 CREATE POLICY "categories_public_select" ON public.categories FOR SELECT USING (true);
 DROP POLICY IF EXISTS "categories_admin_all" ON public.categories;
 CREATE POLICY "categories_admin_all" ON public.categories FOR ALL TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
 
--- programs
 DROP POLICY IF EXISTS "programs_public_select" ON public.programs;
 CREATE POLICY "programs_public_select" ON public.programs FOR SELECT USING (true);
 DROP POLICY IF EXISTS "programs_admin_all" ON public.programs;
 CREATE POLICY "programs_admin_all" ON public.programs FOR ALL TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
 
--- campaigns
 DROP POLICY IF EXISTS "campaigns_public_select" ON public.campaigns;
 CREATE POLICY "campaigns_public_select" ON public.campaigns FOR SELECT USING (status <> 'draft');
 DROP POLICY IF EXISTS "campaigns_admin_all" ON public.campaigns;
 CREATE POLICY "campaigns_admin_all" ON public.campaigns FOR ALL TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
 
--- donations
 DROP POLICY IF EXISTS "donations_admin_all" ON public.donations;
 CREATE POLICY "donations_admin_all" ON public.donations FOR ALL TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
 
--- campaign_updates
 DROP POLICY IF EXISTS "campaign_updates_public_select" ON public.campaign_updates;
 CREATE POLICY "campaign_updates_public_select" ON public.campaign_updates FOR SELECT
 USING (
   EXISTS (
-    SELECT 1 FROM public.campaigns
-    WHERE campaigns.id = campaign_updates.campaign_id AND campaigns.status <> 'draft'
+    SELECT 1
+    FROM public.campaigns
+    WHERE campaigns.id = campaign_updates.campaign_id
+      AND campaigns.status <> 'draft'
   )
 );
 DROP POLICY IF EXISTS "campaign_updates_admin_all" ON public.campaign_updates;
 CREATE POLICY "campaign_updates_admin_all" ON public.campaign_updates FOR ALL TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
 
--- school_reports
 DROP POLICY IF EXISTS "school_reports_admin_all" ON public.school_reports;
 CREATE POLICY "school_reports_admin_all" ON public.school_reports FOR ALL TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
 
--- site_content
 DROP POLICY IF EXISTS "site_content_public_select" ON public.site_content;
 CREATE POLICY "site_content_public_select" ON public.site_content FOR SELECT USING (true);
 DROP POLICY IF EXISTS "site_content_admin_all" ON public.site_content;
 CREATE POLICY "site_content_admin_all" ON public.site_content FOR ALL TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
 
--- admin_users
 DROP POLICY IF EXISTS "admin_users_admin_select" ON public.admin_users;
 CREATE POLICY "admin_users_admin_select" ON public.admin_users FOR SELECT TO authenticated USING (auth.uid() = user_id);
 
--- spammer_blacklist
 DROP POLICY IF EXISTS "spammer_blacklist_admin_all" ON public.spammer_blacklist;
 CREATE POLICY "spammer_blacklist_admin_all" ON public.spammer_blacklist FOR ALL TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
 
--- volunteer_programs
 DROP POLICY IF EXISTS "Allow public read volunteer_programs" ON public.volunteer_programs;
 CREATE POLICY "Allow public read volunteer_programs" ON public.volunteer_programs FOR SELECT USING (true);
 DROP POLICY IF EXISTS "volunteer_programs_admin_all" ON public.volunteer_programs;
 CREATE POLICY "volunteer_programs_admin_all" ON public.volunteer_programs FOR ALL TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
 
--- volunteer_registrations
 DROP POLICY IF EXISTS "volunteer_registrations_admin_all" ON public.volunteer_registrations;
 CREATE POLICY "volunteer_registrations_admin_all" ON public.volunteer_registrations FOR ALL TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
 
--- audit_logs
 DROP POLICY IF EXISTS "audit_logs_admin_select" ON public.audit_logs;
 CREATE POLICY "audit_logs_admin_select" ON public.audit_logs FOR SELECT TO authenticated USING (public.is_admin());
 
 -- ============================================================
--- 9. Storage Buckets & Storage Policies
+-- 7. Storage Buckets & Policies
 -- ============================================================
 
--- Insert Buckets (Idempotent)
 INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
-VALUES 
+VALUES
   ('campaign-assets', 'campaign-assets', true, 5242880, ARRAY['image/jpeg', 'image/png', 'image/webp']),
   ('site-media', 'site-media', true, 10485760, ARRAY['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'video/mp4']),
   ('volunteer-assets', 'volunteer-assets', false, 5242880, ARRAY['image/jpeg', 'image/png', 'image/webp'])
@@ -826,7 +727,6 @@ ON CONFLICT (id) DO UPDATE SET
   file_size_limit = EXCLUDED.file_size_limit,
   allowed_mime_types = EXCLUDED.allowed_mime_types;
 
--- Storage RLS Policies
 DROP POLICY IF EXISTS "volunteer_assets_admin_select" ON storage.objects;
 CREATE POLICY "volunteer_assets_admin_select" ON storage.objects FOR SELECT TO authenticated USING (bucket_id = 'volunteer-assets' AND public.is_admin());
 
@@ -851,7 +751,6 @@ CREATE POLICY "site_media_admin_update" ON storage.objects FOR UPDATE TO authent
 DROP POLICY IF EXISTS "site_media_admin_delete" ON storage.objects;
 CREATE POLICY "site_media_admin_delete" ON storage.objects FOR DELETE TO authenticated USING (bucket_id = 'site-media' AND public.is_admin());
 
--- General read access policies for public buckets
 DROP POLICY IF EXISTS "public_campaign_assets_read" ON storage.objects;
 CREATE POLICY "public_campaign_assets_read" ON storage.objects FOR SELECT USING (bucket_id = 'campaign-assets');
 
@@ -859,11 +758,11 @@ DROP POLICY IF EXISTS "public_site_media_read" ON storage.objects;
 CREATE POLICY "public_site_media_read" ON storage.objects FOR SELECT USING (bucket_id = 'site-media');
 
 -- ============================================================
--- 10. Role Privileges & Grants
+-- 8. Grants
 -- ============================================================
+
 GRANT USAGE ON SCHEMA public TO anon, authenticated;
 
--- Anon grants
 GRANT SELECT ON public.categories TO anon;
 GRANT SELECT ON public.programs TO anon;
 GRANT SELECT ON public.campaigns TO anon;
@@ -874,7 +773,6 @@ GRANT SELECT ON public.public_campaign_donations TO anon;
 GRANT SELECT ON public.public_campaign_stats TO anon;
 GRANT SELECT ON public.leaderboard TO anon;
 
--- Authenticated (Admin) grants
 GRANT SELECT ON public.admin_users TO authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.categories TO authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.programs TO authenticated;
@@ -891,7 +789,6 @@ GRANT SELECT ON public.public_campaign_donations TO authenticated;
 GRANT SELECT ON public.public_campaign_stats TO authenticated;
 GRANT SELECT ON public.leaderboard TO authenticated;
 
--- Service Role grants
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.categories TO service_role;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.programs TO service_role;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.campaigns TO service_role;
@@ -907,48 +804,7 @@ GRANT SELECT ON public.public_campaign_donations TO service_role;
 GRANT SELECT ON public.public_campaign_stats TO service_role;
 GRANT SELECT ON public.leaderboard TO service_role;
 
--- Execute permissions for Functions/RPCs
 GRANT EXECUTE ON FUNCTION public.is_admin() TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.create_pending_donation(uuid, text, text, text, numeric, text, text, boolean) TO anon, authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.submit_school_report(text, text, text, text, text, text, jsonb) TO service_role;
 GRANT EXECUTE ON FUNCTION public.submit_volunteer_registration(uuid, text, text, text, text, text, date, text, text, text, text, text, text, text) TO service_role;
-
--- ============================================================
--- 11. Initial Seed Data
--- ============================================================
-
--- Seed Categories
-INSERT INTO public.categories (name, slug)
-VALUES 
-  ('Pendidikan', 'pendidikan'),
-  ('Infrastruktur', 'infrastruktur'),
-  ('Sosial', 'sosial')
-ON CONFLICT (name) DO NOTHING;
-
--- Seed Programs
-INSERT INTO public.programs (slug, title, description, icon_name, content)
-VALUES 
-  ('jelajah-tanah-air', 'Jelajah Tanah Air', 'Eksplorasi kondisi pendidikan di daerah 3T.', 'search', 'Detail program Jelajah Tanah Air.'),
-  ('eduxplore', 'EduXplore', 'Mengajar anak-anak di daerah pedalaman.', 'graduation-cap', 'Detail program EduXplore.'),
-  ('bangun-asa', 'Bangun 1000 Asa', 'Membangun infrastruktur sekolah rusak.', 'hammer', 'Detail program Bangun 1000 Asa.')
-ON CONFLICT (slug) DO NOTHING;
-
--- Seed Volunteer Programs
-INSERT INTO public.volunteer_programs (slug, title, location, description, short_description, timeline, requirements, status, program_type)
-VALUES (
-  'pujananting-2026',
-  'EduXplore Pujananting',
-  'Barru, Pujananting — Sulawesi Selatan',
-  'Jadilah bagian dari gerakan pendidikan di daerah terpencil. Program EduXplore mengajak relawan untuk terjun langsung memberikan edukasi, kegiatan lapangan, dan dampak sosial bagi anak-anak di pedalaman Pujananting.',
-  'Jelajahi dan bantu pendidikan anak-anak di pedalaman Pujananting bersama Sekolah Tanah Air.',
-  '[
-    {"date": "7–11 Mei 2026", "label": "Registrasi"},
-    {"date": "12 Mei 2026", "label": "Briefing"},
-    {"date": "13–14 Mei 2026", "label": "Persiapan"},
-    {"date": "15 Mei 2026", "label": "Onboarding"},
-    {"date": "16–20 Mei 2026", "label": "Program Berlangsung"}
-  ]'::jsonb,
-  '["Follow Instagram @sekolah.tanah.air", "Membayar DP pendaftaran", "Sehat jasmani dan rohani"]'::jsonb,
-  'open',
-  'eduxplore'
-) ON CONFLICT (slug) DO NOTHING;
