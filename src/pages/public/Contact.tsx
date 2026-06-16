@@ -40,7 +40,7 @@ export default function Contact() {
     }
 
     const body = `Nama: ${name}\nEmail: ${email}\n\n${message}`;
-    window.location.href = `mailto:halo@tanahair.org?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    window.location.href = `mailto:admin@sekolahtanahair.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
     setFormNotice('Aplikasi email Anda sedang dibuka.');
   }
 
@@ -88,11 +88,39 @@ export default function Contact() {
 
               <div className="grid gap-4 sm:gap-6">
                 {[
-                  { label: 'Email', value: 'halo@tanahair.org', icon: Mail, color: 'bg-blue-500' },
-                  { label: 'WhatsApp', value: '+62 812 3456 7890', icon: MessageCircle, color: 'bg-emerald-500' },
-                  { label: 'Alamat', value: 'Jl. Kemanusiaan No. 123, Jakarta Selatan', icon: MapPin, color: 'bg-rose-500' },
+                  {
+                    label: 'Email',
+                    value: 'admin@sekolahtanahair.com',
+                    href: 'mailto:admin@sekolahtanahair.com',
+                    icon: Mail,
+                    color: 'bg-blue-500',
+                  },
+                  {
+                    label: 'WhatsApp',
+                    value: '+62 878-8279-9026',
+                    href: 'https://wa.me/6287882799026',
+                    icon: MessageCircle,
+                    color: 'bg-emerald-500',
+                    target: '_blank',
+                    rel: 'noopener noreferrer',
+                  },
+                  {
+                    label: 'Alamat',
+                    value: 'Tangsel, Indonesia',
+                    href: 'https://maps.google.com/?q=Tangsel,%20Indonesia',
+                    icon: MapPin,
+                    color: 'bg-rose-500',
+                    target: '_blank',
+                    rel: 'noopener noreferrer',
+                  },
                 ].map((item, i) => (
-                  <div key={i} className="group flex items-start space-x-4 rounded-[1.5rem] border border-gray-100 bg-gray-50/70 p-4 sm:space-x-6 sm:p-5">
+                  <a
+                    key={i}
+                    href={item.href}
+                    target={item.target}
+                    rel={item.rel}
+                    className="group flex items-start space-x-4 rounded-[1.5rem] border border-gray-100 bg-gray-50/70 p-4 sm:space-x-6 sm:p-5 transition-all hover:bg-white hover:shadow-md hover:border-gray-200"
+                  >
                     <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-white shadow-lg sm:h-14 sm:w-14 ${item.color}`}>
                       <item.icon size={24} />
                     </div>
@@ -100,7 +128,7 @@ export default function Contact() {
                       <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">{item.label}</p>
                       <p className="break-words text-base font-bold text-gray-900 transition-colors group-hover:text-emerald-600 sm:text-xl">{item.value}</p>
                     </div>
-                  </div>
+                  </a>
                 ))}
               </div>
             </div>

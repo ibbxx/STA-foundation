@@ -12,6 +12,8 @@ import {
   Banknote,
   CheckCircle2,
 } from 'lucide-react';
+import { SecureTurnstile } from '../../components/shared/SecureTurnstile';
+import { getEdgeFunctionErrorMessage } from '../../lib/admin/repository';
 import { logError } from '../../lib/error-logger';
 import { fetchPublicCampaignForDonate } from '../../lib/public-campaigns';
 import { Campaign, supabase } from '../../lib/supabase';
@@ -112,6 +114,7 @@ export default function Donate() {
   const [loadingCampaign, setLoadingCampaign] = useState(true);
   const [pageError, setPageError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
 
   const {
     register,
@@ -173,19 +176,26 @@ export default function Donate() {
 
   const onSubmit = async (data: DonationFormValues) => {
     if (!campaign) return;
+    if (!turnstileToken) {
+      setPageError('Mohon selesaikan verifikasi keamanan.');
+      return;
+    }
 
     setIsSubmitting(true);
     setPageError(null);
 
-    const { data: insertedDonationId, error } = await supabase.rpc('create_pending_donation', {
-      p_campaign_id: campaign.id,
-      p_donor_name: data.name.trim(),
-      p_donor_email: data.email.trim(),
-      p_donor_phone: data.whatsapp.trim(),
-      p_amount: data.amount,
-      p_payment_method: data.paymentMethod,
-      p_message: data.message?.trim() || '',
-      p_is_anonymous: data.isAnonymous,
+    const { data: insertedDonation, error } = await supabase.functions.invoke<{ id: string }>('create-pending-donation', {
+      body: {
+        turnstile_token: turnstileToken,
+        campaign_id: campaign.id,
+        donor_name: data.name.trim(),
+        donor_email: data.email.trim(),
+        donor_phone: data.whatsapp.trim(),
+        amount: data.amount,
+        payment_method: data.paymentMethod,
+        message: data.message?.trim() || '',
+        is_anonymous: data.isAnonymous,
+      },
     });
 
     if (error) {
@@ -193,7 +203,7 @@ export default function Donate() {
         campaignId: campaign.id,
         paymentMethod: data.paymentMethod,
       });
-      setPageError(error.message);
+      setPageError(await getEdgeFunctionErrorMessage(error, 'Donasi gagal dibuat.'));
       setIsSubmitting(false);
       return;
     }
@@ -203,7 +213,7 @@ export default function Donate() {
       state: {
         amount: data.amount,
         paymentMethod: paymentMethodLabel,
-        transactionId: insertedDonationId,
+        transactionId: insertedDonation?.id,
       },
     });
   };
@@ -409,6 +419,20 @@ export default function Donate() {
               ))}
             </div>
             {errors.paymentMethod ? <p className="text-xs font-bold text-red-500">{errors.paymentMethod.message}</p> : null}
+
+            <div className="rounded-2xl border border-gray-100 bg-gray-50 px-4 py-5">
+              <p className="mb-3 text-xs font-bold uppercase tracking-wider text-gray-400">Verifikasi Keamanan</p>
+              <SecureTurnstile
+                siteKey={import.meta.env.VITE_TURNSTILE_SITE_KEY}
+                onSuccess={(token) => {
+                  setTurnstileToken(token);
+                  setPageError(null);
+                }}
+                onError={() => {
+                  setTurnstileToken(null);
+                }}
+              />
+            </div>
           </div>
         </form>
       </div>

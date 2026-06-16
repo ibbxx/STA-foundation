@@ -452,6 +452,21 @@ export interface Database {
         Args: Record<PropertyKey, never>;
         Returns: boolean;
       };
+      get_public_campaign_donations: {
+        Args: {
+          p_campaign_id: string;
+          p_limit?: number;
+        };
+        Returns: {
+          id: string;
+          campaign_id: string;
+          donor_name_display: string;
+          amount: number;
+          message: string | null;
+          created_at: string;
+          is_anonymous: boolean;
+        }[];
+      };
       create_pending_donation: {
         Args: {
           p_campaign_id: string;

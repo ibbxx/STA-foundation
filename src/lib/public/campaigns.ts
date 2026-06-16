@@ -3,15 +3,18 @@ import {
   CampaignRow,
   CampaignUpdateRow,
   CategoryRow,
-  PublicCampaignDonationRow,
   supabase,
 } from '../supabase/types';
+import { getEdgeFunctionErrorMessage } from '../admin/repository';
 import { logError } from '../error-logger';
 
-export type CampaignDonationSummary = Pick<
-  PublicCampaignDonationRow,
-  'donor_name_display' | 'amount' | 'message' | 'created_at' | 'is_anonymous'
->;
+export type CampaignDonationSummary = {
+  donor_name_display: string;
+  amount: number;
+  message: string | null;
+  created_at: string;
+  is_anonymous: boolean;
+};
 
 function stripHtml(input: string) {
   return input.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
@@ -149,15 +152,15 @@ export async function fetchPublicCampaignDetail(slug: string) {
 
   const safeCampaignRow = campaignRow as CampaignRow;
 
-  const [{ data: categoryRows, error: categoriesError }, { data: updateRows, error: updatesError }, { data: recentDonationRows, error: recentDonationsError }] = await Promise.all([
+  const [{ data: categoryRows, error: categoriesError }, { data: updateRows, error: updatesError }, { data: recentDonationsPayload, error: recentDonationsError }] = await Promise.all([
     supabase.from('categories').select('*').order('name', { ascending: true }),
     supabase.from('campaign_updates').select('*').eq('campaign_id', safeCampaignRow.id).order('created_at', { ascending: false }),
-    supabase
-      .from('public_campaign_donations')
-      .select('donor_name_display, amount, message, created_at, is_anonymous')
-      .eq('campaign_id', safeCampaignRow.id)
-      .order('created_at', { ascending: false })
-      .limit(10),
+    supabase.functions.invoke<{ donations: CampaignDonationSummary[] }>('get-public-campaign-donations', {
+      body: {
+        campaign_id: safeCampaignRow.id,
+        limit: 10,
+      },
+    }),
   ]);
 
   if (categoriesError || updatesError) {
@@ -169,8 +172,13 @@ export async function fetchPublicCampaignDetail(slug: string) {
   }
 
   if (recentDonationsError) {
+    const edgeErrorMessage = await getEdgeFunctionErrorMessage(
+      recentDonationsError,
+      'Gagal memuat donasi publik.',
+    );
     logError('public-campaigns.fetchPublicCampaignDetail.recentDonations', recentDonationsError, {
       campaignId: safeCampaignRow.id,
+      errorMessage: edgeErrorMessage,
       slug,
     });
   }
@@ -182,7 +190,7 @@ export async function fetchPublicCampaignDetail(slug: string) {
   return {
     campaign: mapCampaignRowToPublicCampaign(safeCampaignRow, categoryMap),
     updates: (updateRows ?? []) as CampaignUpdateRow[],
-    donations: (recentDonationRows ?? []) as CampaignDonationSummary[],
+    donations: recentDonationsPayload?.donations ?? [],
   };
 }
 
