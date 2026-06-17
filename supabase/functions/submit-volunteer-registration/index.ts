@@ -37,7 +37,7 @@ Deno.serve(async (request) => {
     // Verify program is open
     const { data: program, error: programError } = await supabase
       .from('volunteer_programs')
-      .select('status')
+      .select('status, registration_start, registration_end')
       .eq('id', payload.program_id)
       .single();
 
@@ -48,8 +48,13 @@ Deno.serve(async (request) => {
       return jsonResponse({ error: `Gagal memverifikasi status program: ${programError.message}` }, 400);
     }
 
-    if (program?.status !== 'open') {
-      console.log('[submit-volunteer-registration] Program status is NOT open:', program?.status);
+    const now = new Date();
+    const isOpen = program.registration_start && program.registration_end
+      ? (now >= new Date(program.registration_start) && now <= new Date(program.registration_end))
+      : (program?.status === 'open');
+
+    if (!isOpen) {
+      console.log('[submit-volunteer-registration] Program registration is closed.');
       return jsonResponse({ error: 'Pendaftaran program sedang ditutup.' }, 400);
     }
 
@@ -67,7 +72,14 @@ Deno.serve(async (request) => {
     const uploadedFiles: Record<string, string> = {};
     for (const [key, value] of form.entries()) {
       if (value instanceof File) {
-        validateImage(value);
+        const isPdf = value.type === 'application/pdf' || value.name.toLowerCase().endsWith('.pdf');
+        if (isPdf) {
+          if (value.size <= 0 || value.size > 10 * 1024 * 1024) {
+            throw new Error('Ukuran file PDF maksimal 10MB.');
+          }
+        } else {
+          validateImage(value);
+        }
         const path = await uploadPrivateFile(key, value);
         uploadedFiles[key] = path;
       }
@@ -96,6 +108,7 @@ Deno.serve(async (request) => {
         bukti_follow_url: uploadedFiles['bukti_follow_ig'] || null,
         foto_id_url: uploadedFiles['foto_id_card'] || null,
         answers: answers,
+        registration_type: payload.registration_type || 'reguler',
       })
       .select('id')
       .single();

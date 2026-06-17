@@ -7,6 +7,7 @@ import { Skeleton } from '../ui/skeleton';
 import { fetchHeroContent, DEFAULT_HERO_SLIDES, type HeroSlide } from '../../lib/admin-hero';
 import { fetchHeroVolunteerPrograms } from '../../lib/admin/repository';
 import type { VolunteerProgramRow } from '../../lib/supabase/types';
+import { getVolunteerProgramStatus } from '../../lib/eduxplore';
 import { logError } from '../../lib/error-logger';
 import { sanitizeHTML } from '../../lib/sanitize';
 
@@ -31,14 +32,24 @@ export default function HeroSlideshow() {
         ]);
 
         // Convert active volunteer programs to slide format with CTA
-        const volunteerSlides: DisplaySlide[] = ((volunteerRes.data || []) as VolunteerProgramRow[]).map((p) => ({
-          id: `eduxplore-${p.id}`,
-          title: p.title.toUpperCase(),
-          subtitle: p.short_description || p.description || '',
-          imageUrl: p.image_url || '',
-          buttonText: p.status === 'open' ? `Daftar ${p.title}` : `Detail ${p.title}`,
-          buttonLink: `/eduxplore/${p.slug}`,
-        }));
+        // Filter out programs that have fully ended (past program_end date)
+        const now = new Date();
+        const activePrograms = ((volunteerRes.data || []) as VolunteerProgramRow[]).filter((p) => {
+          if (p.program_end && now > new Date(p.program_end)) return false;
+          return true;
+        });
+
+        const volunteerSlides: DisplaySlide[] = activePrograms.map((p) => {
+          const computedStatus = getVolunteerProgramStatus(p);
+          return {
+            id: `eduxplore-${p.id}`,
+            title: p.title.toUpperCase(),
+            subtitle: p.short_description || p.description || '',
+            imageUrl: p.image_url || '',
+            buttonText: computedStatus === 'open' ? `Daftar ${p.title}` : `Detail ${p.title}`,
+            buttonLink: `/eduxplore/${p.slug}`,
+          };
+        });
 
         // Volunteer program slides go first (priority), then admin-managed slides
         const combined: DisplaySlide[] = [...volunteerSlides, ...heroContent.slides];

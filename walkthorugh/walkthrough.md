@@ -1,73 +1,75 @@
-# Walkthrough: Perbaikan Halaman Login Admin & Infinite Loop
+# Walkthrough: Pendaftaran Relawan Kustom (Reguler & Beasiswa) & Otomatisasi Status Program
 
-Dokumen ini mencatat analisis dan perbaikan yang dilakukan untuk mengatasi masalah halaman login admin (`/admin/login`) yang tidak bisa diakses atau mengalami *infinite loop redirect*.
-
----
-
-## 🔍 Analisis Masalah (Root Cause)
-
-Ada 4 faktor utama yang menyebabkan masalah ini terjadi secara bersamaan:
-
-### 1. Kebocoran Status Loading di `GuestRoute`
-Pada file `GuestRoute.tsx`, kondisi guard untuk menampilkan spinner loading menggunakan:
-```tsx
-if (loading && !session) { ... }
-```
-*   **Masalah**: Ketika pengguna sudah memiliki session di cache (misalnya setelah login sebelumnya), `session` langsung bernilai ada (`true`), sedangkan proses pengecekan admin (`is_admin` RPC) masih berlangsung (`loading` bernilai `true`).
-*   **Akibat**: Kondisi di atas mengevaluasi ke `false` sehingga spinner dilewati terlalu cepat. Aplikasi mencoba merender form login sementara status admin belum terverifikasi secara penuh, memicu flicker atau redirect loop.
-
-### 2. Duplikasi Network Request (Tidak Ada Shared Auth State)
-Setiap kali rute beralih dari `/admin/login` ke `/admin`, route guard (`GuestRoute` dan `ProtectedRoute`) akan memicu instansiasi hook `useAuth()` yang baru.
-*   **Masalah**: Setiap instansi `useAuth()` memanggil kembali `supabase.auth.getSession()` dan `supabase.rpc('is_admin')`.
-*   **Akibat**: Terjadi lonjakan request jaringan berulang pada setiap navigasi, yang memperlambat performa dan mempermudah terjadinya *race condition* jika server lambat merespons.
-
-### 3. Sinyal AuthState yang Tumpang Tindih (Race Condition)
-Di dalam `useAuth.ts`, terjadi bentrokan antara `loadSession()` (pembacaan manual pertama kali) dan listener `onAuthStateChange`.
-*   **Masalah**: Event `INITIAL_SESSION` dari listener sering kali terpicu sebelum `loadSession()` selesai, namun status `authLoading` tidak disetel ke `false` oleh event tersebut.
-*   **Akibat**: UI terjebak dalam status loading atau merender komponen dalam keadaan data tidak sinkron.
-
-### 4. Kegagalan RPC `is_admin` Tanpa Mekanisme Toleransi
-Fungsi `is_admin` di database terkadang gagal merespons dengan cepat atau terhambat oleh RLS (Row Level Security).
-*   **Masalah**: Jika request RPC gagal sekali saja, status `isAdmin` langsung diset ke `false` secara permanen untuk sesi tersebut.
-*   **Akibat**: Pengguna sah terkunci di luar halaman admin walaupun data autentikasi mereka benar.
+Dokumen ini mencatat perubahan skema database dan komponen frontend yang diimplementasikan untuk mendukung kustomisasi formulir relawan serta penjadwalan otomatisasi status program relawan.
 
 ---
 
-## 🛠️ Perbaikan yang Diterapkan
+## 🔍 Ringkasan Perubahan
 
-Kami melakukan refaktorisasi terpusat pada sistem autentikasi rute dengan langkah-langkah berikut:
-
-### A. Penggunaan Shared Context (React Context)
-Kami memperkenalkan `AuthContext` di dalam `useAuth.ts` agar seluruh rute berbagi satu state autentikasi yang sama. 
-*   **File Modifikasi**: [useAuth.ts](file:///Users/ibnufajar/Documents/project/sekolah-tanah-air/src/hooks/useAuth.ts)
-*   **Hasil**: Mengeliminasi duplikasi request ke database Supabase saat pengguna berpindah rute di area admin.
-
-### B. Penyederhanaan Loading Guard di `GuestRoute`
-*   **File Modifikasi**: [GuestRoute.tsx](file:///Users/ibnufajar/Documents/project/sekolah-tanah-air/src/components/shared/GuestRoute.tsx)
-*   **Perubahan**:
-    ```diff
-    - if (loading && !session) {
-    + if (loading) {
-        return (
-          <div className="flex min-h-screen items-center justify-center bg-[#f7f7f3]">
-            <div className="h-10 w-10 animate-spin rounded-full border-2 border-emerald-600 border-t-transparent" />
-          </div>
-        );
-      }
-    ```
-*   **Hasil**: Halaman login tidak akan dirender sampai status session dan hak akses admin terverifikasi sepenuhnya.
-
-### C. Integrasi `AuthProvider` ke Router Utama
-*   **File Modifikasi**: [App.tsx](file:///Users/ibnufajar/Documents/project/sekolah-tanah-air/src/App.tsx)
-*   **Perubahan**: Membungkus seluruh hierarki rute menggunakan komponen `<AuthProvider>` agar state autentikasi terdistribusi dengan baik.
-
-### D. Penambahan Mekanisme Retry & Fallback Timeout
-Di dalam `useAuth.ts` versi baru:
-1.  **RPC `is_admin` Retry**: Ditambahkan percobaan ulang otomatis sebanyak 2 kali dengan jeda 1 detik jika request awal gagal.
-2.  **Fallback Timeout**: Jika listener Supabase tidak memberikan respons dalam 3 detik, sistem akan secara otomatis mencoba membaca session secara manual sebagai cadangan darurat (*graceful degradation*).
+Sistem pendaftaran relawan kini terbagi menjadi dua jalur utama: **Reguler** dan **Beasiswa**. Admin memiliki kendali penuh untuk mendesain kolom pertanyaan masing-masing jalur secara dinamis dan menjadwalkan status program agar otomatis aktif, berjalan, atau tutup berdasarkan waktu.
 
 ---
 
-## 🚀 Status Saat Ini
-*   **TypeScript Check**: Lulus 100% tanpa error (`npx tsc --noEmit` bersih).
-*   **Stabilitas Rute**: Masalah *infinite loop* teratasi sepenuhnya karena status auth sekarang tersinkronisasi di satu sumber kebenaran (Shared Context).
+## 🛠️ Detail Implementasi
+
+### 1. Migrasi Database (PostgreSQL)
+Query migrasi berikut telah berhasil dijalankan pada database remote Supabase:
+*   **Tabel `volunteer_registrations`:**
+    *   Menambahkan kolom `registration_type` (`text` dengan check constraint `reguler` atau `beasiswa` dan default `'reguler'`).
+    *   Membuat index pencarian `idx_volunteer_registrations_type_program` pada `(program_id, registration_type)` untuk optimasi filter kelompok jalur.
+*   **Tabel `volunteer_programs`:**
+    *   Menambahkan kolom `registration_start` (`timestamptz`).
+    *   Menambahkan kolom `registration_end` (`timestamptz`).
+    *   Menambahkan kolom `program_end` (`timestamptz`).
+
+File Migrasi: [20260617134800_add_registration_type.sql](file:///Users/ibnufajar/Documents/project/sekolah-tanah-air/supabase/migrations/20260617134800_add_registration_type.sql)
+
+### 2. Integrasi Tipe TypeScript
+File Modifikasi: [types.ts](file:///Users/ibnufajar/Documents/project/sekolah-tanah-air/src/lib/supabase/types.ts)
+*   Menyelaraskan properti `registration_type` di type `VolunteerRegistrationRow`, `Insert`, dan `Update`.
+*   Menambahkan properti tanggal penjadwalan `registration_start`, `registration_end`, dan `program_end` ke type `VolunteerProgramRow`, `Insert`, dan `Update`.
+
+### 3. Logika Otomatisasi Status & Helper
+File Modifikasi: [eduxplore.ts](file:///Users/ibnufajar/Documents/project/sekolah-tanah-air/src/lib/eduxplore.ts)
+*   Membuat fungsi helper `getVolunteerProgramStatus(program)` untuk menghitung status secara dinamis berdasarkan waktu saat ini:
+    *   Sebelum `registration_start` -> `closed`
+    *   Range `registration_start` s.d. `registration_end` -> `open`
+    *   Range `registration_end` s.d. `program_end` -> `ongoing`
+    *   Setelah `program_end` -> `closed`
+    *   Jika salah satu tanggal kosong -> fallback ke kolom status manual (`program.status`).
+
+### 4. Supabase Edge Function
+File Modifikasi: [submit-volunteer-registration index.ts](file:///Users/ibnufajar/Documents/project/sekolah-tanah-air/supabase/functions/submit-volunteer-registration/index.ts)
+*   Edge Function membaca `registration_type` dari payload FormData dan menyimpannya ke database.
+*   Mendukung kalkulasi status buka pendaftaran secara real-time berbasis tanggal range.
+*   Bypass validasi tipe file gambar jika file yang diunggah berupa dokumen PDF (seperti CV, Motivation Letter, atau Social Project Proposal untuk beasiswa) dengan batas ukuran maksimal 10MB.
+
+### 5. Formulir Pendaftaran Publik
+File Modifikasi: [EduxploreForm.tsx](file:///Users/ibnufajar/Documents/project/sekolah-tanah-air/src/components/public/eduxplore/EduxploreForm.tsx)
+*   Menambahkan Tab Selector premium ("Jalur Reguler" vs "Jalur Beasiswa") untuk beralih jalur pendaftaran.
+*   Merender field input kustom secara dinamis sesuai struktur template kustom jalur terpilih.
+*   Mengimplementasikan teknik keying React (`key={registrationType}`) pada form body agar ketika pengguna berpindah tab jalur pendaftaran, seluruh modul form (Zod validator schema, React Hook Form registers, input values, dan error status) di-reset secara total untuk menghindari tabrakan validasi.
+
+### 6. Desain Formulir Dinamis di Admin Panel
+File Modifikasi: [AdminVolunteerPrograms.tsx](file:///Users/ibnufajar/Documents/project/sekolah-tanah-air/src/components/admin/AdminVolunteerPrograms.tsx)
+*   Menambahkan input datetime-local untuk mempermudah admin menentukan tanggal pembukaan, penutupan pendaftaran, dan tanggal berakhirnya kegiatan relawan.
+*   UI Form Builder dipisahkan menggunakan tab "Reguler" dan "Beasiswa", di mana admin bisa menyusun, menghapus, merelasikan, dan mengurutkan pertanyaan formulir kustom untuk masing-masing jalur secara terpisah.
+*   Tabel daftar program relawan kini menampilkan status real-time hasil kalkulasi tanggal dengan label indikator `(Otomatis)`.
+
+### 7. Review Data & Pengelompokan Pendaftar
+File Modifikasi: [AdminEduxplore.tsx](file:///Users/ibnufajar/Documents/project/sekolah-tanah-air/src/pages/admin/AdminEduxplore.tsx)
+*   **Filter Kategori Program (Program Type)**: Menambahkan dropdown filter baru untuk memisahkan data berdasarkan Kategori Program (Jelajah Tanah Air, EduXplore, Bangun 1000 Asa).
+*   **Penyederhanaan UI Filter**: Dropdown pencarian "Program Spesifik" dihapus karena tidak terlalu sering digunakan. Layout filter disederhanakan menjadi satu baris flex horizontal yang memuat 3 filter utama (Kategori Program, Status, dan Jalur).
+*   Menambahkan dropdown filter jalur ("Semua Jalur", "Reguler", "Beasiswa") pada daftar pendaftar.
+*   Menampilkan badge pengenal visual jalur di samping nama pendaftar.
+*   **Update Pengelompokan**: Kartu statistik di bagian atas (Total, Perlu Review, Diterima, Ditolak) kini menghitung angka secara dinamis berdasarkan kategori program dan filter jalur pendaftaran yang sedang aktif.
+*   **Visual Badge Program**: Menampilkan label program kustom di bawah nama pendaftar pada daftar baris sebelah kiri agar pendaftar langsung dapat dikategorikan secara jelas saat filter aktif.
+*   Panel detail sebelah kanan merender jawaban secara dinamis berdasarkan skema formulir jalur pendaftaran pendaftar tersebut, serta secara otomatis meminta signed URL untuk mendownload berkas kustom (seperti CV/Proposal PDF atau bukti transfer gambar).
+*   Export CSV menggabungkan daftar kolom dari kedua jalur pendaftaran untuk menghasilkan file laporan yang seragam.
+
+---
+
+## 🚀 Status Uji Coba & Kompilasi
+*   **Database Migration Status:** Sukses dijalankan di remote PostgreSQL.
+*   **Edge Function Deployment:** Sukses di-deploy ke remote Supabase project.
+*   **TypeScript Verification:** Menjalankan pengecekan tipe statis dan linting proyek untuk memastikan kepatuhan 100% bebas dari compile errors.

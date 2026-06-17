@@ -38,7 +38,37 @@ export interface VolunteerProgramData {
   status: 'open' | 'closed' | 'ongoing';
   form_config?: any;
   external_link?: string | null;
+  registration_start?: string | null;
+  registration_end?: string | null;
+  program_end?: string | null;
 }
+
+export function getVolunteerProgramStatus(program: {
+  status: 'open' | 'closed' | 'ongoing';
+  registration_start?: string | null;
+  registration_end?: string | null;
+  program_end?: string | null;
+}): 'open' | 'closed' | 'ongoing' {
+  if (!program.registration_start || !program.registration_end || !program.program_end) {
+    return program.status;
+  }
+
+  const now = new Date();
+  const startReg = new Date(program.registration_start);
+  const endReg = new Date(program.registration_end);
+  const endProg = new Date(program.program_end);
+
+  if (now < startReg) {
+    return 'closed';
+  } else if (now >= startReg && now <= endReg) {
+    return 'open';
+  } else if (now > endReg && now <= endProg) {
+    return 'ongoing';
+  } else {
+    return 'closed';
+  }
+}
+
 
 // ── Zod Schema ──
 

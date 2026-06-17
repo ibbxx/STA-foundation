@@ -11,6 +11,7 @@ import EduxploreForm from '../../components/public/eduxplore/EduxploreForm';
 
 import { fetchVolunteerProgramBySlug } from '../../lib/admin/repository';
 import type { VolunteerProgramData, VolunteerTimelineItem } from '../../lib/eduxplore';
+import { getVolunteerProgramStatus } from '../../lib/eduxplore';
 import type { VolunteerProgramRow } from '../../lib/supabase/types';
 import { logError } from '../../lib/error-logger';
 
@@ -46,9 +47,13 @@ export default function EduxploreDetailView() {
           } catch { requirements = []; }
 
           try {
-            formConfig = data.form_config
-              ? (Array.isArray(data.form_config) ? data.form_config : JSON.parse(data.form_config as string))
-              : null;
+            if (data.form_config) {
+              formConfig = typeof data.form_config === 'string'
+                ? JSON.parse(data.form_config)
+                : data.form_config;
+            } else {
+              formConfig = null;
+            }
           } catch { formConfig = null; }
 
           setProgram({
@@ -66,6 +71,9 @@ export default function EduxploreDetailView() {
             status: data.status,
             form_config: formConfig,
             external_link: data.external_link,
+            registration_start: data.registration_start,
+            registration_end: data.registration_end,
+            program_end: data.program_end,
           });
         }
       } catch (err) {
@@ -132,7 +140,7 @@ export default function EduxploreDetailView() {
       <EduxploreForm
         programId={program.id}
         programTitle={program.title}
-        isOpen={program.status === 'open'}
+        isOpen={getVolunteerProgramStatus(program) === 'open'}
         formConfig={program.form_config}
         externalLink={program.external_link}
       />

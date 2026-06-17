@@ -12,9 +12,9 @@ import {
   deleteVolunteerProgram,
 } from '../../lib/admin/repository';
 import { uploadAdminImage } from '../../lib/supabase/storage';
-import { formatAdminDate } from '../../lib/admin/helpers';
 import type { VolunteerProgramRow } from '../../lib/supabase/types';
 import type { VolunteerTimelineItem } from '../../lib/eduxplore';
+import { getVolunteerProgramStatus } from '../../lib/eduxplore';
 import { logError } from '../../lib/error-logger';
 import { useConfirmDialog } from './ConfirmDialog';
 import { slugify } from '../../lib/admin/campaign-utils';
@@ -34,21 +34,43 @@ function getProgramTypeBadge(type: string) {
   return PROGRAM_TYPE_OPTIONS.find(o => o.value === type)?.color || 'bg-slate-100 text-slate-600 border-slate-200';
 }
 
-export const DEFAULT_FORM_CONFIG = [
+// ── Default Configurations ──
+
+export const DEFAULT_REGULER_FORM_CONFIG = [
   { id: 'nama_lengkap', type: 'text' as const, label: 'Nama Lengkap', required: true },
   { id: 'email', type: 'email' as const, label: 'Email Aktif', required: true },
   { id: 'whatsapp', type: 'tel' as const, label: 'No. WhatsApp', required: true },
-  { id: 'whatsapp_emergency', type: 'tel' as const, label: 'WA Darurat', required: true },
-  { id: 'alamat', type: 'textarea' as const, label: 'Alamat', required: true },
-  { id: 'tanggal_lahir', type: 'date' as const, label: 'Tanggal Lahir', required: true },
-  { id: 'size_baju', type: 'select' as const, label: 'Ukuran Baju', required: true, options: ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL'] },
-  { id: 'pendidikan', type: 'text' as const, label: 'Latar Belakang Pendidikan', required: true },
-  { id: 'bidang_diminati', type: 'select' as const, label: 'Bidang yang Diminati', required: true, options: ['Pengembangan Pemuda', 'Pendidikan dan Pengajaran Siswa Guru', 'Media dan Promosi serta Branding Desa', 'Branding Budaya dan Lingkungan Lokal'] },
-  { id: 'riwayat_penyakit', type: 'textarea' as const, label: 'Riwayat Penyakit', required: false },
-  { id: 'bukti_dp', type: 'file' as const, label: 'Bukti DP', required: true },
-  { id: 'bukti_follow_ig', type: 'file' as const, label: 'Bukti Follow IG', required: true },
-  { id: 'foto_id_card', type: 'file' as const, label: 'Pas Foto (untuk ID Card)', required: true }
+  { id: 'instagram', type: 'text' as const, label: 'Instagram', required: true },
+  { id: 'institusi', type: 'text' as const, label: 'Institusi / Sekolah / Kampus', required: true },
+  { id: 'jurusan', type: 'text' as const, label: 'Jurusan / Kelas / Lainnya', required: true },
+  { id: 'bukti_follow_sta', type: 'file' as const, label: 'Bukti Follow Instagram @sekolah.tanahair', required: true },
+  { id: 'bukti_follow_bepro', type: 'file' as const, label: 'Bukti Follow Instagram @bepro_id', required: true },
+  { id: 'mini_esai', type: 'textarea' as const, label: 'Mini Esai (Motivasi & Kontribusi)', required: true },
+  { id: 'meeting_point', type: 'select' as const, label: 'Meeting Point', required: true, options: ['Payakumbuh', 'Padang', 'Jakarta'] },
+  { id: 'bukti_pembayaran', type: 'file' as const, label: 'Bukti Pembayaran (Full Payment / Cicilan 50%)', required: true },
 ];
+
+export const DEFAULT_BEASISWA_FORM_CONFIG = [
+  { id: 'nama_lengkap', type: 'text' as const, label: 'Nama Lengkap', required: true },
+  { id: 'email', type: 'email' as const, label: 'Email Aktif', required: true },
+  { id: 'whatsapp', type: 'tel' as const, label: 'No. WhatsApp', required: true },
+  { id: 'instagram', type: 'text' as const, label: 'Instagram', required: true },
+  { id: 'institusi', type: 'text' as const, label: 'Institusi / Sekolah / Kampus', required: true },
+  { id: 'jurusan', type: 'text' as const, label: 'Jurusan / Kelas / Lainnya', required: true },
+  { id: 'bukti_follow_sta', type: 'file' as const, label: 'Bukti Follow Instagram @sekolah.tanahair', required: true },
+  { id: 'bukti_follow_bepro', type: 'file' as const, label: 'Bukti Follow Instagram @bepro_id', required: true },
+  { id: 'cv', type: 'file' as const, label: 'Curriculum Vitae', required: true },
+  { id: 'motivation_letter', type: 'file' as const, label: 'Motivation Letter (PDF)', required: true },
+  { id: 'social_project_proposal', type: 'file' as const, label: 'Mini Proposal Project atau Gagasan Dampak Sosial (PDF)', required: true },
+];
+
+const questionSchema = z.object({
+  id: z.string(),
+  type: z.enum(['text', 'textarea', 'select', 'date', 'file', 'number', 'email', 'tel']),
+  label: z.string().min(1, 'Label wajib diisi'),
+  required: z.boolean(),
+  options: z.array(z.string()).nullable().optional(),
+});
 
 const schema = z.object({
   title: z.string().min(1, 'Judul wajib diisi'),
@@ -62,14 +84,54 @@ const schema = z.object({
   status: z.enum(['open', 'closed', 'ongoing']),
   timeline_text: z.string().optional(),
   requirements_text: z.string().optional(),
-  form_config: z.array(z.object({
-    id: z.string(),
-    type: z.enum(['text', 'textarea', 'select', 'date', 'file', 'number', 'email', 'tel']),
-    label: z.string().min(1, 'Label wajib diisi'),
-    required: z.boolean(),
-    options: z.array(z.string()).nullable().optional(),
-  })).optional(),
+  form_config: z.object({
+    reguler: z.array(questionSchema),
+    beasiswa: z.array(questionSchema),
+  }).optional(),
   external_link: z.string().optional().nullable().or(z.literal('')),
+  registration_start: z.string().optional().nullable().or(z.literal('')),
+  registration_end: z.string().optional().nullable().or(z.literal('')),
+  program_end: z.string().optional().nullable().or(z.literal('')),
+}).superRefine((data, ctx) => {
+  const startStr = data.registration_start;
+  const endStr = data.registration_end;
+  const progEndStr = data.program_end;
+
+  if (startStr && endStr) {
+    const start = new Date(startStr);
+    const end = new Date(endStr);
+    if (start > end) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Mulai pendaftaran tidak boleh setelah selesai pendaftaran',
+        path: ['registration_start'],
+      });
+    }
+  }
+
+  if (endStr && progEndStr) {
+    const end = new Date(endStr);
+    const progEnd = new Date(progEndStr);
+    if (end > progEnd) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Selesai pendaftaran tidak boleh setelah selesai kegiatan',
+        path: ['registration_end'],
+      });
+    }
+  }
+
+  if (startStr && progEndStr) {
+    const start = new Date(startStr);
+    const progEnd = new Date(progEndStr);
+    if (start > progEnd) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Mulai pendaftaran tidak boleh setelah selesai kegiatan',
+        path: ['registration_start'],
+      });
+    }
+  }
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -86,8 +148,14 @@ const defaultValues: FormValues = {
   status: 'open',
   timeline_text: '',
   requirements_text: '',
-  form_config: [...DEFAULT_FORM_CONFIG],
+  form_config: {
+    reguler: [...DEFAULT_REGULER_FORM_CONFIG],
+    beasiswa: [...DEFAULT_BEASISWA_FORM_CONFIG],
+  },
   external_link: '',
+  registration_start: '',
+  registration_end: '',
+  program_end: '',
 };
 
 interface OptionsTagInputProps {
@@ -168,6 +236,7 @@ export default function AdminVolunteerPrograms() {
   const [mode, setMode] = useState<'create' | 'edit' | null>(null);
   const [editingProgram, setEditingProgram] = useState<VolunteerProgramRow | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [activeFormTab, setActiveFormTab] = useState<'reguler' | 'beasiswa'>('reguler');
 
   const {
     register,
@@ -182,9 +251,15 @@ export default function AdminVolunteerPrograms() {
     defaultValues,
   });
 
-  const { fields, append, remove, swap } = useFieldArray({
+  // Dual Field Arrays untuk form builder Reguler dan Beasiswa
+  const { fields: regulerFields, append: appendReguler, remove: removeReguler, swap: swapReguler } = useFieldArray({
     control,
-    name: 'form_config',
+    name: 'form_config.reguler',
+  });
+
+  const { fields: beasiswaFields, append: appendBeasiswa, remove: removeBeasiswa, swap: swapBeasiswa } = useFieldArray({
+    control,
+    name: 'form_config.beasiswa',
   });
 
   const watchedTitle = watch('title');
@@ -214,17 +289,31 @@ export default function AdminVolunteerPrograms() {
     setNotice(null);
     setError(null);
     setEditingProgram(null);
+    setActiveFormTab('reguler');
     reset({
       ...defaultValues,
-      form_config: [...DEFAULT_FORM_CONFIG],
+      form_config: {
+        reguler: [...DEFAULT_REGULER_FORM_CONFIG],
+        beasiswa: [...DEFAULT_BEASISWA_FORM_CONFIG],
+      },
     });
     setMode('create');
   }
+
+  // Format Helper to convert DB ISO String to local HTML input format 'yyyy-MM-ddThh:mm'
+  const formatToDatetimeLocal = (dateStr: string | null | undefined) => {
+    if (!dateStr) return '';
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return '';
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  };
 
   function openEdit(program: VolunteerProgramRow) {
     setNotice(null);
     setError(null);
     setEditingProgram(program);
+    setActiveFormTab('reguler');
 
     let timelineText = '';
     let reqText = '';
@@ -241,16 +330,26 @@ export default function AdminVolunteerPrograms() {
       reqText = `<ul>${items}</ul>`;
     } catch (e) {}
 
-    let parsedFormConfig = [...DEFAULT_FORM_CONFIG] as any;
+    // Parse form config with dual support and legacy conversion
+    let parsedFormConfig = {
+      reguler: [...DEFAULT_REGULER_FORM_CONFIG],
+      beasiswa: [...DEFAULT_BEASISWA_FORM_CONFIG],
+    };
+
     if (program.form_config) {
       try {
-        const raw = Array.isArray(program.form_config)
-          ? program.form_config
-          : JSON.parse(program.form_config as string);
-        // Jika form_config dari DB adalah array kosong (default DB),
-        // fallback ke DEFAULT_FORM_CONFIG agar form builder tidak kosong
-        if (Array.isArray(raw) && raw.length > 0) {
-          parsedFormConfig = raw;
+        const raw = typeof program.form_config === 'string'
+          ? JSON.parse(program.form_config)
+          : program.form_config;
+
+        if (Array.isArray(raw)) {
+          // Legacy flat array: map to reguler, keep beasiswa as default
+          if (raw.length > 0) {
+            parsedFormConfig.reguler = raw;
+          }
+        } else if (raw && typeof raw === 'object') {
+          parsedFormConfig.reguler = raw.reguler || [...DEFAULT_REGULER_FORM_CONFIG];
+          parsedFormConfig.beasiswa = raw.beasiswa || [...DEFAULT_BEASISWA_FORM_CONFIG];
         }
       } catch (e) {
         logError('AdminVolunteerPrograms.openEdit.parseFormConfig', e);
@@ -271,6 +370,9 @@ export default function AdminVolunteerPrograms() {
       requirements_text: reqText,
       form_config: parsedFormConfig,
       external_link: program.external_link || '',
+      registration_start: formatToDatetimeLocal(program.registration_start),
+      registration_end: formatToDatetimeLocal(program.registration_end),
+      program_end: formatToDatetimeLocal(program.program_end),
     });
     setMode('edit');
   }
@@ -357,6 +459,9 @@ export default function AdminVolunteerPrograms() {
         requirements: requirements as unknown as import('../../lib/supabase/types').Json,
         form_config: values.form_config as unknown as import('../../lib/supabase/types').Json,
         external_link: values.external_link || null,
+        registration_start: values.registration_start ? new Date(values.registration_start).toISOString() : null,
+        registration_end: values.registration_end ? new Date(values.registration_end).toISOString() : null,
+        program_end: values.program_end ? new Date(values.program_end).toISOString() : null,
       };
 
       const { error: saveError } = await saveVolunteerProgram(payload, editingProgram?.id);
@@ -401,14 +506,31 @@ export default function AdminVolunteerPrograms() {
     if (errors.program_type) errorList.push('Jenis Program: ' + errors.program_type.message);
     if (errors.status) errorList.push('Status Pendaftaran: ' + errors.status.message);
     if (errors.external_link) errorList.push('Link Pendaftaran Eksternal: ' + errors.external_link.message);
-    
-    if (errors.form_config && Array.isArray(errors.form_config)) {
-      errors.form_config.forEach((err: any, idx: number) => {
-        if (err) {
-          if (err.label) errorList.push(`Pertanyaan #${idx + 1}: ${err.label.message}`);
-          if (err.options) errorList.push(`Pertanyaan #${idx + 1} (Opsi Dropdown): ${err.options.message}`);
-        }
-      });
+    if (errors.registration_start) errorList.push('Tanggal Mulai: ' + errors.registration_start.message);
+    if (errors.registration_end) errorList.push('Tanggal Selesai: ' + errors.registration_end.message);
+    if (errors.program_end) errorList.push('Tanggal Kegiatan Selesai: ' + errors.program_end.message);
+
+    if (errors.form_config) {
+      const regulerErrors = (errors.form_config as any).reguler;
+      const beasiswaErrors = (errors.form_config as any).beasiswa;
+
+      if (Array.isArray(regulerErrors)) {
+        regulerErrors.forEach((err: any, idx: number) => {
+          if (err) {
+            if (err.label) errorList.push(`[Form Reguler] Pertanyaan #${idx + 1}: ${err.label.message}`);
+            if (err.options) errorList.push(`[Form Reguler] Pertanyaan #${idx + 1} (Dropdown): ${err.options.message}`);
+          }
+        });
+      }
+
+      if (Array.isArray(beasiswaErrors)) {
+        beasiswaErrors.forEach((err: any, idx: number) => {
+          if (err) {
+            if (err.label) errorList.push(`[Form Beasiswa] Pertanyaan #${idx + 1}: ${err.label.message}`);
+            if (err.options) errorList.push(`[Form Beasiswa] Pertanyaan #${idx + 1} (Dropdown): ${err.options.message}`);
+          }
+        });
+      }
     }
 
     if (errorList.length === 0 && Object.keys(errors).length > 0) {
@@ -417,6 +539,35 @@ export default function AdminVolunteerPrograms() {
 
     return errorList;
   };
+
+  const renderProgramStatusBadge = (p: VolunteerProgramRow) => {
+    const computed = getVolunteerProgramStatus({
+      status: p.status,
+      registration_start: p.registration_start,
+      registration_end: p.registration_end,
+      program_end: p.program_end,
+    });
+
+    const hasDates = p.registration_start && p.registration_end && p.program_end;
+    const suffix = hasDates ? ' (Otomatis)' : '';
+
+    let color = 'bg-emerald-100 text-emerald-700';
+    if (computed === 'closed') color = 'bg-rose-100 text-rose-700';
+    else if (computed === 'ongoing') color = 'bg-amber-100 text-amber-700';
+
+    return (
+      <span className={`px-2.5 py-1 text-xs font-semibold rounded-full ${color}`}>
+        {computed.toUpperCase()}{suffix}
+      </span>
+    );
+  };
+
+  // Alias pembantu untuk render form builder dinamis kustom Reguler / Beasiswa
+  const currentFields = activeFormTab === 'beasiswa' ? beasiswaFields : regulerFields;
+  const currentAppend = activeFormTab === 'beasiswa' ? appendBeasiswa : appendReguler;
+  const currentRemove = activeFormTab === 'beasiswa' ? removeBeasiswa : removeReguler;
+  const currentSwap = activeFormTab === 'beasiswa' ? swapBeasiswa : swapReguler;
+  const currentFieldName = activeFormTab === 'beasiswa' ? 'form_config.beasiswa' : 'form_config.reguler';
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden mt-6">
@@ -476,9 +627,7 @@ export default function AdminVolunteerPrograms() {
                   </td>
                   <td className="px-6 py-4"><span className="px-2 py-1 bg-slate-100 rounded text-slate-600 font-mono text-xs">{p.slug}</span></td>
                   <td className="px-6 py-4">
-                    <span className={`px-2.5 py-1 text-xs font-semibold rounded-full ${(p.status || 'open') === 'open' ? 'bg-emerald-100 text-emerald-700' : (p.status || 'open') === 'closed' ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-700'}`}>
-                      {(p.status || 'open').toUpperCase()}
-                    </span>
+                    {renderProgramStatusBadge(p)}
                   </td>
                   <td className="px-6 py-4 text-right">
                     <button onClick={() => openEdit(p)} className="p-2 text-slate-400 hover:text-zinc-900 mx-1"><Edit2 size={16} /></button>
@@ -541,7 +690,7 @@ export default function AdminVolunteerPrograms() {
             </label>
           </div>
 
-          {/* Row 2: Lokasi & Status */}
+          {/* Row 2: Lokasi & Status Manual */}
           <div className="grid grid-cols-2 gap-4">
             <label className="block">
               <span className="text-sm font-medium text-slate-700">Lokasi</span>
@@ -549,7 +698,7 @@ export default function AdminVolunteerPrograms() {
               {errors.location && <p className="text-xs text-rose-600 mt-1">{errors.location.message}</p>}
             </label>
             <label className="block">
-              <span className="text-sm font-medium text-slate-700">Status Pendaftaran</span>
+              <span className="text-sm font-medium text-slate-700">Status Pendaftaran (Manual Override)</span>
               <select {...register('status')} className="mt-1 w-full px-3 py-2 text-sm border border-slate-200 rounded-lg">
                 <option value="open">Buka (Open)</option>
                 <option value="closed">Tutup (Closed)</option>
@@ -577,6 +726,33 @@ export default function AdminVolunteerPrograms() {
               <input type="text" {...register('external_link')} placeholder="https://example.com/guidebook.pdf" className="mt-1 w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:ring-1 focus:ring-zinc-900" />
               {errors.external_link && <p className="text-xs text-rose-600 mt-1">{errors.external_link.message}</p>}
             </label>
+          </div>
+
+          {/* Row 2.7: Penjadwalan Otomatisasi Status (Tanggal) */}
+          <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Penjadwalan Otomatisasi Status (Opsional)</h4>
+            </div>
+            <p className="text-[11px] text-slate-500 leading-relaxed">
+              Jika semua kolom tanggal diisi, status pendaftaran relawan akan ter-update secara otomatis berdasarkan waktu. Kosongkan jika ingin mengontrol status secara manual.
+            </p>
+            <div className="grid grid-cols-3 gap-3">
+              <label className="block">
+                <span className="text-[11px] font-semibold text-slate-600">Mulai Pendaftaran</span>
+                <input type="datetime-local" {...register('registration_start')} className={`mt-1 w-full px-2.5 py-1.5 text-xs border rounded-lg bg-white focus:outline-none ${errors.registration_start ? 'border-rose-300 focus:ring-1 focus:ring-rose-500' : 'border-slate-200'}`} />
+                {errors.registration_start && <p className="text-[10px] text-rose-600 mt-1">{errors.registration_start.message}</p>}
+              </label>
+              <label className="block">
+                <span className="text-[11px] font-semibold text-slate-600">Selesai Pendaftaran</span>
+                <input type="datetime-local" {...register('registration_end')} className={`mt-1 w-full px-2.5 py-1.5 text-xs border rounded-lg bg-white focus:outline-none ${errors.registration_end ? 'border-rose-300 focus:ring-1 focus:ring-rose-500' : 'border-slate-200'}`} />
+                {errors.registration_end && <p className="text-[10px] text-rose-600 mt-1">{errors.registration_end.message}</p>}
+              </label>
+              <label className="block">
+                <span className="text-[11px] font-semibold text-slate-600">Selesai Kegiatan</span>
+                <input type="datetime-local" {...register('program_end')} className={`mt-1 w-full px-2.5 py-1.5 text-xs border rounded-lg bg-white focus:outline-none ${errors.program_end ? 'border-rose-300 focus:ring-1 focus:ring-rose-500' : 'border-slate-200'}`} />
+                {errors.program_end && <p className="text-[10px] text-rose-600 mt-1">{errors.program_end.message}</p>}
+              </label>
+            </div>
           </div>
 
           {/* Deskripsi Singkat — Rich Text */}
@@ -649,25 +825,53 @@ export default function AdminVolunteerPrograms() {
 
           {/* Pembangun Formulir Dinamis (Google Forms Style) */}
           <div className="border-t border-slate-200 pt-6 space-y-4">
-            <div className="flex items-start justify-between gap-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
                 <h4 className="text-sm font-bold text-slate-800">Desain Formulir Pendaftaran</h4>
                 <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-                  Buat pertanyaan/field kustom untuk calon relawan. Kolom <strong>Nama Lengkap</strong>, <strong>Email</strong>, dan <strong>WhatsApp</strong> selalu aktif secara bawaan demi kebutuhan dasar sistem.
+                  Buat pertanyaan/field kustom untuk calon relawan. Kolom Nama, Email, dan WhatsApp selalu aktif secara bawaan demi kebutuhan sistem.
                 </p>
               </div>
+
+              {/* Tab selector untuk mengedit reguler vs beasiswa */}
+              <div className="inline-flex p-1 bg-slate-100 border border-slate-200 rounded-xl">
+                <button
+                  type="button"
+                  onClick={() => setActiveFormTab('reguler')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                    activeFormTab === 'reguler' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500'
+                  }`}
+                >
+                  Reguler
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveFormTab('beasiswa')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                    activeFormTab === 'beasiswa' ? 'bg-zinc-900 text-white shadow-sm' : 'text-slate-500'
+                  }`}
+                >
+                  Beasiswa
+                </button>
+              </div>
+            </div>
+
+            <div className="flex justify-between items-center bg-emerald-50/50 border border-emerald-100 p-3.5 rounded-xl">
+              <span className="text-xs text-emerald-800 font-semibold">
+                Mengedit: Form Pendaftaran <span className="underline uppercase">{activeFormTab}</span>
+              </span>
               <button
                 type="button"
-                onClick={() => append({ id: `custom_${Date.now()}`, type: 'text', label: '', required: false, options: [] })}
-                className="flex items-center gap-1.5 px-3 py-2 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-xl hover:bg-emerald-100 transition-colors text-xs font-semibold shrink-0 cursor-pointer"
+                onClick={() => currentAppend({ id: `custom_${Date.now()}`, type: 'text', label: '', required: false, options: [] })}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-500 transition-colors text-xs font-semibold shrink-0 cursor-pointer shadow-sm"
               >
                 <Plus size={14} /> Tambah Pertanyaan
               </button>
             </div>
 
             <div className="space-y-3">
-              {fields.map((field, index) => {
-                const type = watch(`form_config.${index}.type`);
+              {currentFields.map((field, index) => {
+                const type = watch(`${currentFieldName}.${index}.type` as any);
                 return (
                   <div key={field.id} className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-3 relative group">
                     <div className="flex items-center gap-3">
@@ -677,18 +881,18 @@ export default function AdminVolunteerPrograms() {
                       <div className="flex-1 flex flex-col">
                         <input
                           type="text"
-                          {...register(`form_config.${index}.label` as const)}
+                          {...register(`${currentFieldName}.${index}.label` as any)}
                           placeholder="Teks Pertanyaan / Nama Field"
                           className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-zinc-900 bg-white font-medium"
                         />
-                        {errors.form_config?.[index]?.label && (
-                          <p className="text-[10px] text-rose-600 mt-0.5">{(errors.form_config[index] as any).label?.message}</p>
+                        {errors.form_config && (errors.form_config as any)[activeFormTab]?.[index]?.label && (
+                          <p className="text-[10px] text-rose-600 mt-0.5">{(errors.form_config as any)[activeFormTab][index].label.message}</p>
                         )}
                       </div>
 
                       {/* Tipe input */}
                       <select
-                        {...register(`form_config.${index}.type` as const)}
+                        {...register(`${currentFieldName}.${index}.type` as any)}
                         className="px-3 py-2 text-xs border border-slate-200 rounded-lg bg-white focus:outline-none"
                       >
                         <option value="text">Jawaban Singkat (Text)</option>
@@ -705,7 +909,7 @@ export default function AdminVolunteerPrograms() {
                       <label className="flex items-center gap-1.5 text-xs font-medium text-slate-600 cursor-pointer select-none">
                         <input
                           type="checkbox"
-                          {...register(`form_config.${index}.required` as const)}
+                          {...register(`${currentFieldName}.${index}.required` as any)}
                           className="h-3.5 w-3.5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
                         />
                         Wajib
@@ -716,15 +920,15 @@ export default function AdminVolunteerPrograms() {
                         <button
                           type="button"
                           disabled={index === 0}
-                          onClick={() => swap(index, index - 1)}
+                          onClick={() => currentSwap(index, index - 1)}
                           className="p-1.5 text-slate-400 hover:text-slate-800 disabled:opacity-30 disabled:hover:text-slate-400 border-r border-slate-100 cursor-pointer"
                         >
                           <ChevronUp size={12} />
                         </button>
                         <button
                           type="button"
-                          disabled={index === fields.length - 1}
-                          onClick={() => swap(index, index + 1)}
+                          disabled={index === currentFields.length - 1}
+                          onClick={() => currentSwap(index, index + 1)}
                           className="p-1.5 text-slate-400 hover:text-slate-800 disabled:opacity-30 disabled:hover:text-slate-400 cursor-pointer"
                         >
                           <ChevronDown size={12} />
@@ -734,7 +938,7 @@ export default function AdminVolunteerPrograms() {
                       {/* Delete */}
                       <button
                         type="button"
-                        onClick={() => remove(index)}
+                        onClick={() => currentRemove(index)}
                         className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition-colors cursor-pointer"
                       >
                         <Trash2 size={14} />
@@ -746,7 +950,7 @@ export default function AdminVolunteerPrograms() {
                       <div className="pl-6 space-y-2">
                         <span className="text-[10px] font-bold text-slate-500">Pilihan Opsi Dropdown:</span>
                         <Controller
-                          name={`form_config.${index}.options`}
+                          name={`${currentFieldName}.${index}.options` as any}
                           control={control}
                           render={({ field }) => (
                             <OptionsTagInput
@@ -755,8 +959,8 @@ export default function AdminVolunteerPrograms() {
                             />
                           )}
                         />
-                        {errors.form_config?.[index]?.options && (
-                          <p className="text-[10px] text-rose-600 mt-0.5">{(errors.form_config[index] as any).options?.message}</p>
+                        {errors.form_config && (errors.form_config as any)[activeFormTab]?.[index]?.options && (
+                          <p className="text-[10px] text-rose-600 mt-0.5">{(errors.form_config as any)[activeFormTab][index].options.message}</p>
                         )}
                       </div>
                     )}

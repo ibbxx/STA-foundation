@@ -312,6 +312,9 @@ export interface Database {
           form_config: Json;
           created_at: string;
           updated_at: string;
+          registration_start: string | null;
+          registration_end: string | null;
+          program_end: string | null;
         };
         Insert: {
           id?: string;
@@ -330,6 +333,9 @@ export interface Database {
           form_config?: Json;
           created_at?: string;
           updated_at?: string;
+          registration_start?: string | null;
+          registration_end?: string | null;
+          program_end?: string | null;
         };
         Update: {
           id?: string;
@@ -348,6 +354,9 @@ export interface Database {
           form_config?: Json;
           created_at?: string;
           updated_at?: string;
+          registration_start?: string | null;
+          registration_end?: string | null;
+          program_end?: string | null;
         };
         Relationships: any[];
       };
@@ -371,6 +380,7 @@ export interface Database {
           status: 'pending' | 'verified' | 'rejected';
           answers: Json;
           created_at: string;
+          registration_type: 'reguler' | 'beasiswa';
         };
         Insert: {
           id?: string;
@@ -391,6 +401,7 @@ export interface Database {
           status?: 'pending' | 'verified' | 'rejected';
           answers?: Json;
           created_at?: string;
+          registration_type?: 'reguler' | 'beasiswa';
         };
         Update: {
           id?: string;
@@ -411,6 +422,7 @@ export interface Database {
           status?: 'pending' | 'verified' | 'rejected';
           answers?: Json;
           created_at?: string;
+          registration_type?: 'reguler' | 'beasiswa';
         };
         Relationships: any[];
       };

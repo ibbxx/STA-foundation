@@ -3,28 +3,60 @@ import { fetchAllVolunteerRegistrations, fetchVolunteerPrograms, updateVolunteer
 import type { VolunteerRegistrationRow, VolunteerProgramRow } from '../../lib/supabase/types';
 import { supabase } from '../../lib/supabase/types';
 import { formatAdminDate } from '../../lib/admin/helpers';
+import { DEFAULT_REGULER_FORM_CONFIG, DEFAULT_BEASISWA_FORM_CONFIG } from '../../components/admin/AdminVolunteerPrograms';
 import {
   Loader2, RefreshCw, CheckCircle2, XCircle, Search, ExternalLink,
-  Download, MessageCircle, UserCheck, Clock, Users, ChevronRight,
+  UserCheck, Clock, Users, ChevronRight,
   X, MapPin, Phone, Mail, Cake, Shirt, BookOpen, Target, AlertCircle,
-  FileImage, Filter, FileSpreadsheet, Trash2
+  FileImage, Filter, FileSpreadsheet, Trash2, FileText, MessageCircle
 } from 'lucide-react';
 import { logError } from '../../lib/error-logger';
 
 type StatusFilter = 'all' | 'pending' | 'verified' | 'rejected';
+type TypeFilter = 'all' | 'reguler' | 'beasiswa';
+type ProgramTypeFilter = 'all' | 'jelajah' | 'eduxplore' | 'bangun-asa';
+
+// Helper to extract dynamic form config based on path
+function getRegistrationFormConfig(prog: VolunteerProgramRow | undefined, registrationType: string | null | undefined) {
+  if (!prog || !prog.form_config) return DEFAULT_REGULER_FORM_CONFIG;
+  let raw: any;
+  try {
+    raw = typeof prog.form_config === 'string'
+      ? JSON.parse(prog.form_config)
+      : prog.form_config;
+  } catch {
+    return DEFAULT_REGULER_FORM_CONFIG;
+  }
+
+  if (Array.isArray(raw)) {
+    return raw.length > 0 ? raw : DEFAULT_REGULER_FORM_CONFIG;
+  }
+
+  if (raw && typeof raw === 'object') {
+    const type = registrationType || 'reguler';
+    return raw[type] || raw['reguler'] || DEFAULT_REGULER_FORM_CONFIG;
+  }
+
+  return DEFAULT_REGULER_FORM_CONFIG;
+}
 
 export default function AdminEduxplore() {
   const [registrations, setRegistrations] = useState<VolunteerRegistrationRow[]>([]);
   const [programs, setPrograms] = useState<VolunteerProgramRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedProgram, setSelectedProgram] = useState<string>('all');
+  const [selectedProgramType, setSelectedProgramType] = useState<ProgramTypeFilter>('all');
   const [selectedStatus, setSelectedStatus] = useState<StatusFilter>('all');
+  const [selectedType, setSelectedType] = useState<TypeFilter>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [selected, setSelected] = useState<VolunteerRegistrationRow | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [updating, setUpdating] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [signedUrls, setSignedUrls] = useState<Record<string, string>>({});
+
+  const handleProgramTypeChange = (type: ProgramTypeFilter) => {
+    setSelectedProgramType(type);
+  };
 
   // Resolve dynamic signed URLs for selected registration files
   useEffect(() => {
@@ -41,17 +73,7 @@ export default function AdminEduxplore() {
 
       // Find program formConfig
       const prog = programs.find(p => p.id === selected!.program_id);
-      const progConfig = prog?.form_config
-        ? (Array.isArray(prog.form_config) ? prog.form_config : JSON.parse(prog.form_config as string))
-        : null;
-
-      const activeConfig = Array.isArray(progConfig) && progConfig.length > 0
-        ? progConfig
-        : [
-            { id: 'bukti_dp', type: 'file' },
-            { id: 'bukti_follow_ig', type: 'file' },
-            { id: 'foto_id_card', type: 'file' }
-          ];
+      const activeConfig = getRegistrationFormConfig(prog, selected!.registration_type);
 
       const fileQuestions = activeConfig.filter((q: any) => q.type === 'file');
 
@@ -59,7 +81,7 @@ export default function AdminEduxplore() {
         fileQuestions.map(async (q: any) => {
           let pathOrUrl = answersObj[q.id];
 
-          // Fallback to table columns
+          // Fallback to table columns (legacy support)
           if (!pathOrUrl) {
             if (q.id === 'bukti_dp') pathOrUrl = selected!.bukti_dp_url;
             else if (q.id === 'bukti_follow_ig') pathOrUrl = selected!.bukti_follow_url;
@@ -157,8 +179,10 @@ export default function AdminEduxplore() {
   };
 
   const filtered = registrations.filter(r => {
-    if (selectedProgram !== 'all' && r.program_id !== selectedProgram) return false;
+    const prog = programs.find(p => p.id === r.program_id);
+    if (selectedProgramType !== 'all' && prog?.program_type !== selectedProgramType) return false;
     if (selectedStatus !== 'all' && r.status !== selectedStatus) return false;
+    if (selectedType !== 'all' && (r.registration_type || 'reguler') !== selectedType) return false;
     const q = searchQuery.toLowerCase();
     return (
       (r.nama_lengkap || '').toLowerCase().includes(q) ||
@@ -167,64 +191,57 @@ export default function AdminEduxplore() {
     );
   });
 
+  const statsFiltered = registrations.filter(r => {
+    const prog = programs.find(p => p.id === r.program_id);
+    if (selectedProgramType !== 'all' && prog?.program_type !== selectedProgramType) return false;
+    if (selectedType !== 'all' && (r.registration_type || 'reguler') !== selectedType) return false;
+    return true;
+  });
+
   const stats = {
-    total: registrations.length,
-    pending: registrations.filter(r => r.status === 'pending').length,
-    verified: registrations.filter(r => r.status === 'verified').length,
-    rejected: registrations.filter(r => r.status === 'rejected').length,
+    total: statsFiltered.length,
+    pending: statsFiltered.filter(r => r.status === 'pending').length,
+    verified: statsFiltered.filter(r => r.status === 'verified').length,
+    rejected: statsFiltered.filter(r => r.status === 'rejected').length,
   };
 
   const exportCsv = () => {
-    // Determine fields to export based on dynamic configs
     let fieldsToExport: { id: string; label: string }[] = [
       { id: 'nama_lengkap', label: 'Nama Lengkap' },
       { id: 'email', label: 'Email' },
       { id: 'whatsapp', label: 'WhatsApp' },
     ];
 
-    if (selectedProgram !== 'all') {
-      const prog = programs.find(p => p.id === selectedProgram);
-      const progConfig = prog?.form_config
-        ? (Array.isArray(prog.form_config) ? prog.form_config : JSON.parse(prog.form_config as string))
-        : [];
-      if (Array.isArray(progConfig)) {
-        progConfig.forEach((q: any) => {
-          if (!['nama_lengkap', 'email', 'whatsapp'].includes(q.id)) {
-            fieldsToExport.push({ id: q.id, label: q.label });
-          }
-        });
-      }
-    } else {
-      // General exporter includes standard fields
-      fieldsToExport.push(
-        { id: 'whatsapp_emergency', label: 'Kontak Darurat' },
-        { id: 'alamat', label: 'Alamat' },
-        { id: 'tanggal_lahir', label: 'Tanggal Lahir' },
-        { id: 'size_baju', label: 'Ukuran Baju' },
-        { id: 'pendidikan', label: 'Latar Belakang Pendidikan' },
-        { id: 'bidang_diminati', label: 'Bidang Diminati' },
-        { id: 'riwayat_penyakit', label: 'Riwayat Penyakit' }
-      );
+    // General exporter includes standard fields
+    fieldsToExport.push(
+      { id: 'whatsapp_emergency', label: 'Kontak Darurat' },
+      { id: 'alamat', label: 'Alamat' },
+      { id: 'tanggal_lahir', label: 'Tanggal Lahir' },
+      { id: 'size_baju', label: 'Ukuran Baju' },
+      { id: 'pendidikan', label: 'Latar Belakang Pendidikan' },
+      { id: 'bidang_diminati', label: 'Bidang Diminati' },
+      { id: 'riwayat_penyakit', label: 'Riwayat Penyakit' }
+    );
 
-      // Accumulate any other dynamic answers that might be in the database
-      const foundKeys = new Set<string>();
-      filtered.forEach(r => {
-        const answersObj: Record<string, any> = typeof r.answers === 'string'
-          ? JSON.parse(r.answers)
-          : (r.answers as Record<string, any> || {});
-        Object.keys(answersObj).forEach(key => {
-          if (!fieldsToExport.some(f => f.id === key) && !['bukti_dp', 'bukti_follow_ig', 'foto_id_card'].includes(key)) {
-            foundKeys.add(key);
-          }
-        });
+    // Accumulate any other dynamic answers that might be in the database
+    const foundKeys = new Set<string>();
+    filtered.forEach(r => {
+      const answersObj: Record<string, any> = typeof r.answers === 'string'
+        ? JSON.parse(r.answers)
+        : (r.answers as Record<string, any> || {});
+      Object.keys(answersObj).forEach(key => {
+        if (!fieldsToExport.some(f => f.id === key) && !['bukti_dp', 'bukti_follow_ig', 'foto_id_card'].includes(key)) {
+          foundKeys.add(key);
+        }
       });
-      foundKeys.forEach(key => {
-        fieldsToExport.push({ id: key, label: key });
-      });
-    }
+    });
+    foundKeys.forEach(key => {
+      fieldsToExport.push({ id: key, label: key });
+    });
 
     // Add metadata
     fieldsToExport.push(
+      { id: 'registration_type_label', label: 'Jalur Pendaftaran' },
       { id: 'program_title', label: 'Program Relawan' },
       { id: 'status_label', label: 'Status Pendaftaran' },
       { id: 'created_at_label', label: 'Tanggal Daftar' }
@@ -241,6 +258,7 @@ export default function AdminEduxplore() {
         if (f.id === 'nama_lengkap') row[f.label] = r.nama_lengkap;
         else if (f.id === 'email') row[f.label] = r.email;
         else if (f.id === 'whatsapp') row[f.label] = r.whatsapp;
+        else if (f.id === 'registration_type_label') row[f.label] = (r.registration_type || 'reguler').toUpperCase();
         else if (f.id === 'program_title') row[f.label] = programs.find(p => p.id === r.program_id)?.title || '-';
         else if (f.id === 'status_label') row[f.label] = r.status === 'verified' ? 'Diterima' : r.status === 'rejected' ? 'Ditolak' : 'Perlu Review';
         else if (f.id === 'created_at_label') row[f.label] = formatAdminDate(r.created_at);
@@ -293,24 +311,7 @@ export default function AdminEduxplore() {
   };
 
   const program = programs.find(p => p.id === selected?.program_id);
-  const formConfig = program?.form_config
-    ? (Array.isArray(program.form_config) ? program.form_config : JSON.parse(program.form_config as string))
-    : null;
-
-  const activeFormConfig = Array.isArray(formConfig) && formConfig.length > 0
-    ? formConfig
-    : [
-        { id: 'whatsapp_emergency', type: 'text', label: 'WA Darurat', required: true },
-        { id: 'alamat', type: 'textarea', label: 'Alamat', required: true },
-        { id: 'tanggal_lahir', type: 'date', label: 'Tanggal Lahir', required: true },
-        { id: 'size_baju', type: 'select', label: 'Ukuran Baju', required: true, options: ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL'] },
-        { id: 'pendidikan', type: 'text', label: 'Latar Belakang Pendidikan', required: true },
-        { id: 'bidang_diminati', type: 'select', label: 'Bidang yang Diminati', required: true, options: ['Pengembangan Pemuda', 'Pendidikan dan Pengajaran Siswa Guru', 'Media dan Promosi serta Branding Desa', 'Branding Budaya dan Lingkungan Lokal'] },
-        { id: 'riwayat_penyakit', type: 'textarea', label: 'Riwayat Penyakit', required: false },
-        { id: 'bukti_dp', type: 'file', label: 'Bukti DP', required: true },
-        { id: 'bukti_follow_ig', type: 'file', label: 'Bukti Follow IG', required: true },
-        { id: 'foto_id_card', type: 'file', label: 'Pas Foto (untuk ID Card)', required: true }
-      ];
+  const activeFormConfig = getRegistrationFormConfig(program, selected?.registration_type);
 
   const parsedAnswers: Record<string, any> = selected
     ? (typeof selected.answers === 'string'
@@ -347,7 +348,6 @@ export default function AdminEduxplore() {
             <FileSpreadsheet size={15} /> Export CSV
           </button>
           <button onClick={loadData} className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 transition-colors text-sm">
-
             <RefreshCw size={15} /> Refresh
           </button>
         </div>
@@ -406,25 +406,36 @@ export default function AdminEduxplore() {
             </div>
             <div className="flex gap-2">
               <div className="relative flex-1">
-                <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                <Filter className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={12} />
                 <select
-                  value={selectedProgram}
-                  onChange={e => setSelectedProgram(e.target.value)}
-                  className="w-full pl-8 pr-3 py-2 bg-white border border-slate-200 rounded-xl text-xs outline-none appearance-none"
+                  value={selectedProgramType}
+                  onChange={e => handleProgramTypeChange(e.target.value as ProgramTypeFilter)}
+                  className="w-full pl-7 pr-2 py-2 bg-white border border-slate-200 rounded-xl text-[11px] outline-none appearance-none font-medium text-slate-700"
                 >
-                  <option value="all">Semua Program</option>
-                  {programs.map(p => <option key={p.id} value={p.id}>{p.title}</option>)}
+                  <option value="all">Semua Kategori</option>
+                  <option value="jelajah">Jelajah Tanah Air</option>
+                  <option value="eduxplore">EduXplore</option>
+                  <option value="bangun-asa">Bangun 1000 Asa</option>
                 </select>
               </div>
               <select
                 value={selectedStatus}
                 onChange={e => setSelectedStatus(e.target.value as StatusFilter)}
-                className="px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs outline-none"
+                className="px-2 py-2 bg-white border border-slate-200 rounded-xl text-[11px] outline-none font-medium text-slate-700"
               >
                 <option value="all">Semua Status</option>
                 <option value="pending">Perlu Review</option>
                 <option value="verified">Diterima</option>
                 <option value="rejected">Ditolak</option>
+              </select>
+              <select
+                value={selectedType}
+                onChange={e => setSelectedType(e.target.value as TypeFilter)}
+                className="px-2 py-2 bg-white border border-slate-200 rounded-xl text-[11px] outline-none font-medium text-slate-700"
+              >
+                <option value="all">Semua Jalur</option>
+                <option value="reguler">Reguler</option>
+                <option value="beasiswa">Beasiswa</option>
               </select>
             </div>
           </div>
@@ -484,14 +495,26 @@ export default function AdminEduxplore() {
                       {(reg.nama_lengkap || '?')[0].toUpperCase()}
                     </div>
                     <div className="flex-1 min-w-0 overflow-hidden">
-                      <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center justify-between gap-1">
                         <p className="text-sm font-semibold text-slate-900 truncate">{reg.nama_lengkap}</p>
-                        <span className={`inline-flex text-[10px] font-bold px-2 py-0.5 rounded-full border flex-shrink-0 ${statusBadge(reg.status)}`}>
+                        <span className={`inline-flex text-[9px] font-bold px-1.5 py-0.5 rounded border flex-shrink-0 ${
+                          (reg.registration_type || 'reguler') === 'beasiswa'
+                            ? 'bg-violet-50 text-violet-700 border-violet-100'
+                            : 'bg-blue-50 text-blue-700 border-blue-100'
+                        }`}>
+                          {(reg.registration_type || 'reguler').toUpperCase()}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between gap-2 mt-0.5">
+                        <p className="text-xs text-slate-500 truncate flex-1">{reg.bidang_diminati || reg.email}</p>
+                        <span className={`inline-flex text-[9px] font-bold px-1.5 py-0.5 rounded-full border flex-shrink-0 ${statusBadge(reg.status)}`}>
                           {statusLabel(reg.status)}
                         </span>
                       </div>
-                      <p className="text-xs text-slate-500 truncate mt-0.5">{reg.bidang_diminati || reg.email}</p>
-                      <p className="text-[10px] text-slate-400 mt-1">{formatAdminDate(reg.created_at)}</p>
+                      <div className="flex items-center justify-between mt-1.5 text-[10px] text-slate-400">
+                        <span className="truncate max-w-[150px] bg-slate-100 px-1.5 py-0.5 rounded font-medium text-slate-600">{getProgramName(reg.program_id)}</span>
+                        <span>{formatAdminDate(reg.created_at)}</span>
+                      </div>
                     </div>
                     <ChevronRight size={14} className="text-slate-300 flex-shrink-0 pr-1" />
                   </button>
@@ -511,8 +534,17 @@ export default function AdminEduxplore() {
                   {(selected.nama_lengkap || '?')[0].toUpperCase()}
                 </div>
                 <div>
-                  <p className="font-bold text-slate-900">{selected.nama_lengkap}</p>
-                  <p className="text-xs text-slate-500">{getProgramName(selected.program_id)}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="font-bold text-slate-900">{selected.nama_lengkap}</p>
+                    <span className={`inline-flex text-[9px] font-extrabold px-1.5 py-0.5 rounded border ${
+                      (selected.registration_type || 'reguler') === 'beasiswa'
+                        ? 'bg-violet-100 text-violet-800 border-violet-200'
+                        : 'bg-blue-100 text-blue-800 border-blue-200'
+                    }`}>
+                      JALUR {(selected.registration_type || 'reguler').toUpperCase()}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-0.5">{getProgramName(selected.program_id)}</p>
                 </div>
               </div>
               <button onClick={() => setSelected(null)} className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:bg-slate-100 transition-colors">
@@ -579,9 +611,9 @@ export default function AdminEduxplore() {
                               <div className={`w-7 h-7 rounded-lg ${bgClass} flex items-center justify-center flex-shrink-0 mt-0.5`}>
                                 <Icon size={14} />
                               </div>
-                              <div>
+                              <div className="flex-1">
                                 <p className="text-[11px] text-slate-400 font-medium">{q.label}</p>
-                                <p className="text-sm text-slate-800 font-semibold leading-relaxed">
+                                <p className="text-sm text-slate-800 font-semibold leading-relaxed whitespace-pre-wrap">
                                   {val || <span className="italic text-slate-300 font-normal">Belum diisi</span>}
                                 </p>
                               </div>
@@ -601,17 +633,20 @@ export default function AdminEduxplore() {
                         .filter((q: any) => q.type === 'file')
                         .map((q: any) => {
                           const url = signedUrls[q.id];
+                          const isPdf = url && (url.toLowerCase().includes('.pdf') || url.toLowerCase().includes('pdf%2F') || q.id === 'cv' || q.id === 'motivation_letter' || q.id === 'social_project_proposal');
+
                           let color = 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100';
-                          if (q.id === 'bukti_dp') color = 'bg-blue-50 text-blue-700 border-blue-100 hover:bg-blue-100';
-                          else if (q.id === 'bukti_follow_ig') color = 'bg-indigo-50 text-indigo-700 border-indigo-100 hover:bg-indigo-100';
-                          else if (q.id === 'foto_id_card') color = 'bg-violet-50 text-violet-700 border-violet-100 hover:bg-violet-100';
+                          if (q.id === 'bukti_dp' || q.id === 'bukti_pembayaran') color = 'bg-blue-50 text-blue-700 border-blue-100 hover:bg-blue-100';
+                          else if (q.id === 'bukti_follow_ig' || q.id === 'bukti_follow_sta' || q.id === 'bukti_follow_bepro') color = 'bg-indigo-50 text-indigo-700 border-indigo-100 hover:bg-indigo-100';
+                          else if (q.id === 'foto_id_card' || q.id === 'cv') color = 'bg-violet-50 text-violet-700 border-violet-100 hover:bg-violet-100';
+                          else if (q.id === 'motivation_letter' || q.id === 'social_project_proposal') color = 'bg-fuchsia-50 text-fuchsia-700 border-fuchsia-100 hover:bg-fuchsia-100';
 
                           return url ? (
                             <a key={q.id} href={url} target="_blank" rel="noreferrer"
                               className={`flex items-center justify-between px-4 py-3 rounded-xl border text-sm font-medium transition-colors ${color}`}
                             >
                               <div className="flex items-center gap-2.5">
-                                <FileImage size={16} />
+                                {isPdf ? <FileText size={16} /> : <FileImage size={16} />}
                                 <span>{q.label}</span>
                               </div>
                               <ExternalLink size={14} className="opacity-60" />
