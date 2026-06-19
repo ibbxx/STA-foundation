@@ -529,6 +529,20 @@ export default function AdminImpactMap() {
                 <option value="Selesai">Selesai</option>
                 <option value="Akan Datang">Akan Datang</option>
               </select>
+              <div className="grid grid-cols-2 gap-3">
+                <input 
+                  type="text" 
+                  {...register('journeyPeriod')} 
+                  placeholder="Periode Jejak (e.g. Agustus 2024)" 
+                  className="px-4 py-2.5 bg-slate-50 border border-slate-100 rounded-xl text-xs outline-none focus:ring-1 focus:ring-emerald-500" 
+                />
+                <input 
+                  type="text" 
+                  {...register('journeyProgress')} 
+                  placeholder="Capaian (e.g. 100% Selesai)" 
+                  className="px-4 py-2.5 bg-slate-50 border border-slate-100 rounded-xl text-xs outline-none focus:ring-1 focus:ring-emerald-500" 
+                />
+              </div>
             </div>
           </div>
 
