@@ -190,8 +190,13 @@ function VolunteerFormInner({ registrationType, programId, programTitle, activeF
       return;
     }
 
-    if (file.size > 10 * 1024 * 1024) {
-      setErrorMsg('Ukuran file maksimal 10MB.');
+    if (isPdf && file.size > 1 * 1024 * 1024) {
+      setErrorMsg('Ukuran file PDF maksimal 1MB.');
+      return;
+    }
+
+    if (isImage && file.size > 10 * 1024 * 1024) {
+      setErrorMsg('Ukuran gambar maksimal 10MB.');
       return;
     }
 

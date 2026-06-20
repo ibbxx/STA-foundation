@@ -74,8 +74,8 @@ Deno.serve(async (request) => {
       if (value instanceof File) {
         const isPdf = value.type === 'application/pdf' || value.name.toLowerCase().endsWith('.pdf');
         if (isPdf) {
-          if (value.size <= 0 || value.size > 10 * 1024 * 1024) {
-            throw new Error('Ukuran file PDF maksimal 10MB.');
+          if (value.size <= 0 || value.size > 1 * 1024 * 1024) {
+            throw new Error('Ukuran file PDF maksimal 1MB.');
           }
         } else {
           validateImage(value);
