@@ -13,10 +13,17 @@ CREATE INDEX IF NOT EXISTS idx_campaign_updates_campaign_id
   ON public.campaign_updates(campaign_id);
 
 -- 2. Konversi leaderboard dari VIEW ke MATERIALIZED VIEW
---    Materialized view menyimpan hasil query di disk, sehingga
---    tidak perlu scan ulang seluruh tabel donations setiap kali diakses.
-DROP VIEW IF EXISTS public.leaderboard;
-DROP MATERIALIZED VIEW IF EXISTS public.leaderboard;
+--    Menggunakan PL/pgSQL block agar aman dijalankan berulang kali (idempotent)
+--    baik saat leaderboard masih berupa VIEW biasa maupun sudah menjadi MATERIALIZED VIEW.
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_class WHERE relname = 'leaderboard' AND relkind = 'v') THEN
+    DROP VIEW public.leaderboard;
+  ELSIF EXISTS (SELECT 1 FROM pg_class WHERE relname = 'leaderboard' AND relkind = 'm') THEN
+    DROP MATERIALIZED VIEW public.leaderboard;
+  END IF;
+END
+$$;
 
 CREATE MATERIALIZED VIEW IF NOT EXISTS public.leaderboard AS
 SELECT
