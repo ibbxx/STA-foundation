@@ -111,9 +111,7 @@ export async function fetchPublicCampaigns(options?: {
     campaignsQuery = campaignsQuery.eq('status', 'active');
   }
 
-  if (options?.limit) {
-    campaignsQuery = campaignsQuery.limit(options.limit);
-  }
+  campaignsQuery = campaignsQuery.limit(options?.limit ?? 100);
 
   const [{ data: campaignRows, error: campaignsError }, { data: categoryRows, error: categoriesError }] = await Promise.all([
     campaignsQuery,

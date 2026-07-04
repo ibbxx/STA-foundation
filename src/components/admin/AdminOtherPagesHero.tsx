@@ -7,7 +7,6 @@ import { parseSiteContentValue } from '../../lib/supabase/types';
 
 const PAGES_CONFIG = [
   { key: 'hero_tentang_kami', label: 'Tentang Kami', description: 'Hero halaman profil yayasan.' },
-  { key: 'hero_events', label: 'Events', description: 'Hero halaman daftar kegiatan.' },
   { key: 'hero_laporkan', label: 'Laporkan Sekolah', description: 'Hero halaman formulir pelaporan.' },
   { key: 'hero_kontak', label: 'Hubungi Kami', description: 'Hero halaman informasi kontak.' },
   { key: 'modal_lapor_sekolah', label: 'Banner Modal Lapor', description: 'Gambar samping pada modal pelaporan.' },

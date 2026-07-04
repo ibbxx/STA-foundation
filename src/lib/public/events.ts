@@ -1,4 +1,8 @@
 import { supabase, type Json, type SiteContentRow } from '../supabase/types';
+import type { VolunteerProgramData, VolunteerTimelineItem } from '../eduxplore';
+import { getVolunteerProgramStatus } from '../eduxplore';
+
+export type { VolunteerProgramData };
 
 export type EventMapLocation = {
   id: string;
@@ -132,4 +136,71 @@ export async function fetchImpactMapLocations(): Promise<EventMapLocation[]> {
 
   const row = (data?.[0] ?? null) as Pick<SiteContentRow, 'value'> | null;
   return mapImpactMapValue(row?.value ?? null).locations;
+}
+
+/**
+ * Fetches all volunteer programs from the `volunteer_programs` table
+ * and parses their JSONB fields into strongly-typed objects.
+ * Computes runtime status based on registration/program dates.
+ */
+export async function fetchPublicVolunteerPrograms(): Promise<VolunteerProgramData[]> {
+  const { data, error } = await supabase
+    .from('volunteer_programs')
+    .select('id, slug, title, location, image_url, timeline, requirements, description, short_description, show_in_hero, program_type, status, form_config, external_link, registration_start, registration_end, program_end, created_at')
+    .order('created_at', { ascending: false })
+    .limit(50);
+
+  if (error) {
+    throw error;
+  }
+
+  if (!data) return [];
+
+  return data.map((row: any) => {
+    let timeline: VolunteerTimelineItem[] = [];
+    let requirements: string[] = [];
+    let formConfig: any = null;
+
+    try {
+      timeline = Array.isArray(row.timeline)
+        ? (row.timeline as unknown as VolunteerTimelineItem[])
+        : JSON.parse(row.timeline as string);
+    } catch { timeline = []; }
+
+    try {
+      requirements = Array.isArray(row.requirements)
+        ? (row.requirements as unknown as string[])
+        : JSON.parse(row.requirements as string);
+    } catch { requirements = []; }
+
+    try {
+      if (row.form_config) {
+        formConfig = typeof row.form_config === 'string'
+          ? JSON.parse(row.form_config)
+          : row.form_config;
+      }
+    } catch { formConfig = null; }
+
+    const computedStatus = getVolunteerProgramStatus(row);
+
+    return {
+      id: row.id,
+      slug: row.slug,
+      title: row.title,
+      location: row.location,
+      image_url: row.image_url,
+      timeline,
+      requirements,
+      description: row.description,
+      short_description: row.short_description,
+      show_in_hero: row.show_in_hero,
+      program_type: row.program_type || 'eduxplore',
+      status: computedStatus,
+      form_config: formConfig,
+      external_link: row.external_link,
+      registration_start: row.registration_start,
+      registration_end: row.registration_end,
+      program_end: row.program_end,
+    } satisfies VolunteerProgramData;
+  });
 }

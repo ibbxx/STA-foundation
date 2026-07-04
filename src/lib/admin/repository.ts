@@ -61,12 +61,13 @@ export function fetchDonorDonationRows() {
   return supabase
     .from('donations')
     .select('*')
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: false })
+    .limit(1000);
 }
 
 export function fetchTransactionRows() {
   return Promise.all([
-    supabase.from('donations').select('*').order('created_at', { ascending: false }),
+    supabase.from('donations').select('*').order('created_at', { ascending: false }).limit(1000),
     supabase.from('campaigns').select('id, title'),
   ]);
 }
@@ -87,7 +88,8 @@ export function fetchSchoolReportRows() {
   return supabase
     .from('school_reports')
     .select('*')
-    .order('updated_at', { ascending: false });
+    .order('updated_at', { ascending: false })
+    .limit(1000);
 }
 
 export function updateSchoolReportStatus(reportId: string, update: SchoolReportUpdate) {
@@ -338,49 +340,16 @@ function extractVolunteerStoragePath(value: string | null) {
   return decodeURIComponent(value.slice(markerIndex + marker.length).split('?')[0]);
 }
 
-async function createVolunteerSignedUrl(value: string | null) {
-  const path = extractVolunteerStoragePath(value);
-  if (!path) return null;
-
-  const { data, error } = await supabase.storage
-    .from('volunteer-assets')
-    .createSignedUrl(path, 60 * 60);
-
-  if (error) {
-    logError('repository.createVolunteerSignedUrl', error, { path });
-    return null;
-  }
-
-  return data.signedUrl;
-}
 
 export async function fetchAllVolunteerRegistrations() {
-  const response = await supabase
+  // Signed URLs are now generated lazily in AdminEduxplore when a row is selected,
+  // so we no longer pre-generate them here (which caused N×3 Storage API calls
+  // and was the primary suspect for PostgREST timeouts).
+  return supabase
     .from('volunteer_registrations')
     .select('*')
-    .limit(10000)
+    .limit(500)
     .order('created_at', { ascending: false });
-
-  if (response.error || !response.data) {
-    return response;
-  }
-
-  const data = await Promise.all(response.data.map(async (registration) => {
-    const [dpUrl, followUrl, idUrl] = await Promise.all([
-      createVolunteerSignedUrl(registration.bukti_dp_url),
-      createVolunteerSignedUrl(registration.bukti_follow_url),
-      createVolunteerSignedUrl(registration.foto_id_url),
-    ]);
-
-    return {
-      ...registration,
-      bukti_dp_url: dpUrl,
-      bukti_follow_url: followUrl,
-      foto_id_url: idUrl,
-    };
-  }));
-
-  return { ...response, data };
 }
 
 export function updateVolunteerRegistrationStatus(
