@@ -162,7 +162,7 @@ export function deleteSiteContent(entryId: string) {
 
 export function fetchCampaignManagerRows() {
   return Promise.all([
-    supabase.from('campaigns').select('*').order('created_at', { ascending: false }),
+    supabase.from('campaigns').select('*').order('created_at', { ascending: false }).limit(500),
     supabase.from('categories').select('*').order('name', { ascending: true }),
   ]);
 }
@@ -172,7 +172,8 @@ export function fetchCampaignUpdateRows(campaignId: string) {
     .from('campaign_updates')
     .select('*')
     .eq('campaign_id', campaignId)
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: false })
+    .limit(200);
 }
 
 export function fetchCampaignDonationRows(campaignId: string) {

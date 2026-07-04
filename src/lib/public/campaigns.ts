@@ -152,7 +152,7 @@ export async function fetchPublicCampaignDetail(slug: string) {
 
   const [{ data: categoryRows, error: categoriesError }, { data: updateRows, error: updatesError }, { data: recentDonationsPayload, error: recentDonationsError }] = await Promise.all([
     supabase.from('categories').select('*').order('name', { ascending: true }),
-    supabase.from('campaign_updates').select('*').eq('campaign_id', safeCampaignRow.id).order('created_at', { ascending: false }),
+    supabase.from('campaign_updates').select('*').eq('campaign_id', safeCampaignRow.id).order('created_at', { ascending: false }).limit(100),
     supabase.functions.invoke<{ donations: CampaignDonationSummary[] }>('get-public-campaign-donations', {
       body: {
         campaign_id: safeCampaignRow.id,
