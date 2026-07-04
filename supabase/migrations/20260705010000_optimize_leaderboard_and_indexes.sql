@@ -16,6 +16,7 @@ CREATE INDEX IF NOT EXISTS idx_campaign_updates_campaign_id
 --    Materialized view menyimpan hasil query di disk, sehingga
 --    tidak perlu scan ulang seluruh tabel donations setiap kali diakses.
 DROP VIEW IF EXISTS public.leaderboard;
+DROP MATERIALIZED VIEW IF EXISTS public.leaderboard;
 
 CREATE MATERIALIZED VIEW IF NOT EXISTS public.leaderboard AS
 SELECT
