@@ -52,11 +52,12 @@ export default async function handler(request, response) {
 
     // Opsional: refresh materialized view leaderboard
     try {
+      const refreshKey = process.env.SUPABASE_SERVICE_ROLE_KEY || supabaseKey;
       await fetch(`${supabaseUrl}/rest/v1/rpc/refresh_leaderboard`, {
         method: 'POST',
         headers: {
-          apikey: supabaseKey,
-          Authorization: `Bearer ${supabaseKey}`,
+          apikey: refreshKey,
+          Authorization: `Bearer ${refreshKey}`,
           'Content-Type': 'application/json',
         },
         body: '{}',

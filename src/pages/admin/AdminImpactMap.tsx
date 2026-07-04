@@ -205,8 +205,12 @@ export default function AdminImpactMap() {
       setUploadingImage(true);
       // Kompres gambar sebelum upload
       const compressed = await compressImage(file);
+      const oldUrl = watch('imageUrl');
       const url = await uploadAdminImage(compressed, 'general');
       setValue('imageUrl', url, { shouldDirty: true, shouldValidate: true });
+      if (oldUrl) {
+        import('../../lib/supabase/storage').then(m => m.deleteFilesFromStorage([oldUrl]).catch(err => logError('AdminImpactMap.deleteOldImage', err)));
+      }
     } catch (err) {
       logError('AdminImpactMap.handleUploadImage', err);
       setError('Gagal mengunggah gambar.');
@@ -249,6 +253,7 @@ export default function AdminImpactMap() {
 
   const removeGalleryImage = (urlToRemove: string) => {
     setValue('images', galleryImages.filter(url => url !== urlToRemove), { shouldDirty: true });
+    import('../../lib/supabase/storage').then(m => m.deleteFilesFromStorage([urlToRemove]).catch(err => logError('AdminImpactMap.deleteGalleryImage', err)));
   };
 
   const onSubmit: SubmitHandler<AdminMapLocationValues> = async (values) => {
@@ -261,11 +266,20 @@ export default function AdminImpactMap() {
         ...values,
         id: values.id || `loc-${Date.now()}`,
       } as EventMapLocation;
+      
       if (mode === 'edit' && editingLocation) {
+        // Hapus gambar yang tidak digunakan lagi dari storage
+        const oldUrls = [editingLocation.imageUrl, ...(editingLocation.images || [])].filter(Boolean);
+        const newUrls = [newLoc.imageUrl, ...(newLoc.images || [])].filter(Boolean);
+        const removedUrls = oldUrls.filter(url => !newUrls.includes(url));
+        if (removedUrls.length > 0) {
+          import('../../lib/supabase/storage').then(m => m.deleteFilesFromStorage(removedUrls).catch(err => logError('AdminImpactMap.deleteOldStorage', err)));
+        }
         nextLocations = nextLocations.map(l => l.id === editingLocation.id ? newLoc : l);
       } else {
         nextLocations.push(newLoc);
       }
+      
       const { error: upsertError } = await upsertSiteContent([{
         key: 'impact_map',
         value: { locations: nextLocations }
@@ -292,12 +306,22 @@ export default function AdminImpactMap() {
     if (!ok) return;
     setSaving(true);
     try {
+      const loc = locations.find(l => l.id === id);
       const nextLocations = locations.filter(l => l.id !== id);
       const { error: upsertError } = await upsertSiteContent([{
         key: 'impact_map',
         value: { locations: nextLocations }
       }]);
       if (upsertError) throw upsertError;
+
+      // Bersihkan file gambar dari storage
+      if (loc) {
+        const urlsToDelete = [loc.imageUrl, ...(loc.images || [])].filter(Boolean);
+        if (urlsToDelete.length > 0) {
+          import('../../lib/supabase/storage').then(m => m.deleteFilesFromStorage(urlsToDelete).catch(err => logError('AdminImpactMap.deleteStorage', err)));
+        }
+      }
+
       setLocations(nextLocations);
       setNotice('Lokasi dihapus.');
     } catch (err) {

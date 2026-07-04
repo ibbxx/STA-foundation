@@ -238,6 +238,16 @@ export default function AdminContent() {
     setNotice(null);
     setError(null);
 
+    if (mode === 'edit' && editingProgram) {
+      const detail = parseProgramContent(editingProgram.content);
+      const oldGallery = detail.gallery_images;
+      const newGallery = values.gallery_images ? values.gallery_images.split('\n').map(s => s.trim()).filter(Boolean) : [];
+      const removedUrls = oldGallery.filter(url => !newGallery.includes(url));
+      if (removedUrls.length > 0) {
+        import('../../lib/supabase/storage').then(m => m.deleteFilesFromStorage(removedUrls).catch(err => logError('AdminContent.deleteRemovedGallery', err)));
+      }
+    }
+
     const payload = toProgramPayload(values);
     const query = mode === 'edit' && editingProgram
       ? updateProgram(editingProgram.id, payload)

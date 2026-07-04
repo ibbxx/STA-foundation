@@ -388,8 +388,14 @@ export default function AdminVolunteerPrograms() {
     if (!file) return;
     try {
       setUploadingImage(true);
+      const oldUrl = watch('image_url');
       const url = await uploadAdminImage(file, 'programs');
       setValue('image_url', url, { shouldDirty: true });
+      if (oldUrl) {
+        import('../../lib/supabase/storage').then((m) => {
+          m.deleteFilesFromStorage([oldUrl]).catch(err => logError('AdminVolunteerPrograms.deleteOldStorage', err));
+        });
+      }
     } catch (err) {
       logError('AdminVolunteerPrograms.handleUploadImage', err);
       setError('Gagal mengunggah gambar banner.');
@@ -492,6 +498,11 @@ export default function AdminVolunteerPrograms() {
     if (delError) {
       setError(delError.message);
     } else {
+      if (program.image_url) {
+        import('../../lib/supabase/storage').then((m) => {
+          m.deleteFilesFromStorage([program.image_url]).catch(err => logError('AdminVolunteerPrograms.deleteStorage', err));
+        });
+      }
       setNotice('Program berhasil dihapus.');
       loadData();
     }

@@ -290,7 +290,7 @@ export default function AdminCampaigns() {
         .map((item) => item.url);
 
       const oldUrls = selectedCampaign?.images ?? [];
-      const removedUrls = oldUrls.filter((url) => !existingUrls.includes(url));
+      const campaignRemovedUrls = oldUrls.filter((url) => !existingUrls.includes(url));
 
       const queuedItems = campaignImages.filter((item) => item.kind === 'queued');
 
@@ -382,8 +382,18 @@ export default function AdminCampaigns() {
       const nextId = savedCampaign?.id ?? selectedCampaign?.id ?? null;
       setNotice(selectedCampaign ? 'Campaign berhasil diperbarui.' : 'Campaign berhasil dibuat.');
 
-      if (removedUrls.length > 0) {
-        deleteFilesFromStorage(removedUrls).catch((err) => {
+      const oldCollabAvatars = ((selectedCampaign?.collaborators as any[]) ?? [])
+        .map((c) => c.avatar)
+        .filter(Boolean) as string[];
+      const newCollabAvatars = updatedCollaborators
+        .map((c) => c.avatar)
+        .filter((url) => Boolean(url) && url !== 'PENDING_UPLOAD') as string[];
+      const removedCollabAvatars = oldCollabAvatars.filter((url) => !newCollabAvatars.includes(url));
+
+      const allRemovedUrls = [...campaignRemovedUrls, ...removedCollabAvatars];
+
+      if (allRemovedUrls.length > 0) {
+        deleteFilesFromStorage(allRemovedUrls).catch((err) => {
           logError('AdminCampaigns.cleanupRemovedImages', err);
         });
       }
@@ -537,7 +547,11 @@ export default function AdminCampaigns() {
       .map((row) => (row as { image_url: string | null }).image_url)
       .filter((url): url is string => Boolean(url));
 
-    const allImageUrls = [...campaignImageUrls, ...updateImageUrls];
+    const collaboratorAvatars = ((selectedCampaign.collaborators as any[]) ?? [])
+      .map((collab) => collab.avatar)
+      .filter((url): url is string => Boolean(url));
+
+    const allImageUrls = [...campaignImageUrls, ...updateImageUrls, ...collaboratorAvatars];
 
     // Hapus data dari database terlebih dahulu
     const { error: deleteError } = await deleteCampaign(selectedCampaign.id);
