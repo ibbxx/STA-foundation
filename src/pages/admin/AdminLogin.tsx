@@ -44,8 +44,11 @@ export default function AdminLogin() {
       return;
     }
 
-    const { data: isAdmin, error: adminError } = await supabase.rpc('is_admin');
-    if (adminError || !isAdmin) {
+    const { data: adminData, error: adminError } = await supabase
+      .from('admin_users')
+      .select('user_id')
+      .maybeSingle();
+    if (adminError || !adminData) {
       if (adminError) {
         logError('AdminLogin.isAdmin', adminError, { email: values.email });
       }

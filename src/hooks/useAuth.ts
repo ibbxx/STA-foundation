@@ -113,12 +113,16 @@ export function useAuthProvider(): AuthContextValue {
     for (let attempt = 0; attempt < 2; attempt++) {
       if (signal.ignore) return;
 
-      const { data, error } = await supabase.rpc('is_admin');
+      const { data, error } = await supabase
+        .from('admin_users')
+        .select('user_id')
+        .eq('user_id', userId)
+        .maybeSingle();
 
       if (signal.ignore) return;
 
       if (!error) {
-        setIsAdmin(data === true);
+        setIsAdmin(!!data);
         setVerifiedUserId(userId);
         setAdminLoading(false);
         return;

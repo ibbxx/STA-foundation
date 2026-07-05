@@ -18,6 +18,21 @@ export interface Database {
   PostgrestVersion: '12';
   public: {
     Tables: {
+      admin_users: {
+        Row: {
+          user_id: string;
+          created_at: string;
+        };
+        Insert: {
+          user_id: string;
+          created_at?: string;
+        };
+        Update: {
+          user_id?: string;
+          created_at?: string;
+        };
+        Relationships: any[];
+      };
       programs: {
         Row: {
           id: string;
@@ -460,10 +475,6 @@ export interface Database {
       };
     };
     Functions: {
-      is_admin: {
-        Args: Record<PropertyKey, never>;
-        Returns: boolean;
-      };
       get_public_campaign_donations: {
         Args: {
           p_campaign_id: string;
