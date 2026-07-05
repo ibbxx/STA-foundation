@@ -58,19 +58,12 @@ export default function VolunteerProgramCard({ program, className }: VolunteerPr
   const typeBadge = PROGRAM_TYPE_BADGE[program.program_type] ?? 'bg-gray-100 text-gray-600 border-gray-200';
   const daysLeft = getDaysUntil(program.registration_end);
 
-  // Link ke halaman detail program
-  const detailHref = program.external_link || `/eduxplore/${program.slug}`;
+  // Link ke halaman detail program atau pendaftaran
+  const targetUrl = program.external_link || `/eduxplore/${program.slug}${isOpen ? '#form-pendaftaran' : ''}`;
   const isExternal = program.external_link && /^https?:\/\//.test(program.external_link);
 
-  return (
-    <div
-      className={cn(
-        'group flex flex-col overflow-hidden bg-white border rounded-sm shadow-sm transition-all',
-        'hover:shadow-md md:hover:shadow-xl',
-        isOpen ? 'border-emerald-200' : 'border-gray-100',
-        className,
-      )}
-    >
+  const cardContent = (
+    <>
       {/* ── Gambar & Badge ── */}
       <div className="relative aspect-video w-full overflow-hidden sm:aspect-[16/10]">
         <OptimizedImage
@@ -143,38 +136,49 @@ export default function VolunteerProgramCard({ program, className }: VolunteerPr
 
           {/* CTA / Footer */}
           <div className="flex items-center justify-end pt-2 border-t border-gray-50">
-            {isExternal ? (
-              <a
-                href={detailHref}
-                target="_blank"
-                rel="noreferrer"
-                className={cn(
-                  'inline-flex items-center gap-1.5 text-[10px] sm:text-xs font-semibold transition-colors',
-                  isOpen || isOngoing
-                    ? 'text-emerald-600 hover:text-emerald-800'
-                    : 'text-gray-500 hover:text-gray-700',
-                )}
-              >
-                {isOpen ? 'Daftar Sekarang' : 'Lihat Detail'}
-                <ArrowRight className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
-              </a>
-            ) : (
-              <Link
-                to={detailHref}
-                className={cn(
-                  'inline-flex items-center gap-1.5 text-[10px] sm:text-xs font-semibold transition-colors',
-                  isOpen || isOngoing
-                    ? 'text-emerald-600 hover:text-emerald-800'
-                    : 'text-gray-500 hover:text-gray-700',
-                )}
-              >
-                {isOpen ? 'Daftar Sekarang' : 'Lihat Detail'}
-                <ArrowRight className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
-              </Link>
-            )}
+            <span
+              className={cn(
+                'inline-flex items-center gap-1.5 text-[10px] sm:text-xs font-semibold transition-colors',
+                isOpen || isOngoing
+                  ? 'text-emerald-600 group-hover:text-emerald-800'
+                  : 'text-gray-500 group-hover:text-gray-700',
+              )}
+            >
+              {isOpen ? 'Daftar Sekarang' : 'Lihat Detail'}
+              <ArrowRight className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+            </span>
           </div>
         </div>
       </div>
-    </div>
+    </>
+  );
+
+  const cardClassName = cn(
+    'group flex flex-col overflow-hidden bg-white border rounded-sm shadow-sm transition-all',
+    'hover:shadow-md md:hover:shadow-xl',
+    isOpen ? 'border-emerald-200' : 'border-gray-100',
+    className,
+  );
+
+  if (isExternal) {
+    return (
+      <a
+        href={targetUrl}
+        target="_blank"
+        rel="noreferrer"
+        className={cardClassName}
+      >
+        {cardContent}
+      </a>
+    );
+  }
+
+  return (
+    <Link
+      to={targetUrl}
+      className={cardClassName}
+    >
+      {cardContent}
+    </Link>
   );
 }

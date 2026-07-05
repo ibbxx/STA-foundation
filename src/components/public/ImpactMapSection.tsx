@@ -72,8 +72,7 @@ export default function ImpactMapSection() {
         >
           <InteractiveMap 
             locations={mapLocations}
-            height="min(500px, 70vh)"
-            className="w-full"
+            className="w-full h-[220px] sm:h-[400px] md:h-[500px]"
             useFallbackLocations={true}
             viewportMode="fit-indonesia"
             scrollWheelZoom={false}

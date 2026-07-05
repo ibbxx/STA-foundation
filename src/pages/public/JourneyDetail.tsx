@@ -201,7 +201,7 @@ export default function JourneyDetail() {
             <motion.div 
               {...fadeUp}
               transition={{ delay: 0.3 }}
-              className="rounded-3xl bg-white p-8 border border-emerald-100 shadow-xl shadow-emerald-900/5 sticky top-24"
+              className="rounded-3xl bg-white p-8 border border-emerald-100 shadow-xl shadow-emerald-900/5 lg:sticky lg:top-24"
             >
               <h3 className="text-sm font-bold uppercase tracking-widest text-emerald-800 mb-6 flex items-center gap-2">
                 <MapPinned size={16} />

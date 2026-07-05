@@ -153,7 +153,7 @@ export default function Navbar() {
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -20 }}
-          className="md:hidden border-t border-gray-200 bg-white/95 backdrop-blur-xl"
+          className="md:hidden border-t border-gray-200 bg-white/95 backdrop-blur-xl overflow-y-auto max-h-[calc(100dvh-4rem)] sm:max-h-[calc(100dvh-5rem)]"
         >
           <div className="safe-pb mx-auto flex min-h-[calc(100dvh-4rem)] max-w-7xl flex-col px-4 py-6 sm:min-h-[calc(100dvh-5rem)] sm:px-6">
             <div className="flex flex-1 flex-col gap-1">

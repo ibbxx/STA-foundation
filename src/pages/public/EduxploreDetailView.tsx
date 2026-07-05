@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useLocation, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Loader2, Globe, ArrowLeft } from 'lucide-react';
-import { Link } from 'react-router-dom';
 
 import EduxploreHero from '../../components/public/eduxplore/EduxploreHero';
 import EduxploreTimeline from '../../components/public/eduxplore/EduxploreTimeline';
@@ -17,8 +16,21 @@ import { logError } from '../../lib/error-logger';
 
 export default function EduxploreDetailView() {
   const { slug } = useParams<{ slug: string }>();
+  const location = useLocation();
   const [loading, setLoading] = useState(true);
   const [program, setProgram] = useState<VolunteerProgramData | null>(null);
+
+  useEffect(() => {
+    if (!loading && program && location.hash === '#form-pendaftaran') {
+      const timer = setTimeout(() => {
+        const element = document.getElementById('form-pendaftaran');
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth' });
+        }
+      }, 200);
+      return () => clearTimeout(timer);
+    }
+  }, [loading, program, location.hash]);
 
   useEffect(() => {
     if (!slug) {

@@ -337,7 +337,7 @@ export default function CampaignDetail() {
 
             {/* Tabs and Content Section - Compact */}
             <div className="rounded-sm border border-gray-100 bg-white overflow-hidden">
-              <div className="border-b border-gray-100 px-4 sm:px-6 bg-white sticky top-0 z-10">
+              <div className="border-b border-gray-100 px-4 sm:px-6 bg-white sticky top-16 sm:top-20 z-10">
                 <div className="flex gap-4 overflow-x-auto no-scrollbar">
                   {(['deskripsi', 'update', 'donatur'] as const).map((tab) => (
                     <button
@@ -444,7 +444,7 @@ export default function CampaignDetail() {
           </div>
 
           <div className="hidden lg:block lg:col-span-4">
-            <div className="sticky top-24 space-y-4">
+            <div className="lg:sticky lg:top-24 space-y-4">
               <CampaignStatsCard
                 currentAmount={campaign.current_amount}
                 targetAmount={campaign.target_amount}

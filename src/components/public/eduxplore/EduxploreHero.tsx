@@ -13,7 +13,7 @@ export default function EduxploreHero({ program }: Props) {
   };
 
   return (
-    <section className="relative min-h-[100svh] w-full flex flex-col justify-end md:justify-center overflow-clip bg-gray-900">
+    <section className="relative min-h-[50vh] sm:min-h-[60vh] lg:min-h-[75vh] w-full flex flex-col justify-center overflow-clip bg-gray-900">
       {/* Background */}
       {program.image_url && (
         <div className="absolute inset-0 z-0">
@@ -22,8 +22,8 @@ export default function EduxploreHero({ program }: Props) {
             className="w-full h-full object-cover object-center"
             alt={program.title}
           />
-          <div className="absolute inset-0 bg-black/20" />
-          <div className="absolute inset-0 bg-gradient-to-t from-gray-900/90 via-gray-900/40 to-transparent md:bg-gradient-to-r md:from-gray-900/90 md:via-gray-900/40 md:to-transparent" />
+          <div className="absolute inset-0 bg-black/25" />
+          <div className="absolute inset-0 bg-gradient-to-t from-gray-900/90 via-gray-900/50 to-transparent md:bg-gradient-to-r md:from-gray-900/90 md:via-gray-900/40 md:to-transparent" />
         </div>
       )}
 
@@ -32,7 +32,7 @@ export default function EduxploreHero({ program }: Props) {
         <div className="absolute inset-0 z-0 bg-gradient-to-br from-emerald-950 via-gray-900 to-gray-950" />
       )}
 
-      <div className="relative z-10 w-full max-w-7xl mx-auto px-5 md:px-8 pb-6 md:pb-0 pt-20 md:pt-32">
+      <div className="relative z-10 w-full max-w-7xl mx-auto px-5 md:px-8 py-16 sm:py-24 pt-20 sm:pt-32">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -60,17 +60,17 @@ export default function EduxploreHero({ program }: Props) {
               if (match) {
                 return (
                   <>
-                    <span className="block text-[22px] sm:text-3xl md:text-5xl lg:text-6xl mb-1 md:mb-2 text-white">
+                    <span className="block text-2xl sm:text-4xl md:text-5xl lg:text-6xl mb-1 md:mb-2 text-white">
                       {match[1]}
                     </span>
-                    <span className="block text-[14px] sm:text-xl md:text-2xl lg:text-3xl text-emerald-400 font-bold">
+                    <span className="block text-base sm:text-xl md:text-2xl lg:text-3xl text-emerald-400 font-bold">
                       {match[2]}
                     </span>
                   </>
                 );
               }
               return (
-                <span className="block text-[18px] sm:text-2xl md:text-4xl lg:text-5xl">
+                <span className="block text-2xl sm:text-3xl md:text-4xl lg:text-5xl">
                   {program.title}
                 </span>
               );
@@ -79,7 +79,7 @@ export default function EduxploreHero({ program }: Props) {
 
           {(program.short_description || program.description) && (
             <div
-              className="prose prose-invert text-[11px] sm:text-xs md:text-base text-gray-300 leading-relaxed font-light max-w-xl mb-6 md:mb-8 text-justify"
+              className="prose prose-invert text-xs sm:text-sm md:text-base text-gray-300 leading-relaxed font-light max-w-xl mb-6 md:mb-8 text-justify"
               dangerouslySetInnerHTML={{ __html: sanitizeHTML(program.short_description || program.description) }}
             />
           )}

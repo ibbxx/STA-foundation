@@ -74,19 +74,19 @@ export default function Contact() {
         </div>
       </section>
 
-      <section className="py-16 sm:py-24">
+      <section className="py-10 sm:py-24">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid gap-10 lg:grid-cols-2 lg:gap-16">
+          <div className="grid gap-8 lg:grid-cols-2 lg:gap-16">
             {/* Navigasi Informasi Kontak Langsung (Contact Info) */}
-            <div className="space-y-8 sm:space-y-12">
-              <div className="space-y-6">
+            <div className="space-y-6 sm:space-y-12">
+              <div className="space-y-3 sm:space-y-6">
                 <h2 className="text-2xl font-black text-gray-900 sm:text-3xl">Mari Berdiskusi</h2>
-                <p className="text-base leading-relaxed text-gray-600 sm:text-lg">
+                <p className="text-sm leading-relaxed text-gray-600 sm:text-lg">
                   Tim kami siap membantu Anda memberikan informasi lebih lanjut mengenai program, donasi, atau kemitraan.
                 </p>
               </div>
 
-              <div className="grid gap-4 sm:gap-6">
+              <div className="grid gap-3 sm:gap-6">
                 {[
                   {
                     label: 'Email',
@@ -119,14 +119,14 @@ export default function Contact() {
                     href={item.href}
                     target={item.target}
                     rel={item.rel}
-                    className="group flex items-start space-x-4 rounded-[1.5rem] border border-gray-100 bg-gray-50/70 p-4 sm:space-x-6 sm:p-5 transition-all hover:bg-white hover:shadow-md hover:border-gray-200"
+                    className="group flex items-start space-x-3 rounded-[1.25rem] border border-gray-100 bg-gray-50/70 p-3.5 sm:space-x-6 sm:p-5 transition-all hover:bg-white hover:shadow-md hover:border-gray-200"
                   >
-                    <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-white shadow-lg sm:h-14 sm:w-14 ${item.color}`}>
-                      <item.icon size={24} />
+                    <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-white shadow-lg sm:h-14 sm:w-14 sm:rounded-2xl ${item.color}`}>
+                      <item.icon className="w-5 h-5 sm:w-6 sm:h-6" />
                     </div>
                     <div className="min-w-0">
-                      <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">{item.label}</p>
-                      <p className="break-words text-base font-bold text-gray-900 transition-colors group-hover:text-emerald-600 sm:text-xl">{item.value}</p>
+                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-0.5 sm:mb-1">{item.label}</p>
+                      <p className="break-words text-sm font-bold text-gray-900 transition-colors group-hover:text-emerald-600 sm:text-xl">{item.value}</p>
                     </div>
                   </a>
                 ))}
@@ -134,53 +134,53 @@ export default function Contact() {
             </div>
 
             {/* Antarmuka Formulir Pengiriman Pesan (Contact Form) */}
-            <div className="rounded-[2rem] border border-gray-100 bg-white p-6 shadow-xl shadow-emerald-100/30 sm:rounded-[3rem] sm:p-10 sm:shadow-2xl">
-              <form className="space-y-6" onSubmit={handleContactSubmit}>
-                <div className="grid md:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Nama Lengkap</label>
+            <div className="rounded-[1.75rem] border border-gray-100 bg-white p-5 shadow-xl shadow-emerald-100/30 sm:rounded-[3rem] sm:p-10 sm:shadow-2xl">
+              <form className="space-y-4 sm:space-y-6" onSubmit={handleContactSubmit}>
+                <div className="grid md:grid-cols-2 gap-4 sm:gap-6">
+                  <div className="space-y-1 sm:space-y-2">
+                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider sm:text-xs">Nama Lengkap</label>
                     <input
                       type="text"
                       name="name"
                       required
-                      className="w-full px-6 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
+                      className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl sm:rounded-2xl sm:px-6 sm:py-4 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all text-sm sm:text-base"
                       placeholder="Nama Anda"
                     />
                   </div>
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Email</label>
+                  <div className="space-y-1 sm:space-y-2">
+                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider sm:text-xs">Email</label>
                     <input
                       type="email"
                       name="email"
                       required
-                      className="w-full px-6 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
+                      className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl sm:rounded-2xl sm:px-6 sm:py-4 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all text-sm sm:text-base"
                       placeholder="email@anda.com"
                     />
                   </div>
                 </div>
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Subjek</label>
+                <div className="space-y-1 sm:space-y-2">
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider sm:text-xs">Subjek</label>
                   <input
                     type="text"
                     name="subject"
                     required
-                    className="w-full px-6 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl sm:rounded-2xl sm:px-6 sm:py-4 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all text-sm sm:text-base"
                     placeholder="Apa yang ingin Anda tanyakan?"
                   />
                 </div>
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Pesan</label>
+                <div className="space-y-1 sm:space-y-2">
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider sm:text-xs">Pesan</label>
                   <textarea
                     name="message"
                     required
-                    rows={5}
-                    className="w-full px-6 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
+                    rows={4}
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl sm:rounded-2xl sm:px-6 sm:py-4 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all text-sm sm:text-base"
                     placeholder="Tulis pesan Anda di sini..."
                   />
                 </div>
                 {formNotice ? <p className="text-sm font-medium text-emerald-700">{formNotice}</p> : null}
-                <button type="submit" className="flex w-full items-center justify-center space-x-2 rounded-2xl bg-emerald-600 py-4 text-base font-bold text-white shadow-lg shadow-emerald-200 transition-all hover:bg-emerald-700 sm:py-5 sm:text-lg sm:shadow-xl">
-                  <Send size={20} />
+                <button type="submit" className="flex w-full items-center justify-center space-x-2 rounded-xl sm:rounded-2xl bg-emerald-600 py-3.5 text-sm font-bold text-white shadow-lg shadow-emerald-200 transition-all hover:bg-emerald-700 sm:py-5 sm:text-lg sm:shadow-xl">
+                  <Send size={18} className="sm:w-5 sm:h-5" />
                   <span>Kirim Pesan</span>
                 </button>
               </form>

@@ -140,182 +140,183 @@ export default function Home() {
       {/* ═══════ 3 · HAPPENING NOW — EDITORIAL BENTO ═══════ */}
       {/* Hidden for presentation mode — set to true to re-enable */}
       <section className="bg-gray-50/50 pt-8 pb-12 sm:pt-12 sm:pb-16">
-          <div className="mx-auto max-w-7xl px-5 sm:px-6 lg:px-8">
-            <div className="mb-6 flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-end">
-              <motion.div {...fadeUp}>
-                <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-800">Terkini</p>
-                <h2 className="text-xl font-black tracking-tight text-gray-900 sm:text-2xl md:text-3xl">Sedang Berlangsung</h2>
-              </motion.div>
-              <Link to="/campaigns" className="group flex items-center text-xs font-bold uppercase tracking-widest text-emerald-800 transition-colors hover:text-emerald-950">
-                Lihat Semua
-                <ArrowRight size={14} className="ml-2 transition-transform group-hover:translate-x-1" />
-              </Link>
-            </div>
+        <div className="mx-auto max-w-7xl px-5 sm:px-6 lg:px-8">
+          <div className="mb-6 flex flex-row items-end justify-between gap-4">
+            <motion.div {...fadeUp}>
+              <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-800">Terkini</p>
+              <h2 className="text-xl font-black tracking-tight text-gray-900 sm:text-2xl md:text-3xl">Sedang Berlangsung</h2>
+            </motion.div>
+            <Link to="/campaigns" className="group flex items-center text-xs font-bold uppercase tracking-widest text-emerald-800 transition-colors hover:text-emerald-950">
+              Lihat Semua
+              <ArrowRight size={14} className="ml-2 transition-transform group-hover:translate-x-1" />
+            </Link>
+          </div>
 
-            {featuredCampaignError ? (
-              <div className="rounded-2xl border border-gray-100 bg-white p-8 text-center text-sm text-red-600">
-                {featuredCampaignError}
-              </div>
-            ) : loadingFeaturedCampaigns ? (
-              <div className="grid grid-cols-1 gap-6 lg:grid-cols-12 lg:items-stretch animate-pulse">
-                {/* Main Featured Campaign Skeleton */}
-                <div className="lg:col-span-7 xl:col-span-8">
-                  <div className="flex h-full flex-col lg:flex-row overflow-hidden rounded-2xl border border-gray-100 bg-white">
-                    <Skeleton className="aspect-[16/9] w-full lg:aspect-auto lg:w-[55%] rounded-none" />
-                    <div className="flex flex-col justify-center p-4 sm:p-7 lg:flex-1 space-y-4">
-                      <div className="space-y-2">
-                        <Skeleton className="h-6 w-5/6" />
-                        <Skeleton className="h-4 w-2/3" />
+          {featuredCampaignError ? (
+            <div className="rounded-2xl border border-gray-100 bg-white p-8 text-center text-sm text-red-600">
+              {featuredCampaignError}
+            </div>
+          ) : loadingFeaturedCampaigns ? (
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-12 lg:items-stretch animate-pulse">
+              {/* Main Featured Campaign Skeleton */}
+              <div className="lg:col-span-7 xl:col-span-8">
+                <div className="flex h-full flex-col lg:flex-row overflow-hidden rounded-2xl border border-gray-100 bg-white">
+                  <Skeleton className="aspect-[16/9] w-full lg:aspect-auto lg:w-[55%] rounded-none" />
+                  <div className="flex flex-col justify-center p-4 sm:p-7 lg:flex-1 space-y-4">
+                    <div className="space-y-2">
+                      <Skeleton className="h-6 w-5/6" />
+                      <Skeleton className="h-4 w-2/3" />
+                    </div>
+                    <div className="space-y-2">
+                      <Skeleton className="h-4 w-full" />
+                      <Skeleton className="h-4 w-4/5" />
+                    </div>
+                    <div className="mt-auto space-y-3 pt-4 border-t border-gray-50">
+                      <div className="flex justify-between">
+                        <Skeleton className="h-4 w-24" />
+                        <Skeleton className="h-4 w-12" />
                       </div>
-                      <div className="space-y-2">
-                        <Skeleton className="h-4 w-full" />
-                        <Skeleton className="h-4 w-4/5" />
-                      </div>
-                      <div className="mt-auto space-y-3 pt-4 border-t border-gray-50">
-                        <div className="flex justify-between">
-                          <Skeleton className="h-4 w-24" />
-                          <Skeleton className="h-4 w-12" />
-                        </div>
-                        <Skeleton className="h-1.5 w-full rounded-full" />
-                      </div>
+                      <Skeleton className="h-1.5 w-full rounded-full" />
                     </div>
                   </div>
                 </div>
+              </div>
 
-                {/* Side Campaigns Grid Skeleton */}
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:col-span-5 lg:grid-cols-1 xl:col-span-4">
-                  {[...Array(3)].map((_, i) => (
-                    <div key={i} className="flex h-full items-center gap-4 overflow-hidden rounded-xl border border-gray-50 bg-white p-3">
-                      <Skeleton className="aspect-square w-20 shrink-0 rounded-lg sm:w-24 bg-gray-200" />
-                      <div className="flex min-w-0 flex-1 flex-col justify-center space-y-3">
-                        <Skeleton className="h-4 w-5/6" />
-                        <div className="space-y-2 mt-auto">
-                          <Skeleton className="h-1.5 w-full rounded-full" />
-                          <div className="flex justify-between">
-                            <Skeleton className="h-3 w-16" />
-                            <Skeleton className="h-3 w-8" />
-                          </div>
+              {/* Side Campaigns Grid Skeleton */}
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:col-span-5 lg:grid-cols-1 xl:col-span-4">
+                {[...Array(3)].map((_, i) => (
+                  <div key={i} className="flex h-full items-center gap-4 overflow-hidden rounded-xl border border-gray-50 bg-white p-3">
+                    <Skeleton className="aspect-square w-20 shrink-0 rounded-lg sm:w-24 bg-gray-200" />
+                    <div className="flex min-w-0 flex-1 flex-col justify-center space-y-3">
+                      <Skeleton className="h-4 w-5/6" />
+                      <div className="space-y-2 mt-auto">
+                        <Skeleton className="h-1.5 w-full rounded-full" />
+                        <div className="flex justify-between">
+                          <Skeleton className="h-3 w-16" />
+                          <Skeleton className="h-3 w-8" />
                         </div>
                       </div>
                     </div>
-                  ))}
-                </div>
+                  </div>
+                ))}
               </div>
-            ) : featuredCampaigns.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-gray-200 bg-white p-20 text-center">
-                <h3 className="text-base font-bold text-gray-900">Belum ada campaign</h3>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 gap-6 lg:grid-cols-12 lg:items-stretch">
-                {/* Main Featured Campaign */}
-                {featuredCampaigns[0] && (() => {
-                  const hero = featuredCampaigns[0];
-                  const progress = calculateProgress(hero.current_amount, hero.target_amount);
+            </div>
+          ) : featuredCampaigns.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-gray-200 bg-white p-20 text-center">
+              <h3 className="text-base font-bold text-gray-900">Belum ada campaign</h3>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-12 lg:items-stretch">
+              {/* Main Featured Campaign */}
+              {featuredCampaigns[0] && (() => {
+                const hero = featuredCampaigns[0];
+                const progress = calculateProgress(hero.current_amount, hero.target_amount);
+                return (
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ duration: 0.5 }}
+                    className="lg:col-span-7 xl:col-span-8"
+                  >
+                    <Link
+                      to={`/campaigns/${hero.slug}`}
+                      className="group flex h-full flex-row overflow-hidden rounded-2xl border border-gray-100 bg-white transition-all duration-300 hover:shadow-xl hover:shadow-gray-200/50"
+                    >
+                      <div className="relative w-28 shrink-0 overflow-hidden sm:w-[40%] lg:w-[50%]">
+                        <img
+                          src={hero.thumbnail_url}
+                          alt={hero.title}
+                          className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
+                          referrerPolicy="no-referrer"
+                          loading="lazy"
+                        />
+                        <div className="absolute inset-0 bg-gray-900/5" />
+                      </div>
+                      <div className="flex flex-col justify-center p-3.5 sm:p-7 lg:flex-1 min-w-0">
+                        <div className="mb-2 sm:mb-5 space-y-1 sm:space-y-2">
+                          <h3 className="text-sm sm:text-xl font-bold leading-snug text-gray-900 transition-colors group-hover:text-emerald-800 truncate sm:whitespace-normal">
+                            {hero.title}
+                          </h3>
+                          <p className="hidden sm:line-clamp-2 text-xs sm:text-sm leading-relaxed text-gray-500 font-light">
+                            {hero.short_description}
+                          </p>
+                        </div>
+                        <div className="mt-auto space-y-3 pt-3 border-t border-gray-50">
+                          <div className="flex items-center justify-between text-[10px] sm:text-xs font-bold uppercase tracking-wider">
+                            <span className="text-emerald-800">{formatCurrency(hero.current_amount)}</span>
+                            <span className="text-gray-400">{progress}%</span>
+                          </div>
+                          <div className="h-1 w-full overflow-hidden rounded-full bg-gray-100">
+                            <div
+                              className="h-full rounded-full bg-emerald-700 transition-all duration-1000"
+                              style={{ width: `${progress}%` }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </Link>
+                  </motion.div>
+                );
+              })()}
+
+              {/* Side Campaigns Grid - Scrollable Horizontally on Mobile */}
+              <div className="flex overflow-x-auto gap-4 pb-4 no-scrollbar -mx-5 px-5 snap-x snap-mandatory lg:grid lg:grid-cols-1 lg:gap-4 lg:col-span-5 lg:mx-0 lg:px-0 xl:col-span-4">
+                {featuredCampaigns.slice(1, 4).map((campaign, index) => {
+                  const progress = calculateProgress(campaign.current_amount, campaign.target_amount);
                   return (
                     <motion.div
+                      key={campaign.id}
                       initial={{ opacity: 0, y: 20 }}
                       whileInView={{ opacity: 1, y: 0 }}
                       viewport={{ once: true }}
-                      transition={{ duration: 0.5 }}
-                      className="lg:col-span-7 xl:col-span-8"
+                      transition={{ delay: 0.1 * index, duration: 0.5 }}
+                      className="w-[85vw] shrink-0 snap-start sm:w-[320px] lg:w-auto"
                     >
                       <Link
-                        to={`/campaigns/${hero.slug}`}
-                        className="group flex h-full flex-col lg:flex-row overflow-hidden rounded-2xl border border-gray-100 bg-white transition-all duration-300 hover:shadow-xl hover:shadow-gray-200/50"
+                        to={`/campaigns/${campaign.slug}`}
+                        className="group flex h-full items-center gap-4 overflow-hidden rounded-xl border border-gray-50 bg-white p-3 transition-all duration-300 hover:shadow-lg hover:shadow-gray-200/30"
                       >
-                        <div className="relative aspect-[16/9] overflow-hidden lg:aspect-auto lg:w-[55%]">
+                        <div className="relative aspect-square w-20 shrink-0 overflow-hidden rounded-lg bg-gray-100 sm:w-24">
                           <img
-                            src={hero.thumbnail_url}
-                            alt={hero.title}
-                            className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
+                            src={campaign.thumbnail_url}
+                            alt={campaign.title}
+                            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
                             referrerPolicy="no-referrer"
                             loading="lazy"
                           />
-                          <div className="absolute inset-0 bg-gray-900/5" />
                         </div>
-                        <div className="flex flex-col justify-center p-4 sm:p-7 lg:flex-1">
-                          <div className="mb-3 sm:mb-5 space-y-1 sm:space-y-2">
-                            <h3 className="text-base sm:text-xl font-bold leading-tight text-gray-900 transition-colors group-hover:text-emerald-800">
-                              {hero.title}
-                            </h3>
-                            <p className="line-clamp-2 text-[11px] sm:text-sm leading-relaxed text-gray-500 font-light">
-                              {hero.short_description}
-                            </p>
-                          </div>
-                          <div className="mt-auto space-y-4 pt-4 border-t border-gray-50">
-                            <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider">
-                              <span className="text-emerald-800">{formatCurrency(hero.current_amount)}</span>
-                              <span className="text-gray-400">{progress}%</span>
-                            </div>
-                            <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-100">
+                        <div className="flex min-w-0 flex-1 flex-col">
+                          <h4 className="mb-2 line-clamp-2 text-xs font-bold leading-snug text-gray-900 transition-colors group-hover:text-emerald-800 sm:text-sm">
+                            {campaign.title}
+                          </h4>
+                          <div className="mt-auto space-y-2">
+                            <div className="h-1 w-full overflow-hidden rounded-full bg-gray-50">
                               <div
-                                className="h-full rounded-full bg-emerald-700 transition-all duration-1000"
+                                className="h-full rounded-full bg-emerald-700/60"
                                 style={{ width: `${progress}%` }}
                               />
+                            </div>
+                            <div className="flex items-center justify-between text-[10px] font-bold">
+                              <span className="text-emerald-800">{formatCurrency(campaign.current_amount)}</span>
+                              <span className="text-gray-400">{progress}%</span>
                             </div>
                           </div>
                         </div>
                       </Link>
                     </motion.div>
                   );
-                })()}
-
-                {/* Side Campaigns Grid */}
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:col-span-5 lg:grid-cols-1 xl:col-span-4">
-                  {featuredCampaigns.slice(1, 4).map((campaign, index) => {
-                    const progress = calculateProgress(campaign.current_amount, campaign.target_amount);
-                    return (
-                      <motion.div
-                        key={campaign.id}
-                        initial={{ opacity: 0, y: 20 }}
-                        whileInView={{ opacity: 1, y: 0 }}
-                        viewport={{ once: true }}
-                        transition={{ delay: 0.1 * index, duration: 0.5 }}
-                      >
-                        <Link
-                          to={`/campaigns/${campaign.slug}`}
-                          className="group flex h-full items-center gap-4 overflow-hidden rounded-xl border border-gray-50 bg-white p-3 transition-all duration-300 hover:shadow-lg hover:shadow-gray-200/30"
-                        >
-                          <div className="relative aspect-square w-20 shrink-0 overflow-hidden rounded-lg bg-gray-100 sm:w-24">
-                            <img
-                              src={campaign.thumbnail_url}
-                              alt={campaign.title}
-                              className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
-                              referrerPolicy="no-referrer"
-                              loading="lazy"
-                            />
-                          </div>
-                          <div className="flex min-w-0 flex-1 flex-col">
-                            <h4 className="mb-2 line-clamp-2 text-xs font-bold leading-snug text-gray-900 transition-colors group-hover:text-emerald-800 sm:text-sm">
-                              {campaign.title}
-                            </h4>
-                            <div className="mt-auto space-y-2">
-                              <div className="h-1 w-full overflow-hidden rounded-full bg-gray-50">
-                                <div
-                                  className="h-full rounded-full bg-emerald-700/60"
-                                  style={{ width: `${progress}%` }}
-                                />
-                              </div>
-                              <div className="flex items-center justify-between text-[10px] font-bold">
-                                <span className="text-emerald-800">{formatCurrency(campaign.current_amount)}</span>
-                                <span className="text-gray-400">{progress}%</span>
-                              </div>
-                            </div>
-                          </div>
-                        </Link>
-                      </motion.div>
-                    );
-                  })}
-                </div>
+                })}
               </div>
-            )}
-          </div>
-        </section>
+            </div>
+          )}
+        </div>
+      </section>
 
       {/* ═══════ 4 · STATS CTA (STREAMLINED) ═══════ */}
       <section className="relative py-12 sm:py-20 bg-white">
         <div className="max-w-6xl mx-auto px-5 sm:px-6">
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}

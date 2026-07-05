@@ -191,13 +191,13 @@ export default function Events() {
 
       {/* ── Stats Bar ── */}
       {!loading && hasAnyData && (
-        <section className="border-b border-gray-100 bg-white/90 py-3 backdrop-blur-md sm:py-5">
+        <section className="border-b border-gray-100 bg-white/90 py-3.5 backdrop-blur-md sm:py-5">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            <div className="grid grid-cols-4 gap-2 sm:gap-4 md:gap-8">
+            <div className="grid grid-cols-4 gap-1 sm:gap-4 md:gap-8">
               {stats.map((stat) => (
                 <div key={stat.label} className="text-center">
                   <p className="text-sm sm:text-lg md:text-2xl font-black tracking-tight text-gray-900 leading-none">{stat.value}</p>
-                  <p className="mt-1 text-[7px] sm:text-[9px] font-bold uppercase tracking-[0.1em] text-gray-400 leading-none truncate">{stat.label}</p>
+                  <p className="mt-1.5 text-[8px] sm:text-[9px] md:text-[10px] font-bold uppercase tracking-[0.05em] text-gray-400 leading-tight">{stat.label}</p>
                 </div>
               ))}
             </div>
@@ -296,7 +296,7 @@ export default function Events() {
             >
               <InteractiveMap
                 locations={filteredLocations}
-                className="w-full h-[65vh] sm:h-[70vh] min-h-[450px] sm:min-h-[600px]"
+                className="w-full h-[220px] sm:h-[70vh] sm:min-h-[600px]"
                 scrollWheelZoom={true}
                 useFallbackLocations={false}
                 viewportMode="fit-indonesia"
