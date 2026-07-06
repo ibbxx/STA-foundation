@@ -52,6 +52,11 @@
     <priority>0.85</priority>
   </url>
   <url>
+    <loc>https://www.sekolahtanahair.org/faq</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.70</priority>
+  </url>
+  <url>
     <loc>https://www.sekolahtanahair.org/journey/cisalada-cigombong-bogor</loc>
     <changefreq>monthly</changefreq>
     <priority>0.55</priority>

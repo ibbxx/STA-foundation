@@ -37,6 +37,7 @@ export default function Footer() {
               <li><Link to="/tentang-kami" className="hover:text-emerald-400 transition-colors">Tentang Kami</Link></li>
               <li><Link to="/events" className="hover:text-emerald-400 transition-colors">Event & Aksi</Link></li>
               <li><Link to="/kontak" className="hover:text-emerald-400 transition-colors">Kontak</Link></li>
+              <li><Link to="/faq" className="hover:text-emerald-400 transition-colors">FAQ</Link></li>
             </ul>
           </div>
 

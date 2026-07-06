@@ -23,6 +23,7 @@ const Contact = lazy(() => import('./pages/public/Contact'));
 const Leaderboard = lazy(() => import('./pages/public/Leaderboard'));
 const JourneyDetail = lazy(() => import('./pages/public/JourneyDetail'));
 const EduxploreDetailView = lazy(() => import('./pages/public/EduxploreDetailView'));
+const Faq = lazy(() => import('./pages/public/Faq'));
 
 /* ── Admin Pages ── */
 const AdminLogin = lazy(() => import('./pages/admin/AdminLogin'));
@@ -144,6 +145,7 @@ export default function App() {
           <Route path="/laporkan" element={renderWithSuspense(<PublicLayout><LaporkanSekolah /></PublicLayout>)} />
           <Route path="/kontak" element={renderWithSuspense(<PublicLayout><Contact /></PublicLayout>)} />
           <Route path="/leaderboard" element={renderWithSuspense(<PublicLayout><Leaderboard /></PublicLayout>)} />
+          <Route path="/faq" element={renderWithSuspense(<PublicLayout><Faq /></PublicLayout>)} />
           <Route path="/eduxplore/:slug" element={renderWithSuspense(<PublicLayout><EduxploreDetailView /></PublicLayout>)} />
           <Route path="/admin/login" element={renderWithSuspense(<GuestRoute><AdminLogin /></GuestRoute>)} />
 

@@ -179,6 +179,7 @@ async function main() {
     { path: '/laporkan', changefreq: 'monthly', priority: 0.7 },
     { path: '/kontak', changefreq: 'monthly', priority: 0.75 },
     { path: '/leaderboard', changefreq: 'weekly', priority: 0.65 },
+    { path: '/faq', changefreq: 'monthly', priority: 0.7 },
     { path: '/programs/jelajah-tanah-air', changefreq: 'monthly', priority: 0.7 },
     { path: '/programs/eduxplore-tanah-air', changefreq: 'monthly', priority: 0.7 },
     { path: '/programs/bangun-1000-asa', changefreq: 'monthly', priority: 0.7 },

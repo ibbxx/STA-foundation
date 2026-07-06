@@ -33,6 +33,7 @@ function validateRoute(pathname, expectedText) {
 const sitemap = readRequired(join(distDir, 'sitemap.xml'));
 assert(sitemap.includes('<urlset'), 'sitemap.xml is not an XML sitemap');
 assert(sitemap.includes('https://www.sekolahtanahair.org/campaigns'), 'sitemap.xml is missing canonical campaign route');
+assert(sitemap.includes('https://www.sekolahtanahair.org/faq'), 'sitemap.xml is missing FAQ route');
 
 const robots = readRequired(join(distDir, 'robots.txt'));
 assert(robots.includes('Disallow: /admin/'), 'robots.txt must disallow /admin/');
@@ -44,5 +45,6 @@ assert(llms.includes('Official source: https://www.sekolahtanahair.org'), 'llms.
 validateRoute('/', 'Sekolah Tanah Air');
 validateRoute('/campaigns', 'Campaign Donasi Pendidikan');
 validateRoute('/kontak', 'Hubungi Kami');
+validateRoute('/faq', 'Pertanyaan yang Sering Ditanyakan');
 
 console.log('[seo] SEO output validation passed.');

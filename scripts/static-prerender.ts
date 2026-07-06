@@ -167,7 +167,11 @@ function renderRouteHtml(template: string, route: RouteHtml) {
   html = html.replace(/<meta name="twitter:title" content=".*?"\s*\/?>/s, `<meta name="twitter:title" content="${escapeHtml(title)}" />`);
   html = html.replace(/<meta name="twitter:description" content=".*?"\s*\/?>/s, `<meta name="twitter:description" content="${escapeHtml(description)}" />`);
   html = html.replace(/<meta name="twitter:image" content=".*?"\s*\/?>/s, `<meta name="twitter:image" content="${escapeHtml(image)}" />`);
-  html = html.replace('</head>', `  ${renderStructuredData(route)}\n</head>`);
+  let preloadTag = '';
+  if (route.image && route.image !== DEFAULT_SEO_IMAGE) {
+    preloadTag = `\n  <link rel="preload" as="image" href="${escapeHtml(image)}" fetchpriority="high" />`;
+  }
+  html = html.replace('</head>', `  ${renderStructuredData(route)}${preloadTag}\n</head>`);
   html = html.replace(/<div id="root"><\/div>/, renderFallbackContent(route));
   return html;
 }
@@ -228,6 +232,59 @@ function baseRoutes() {
       description: 'Lihat apresiasi untuk para pejuang kebaikan yang mendukung campaign pendidikan Sekolah Tanah Air.',
       contentTitle: 'Leaderboard Donatur',
       contentDescription: 'Apresiasi untuk para pendukung campaign pendidikan Sekolah Tanah Air.',
+    },
+    {
+      path: '/faq',
+      title: 'FAQ Sekolah Tanah Air',
+      description: 'Jawaban untuk pertanyaan umum tentang campaign, donasi, relawan, dan transparansi Sekolah Tanah Air.',
+      contentTitle: 'Pertanyaan yang Sering Ditanyakan',
+      contentDescription: 'Jawaban singkat untuk pertanyaan umum seputar campaign, donasi, dan transparansi Sekolah Tanah Air.',
+      structuredData: {
+        '@context': 'https://schema.org',
+        '@type': 'FAQPage',
+        mainEntity: [
+          {
+            '@type': 'Question',
+            name: 'Bagaimana cara memulai penggalangan dana?',
+            acceptedAnswer: {
+              '@type': 'Answer',
+              text: 'Anda cukup mendaftar akun, membuat halaman campaign dengan informasi lengkap, lalu membagikannya ke jaringan Anda. Tim kami akan memverifikasi campaign dalam 1x24 jam.',
+            },
+          },
+          {
+            '@type': 'Question',
+            name: 'Apakah ada biaya yang dikenakan saat berdonasi?',
+            acceptedAnswer: {
+              '@type': 'Answer',
+              text: 'Kami mengenakan biaya platform sebesar 5% dari total donasi yang terkumpul untuk operasional dan pengembangan platform. Tidak ada biaya tersembunyi.',
+            },
+          },
+          {
+            '@type': 'Question',
+            name: 'Bagaimana saya bisa yakin dana tersalur dengan benar?',
+            acceptedAnswer: {
+              '@type': 'Answer',
+              text: 'Setiap campaign wajib memberikan update berkala dan laporan penggunaan dana. Kami juga melakukan verifikasi identitas penggalang dana dan menyediakan laporan transparansi publik.',
+            },
+          },
+          {
+            '@type': 'Question',
+            name: 'Berapa lama proses pencairan dana ke penggalang?',
+            acceptedAnswer: {
+              '@type': 'Answer',
+              text: 'Dana dapat dicairkan kapan saja setelah minimal terkumpul Rp 1.000.000. Proses transfer membutuhkan 1-3 hari kerja ke rekening yang terdaftar.',
+            },
+          },
+          {
+            '@type': 'Question',
+            name: 'Apakah saya bisa membuat campaign anonim?',
+            acceptedAnswer: {
+              '@type': 'Answer',
+              text: 'Ya, Anda bisa memilih untuk menyembunyikan identitas sebagai penggalang dana. Namun, kami tetap memerlukan verifikasi identitas untuk keamanan.',
+            },
+          },
+        ],
+      },
     },
   ].forEach((route) => addRoute(routes, route));
 
