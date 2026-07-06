@@ -1,6 +1,7 @@
 import { Link, Navigate, useLocation } from 'react-router-dom';
 import { Clock3, ArrowRight, Share2 } from 'lucide-react';
 import { formatCurrency } from '../../lib/utils';
+import { useSeo } from '../../lib/seo';
 
 /**
  * Komponen Halaman Sukses Pembayaran.
@@ -8,6 +9,13 @@ import { formatCurrency } from '../../lib/utils';
  * Memberikan konfirmasi visual, rincian singkat transaksi, dan ajakan tindakan (CTA) lanjutan.
  */
 export default function PaymentSuccess() {
+  useSeo({
+    title: 'Donasi Tercatat',
+    description: 'Konfirmasi pencatatan donasi Sekolah Tanah Air.',
+    path: '/payment/success',
+    robots: 'noindex,follow',
+  });
+
   const location = useLocation();
   const paymentState = location.state as {
     amount?: number;

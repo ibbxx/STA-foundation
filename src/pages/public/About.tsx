@@ -4,6 +4,7 @@ import { Shield, Users, Heart, Target, Lightbulb, CheckCircle2, ArrowRight } fro
 import { Link } from 'react-router-dom';
 import { supabase, parseSiteContentValue } from '../../lib/supabase';
 import { logError } from '../../lib/error-logger';
+import { useSeo } from '../../lib/seo';
 
 const fadeUp = {
   initial: { opacity: 0, y: 20 },
@@ -23,6 +24,13 @@ const PARTNERS = [
 
 export default function About() {
   const [heroImage, setHeroImage] = React.useState<string | null>(null);
+
+  useSeo({
+    title: 'Tentang Sekolah Tanah Air',
+    description: 'Kenali visi, misi, nilai, dan gerakan Sekolah Tanah Air dalam memperkuat akses pendidikan Indonesia melalui data, kolaborasi, dan aksi nyata.',
+    path: '/tentang-kami',
+    image: heroImage,
+  });
 
   React.useEffect(() => {
     async function loadHero() {

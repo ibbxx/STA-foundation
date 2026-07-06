@@ -13,6 +13,7 @@ import {
   type EventMapLocation,
   type VolunteerProgramData,
 } from '../../lib/public/events';
+import { useSeo } from '../../lib/seo';
 
 const fadeUp = {
   initial: { opacity: 0, y: 24 },
@@ -50,6 +51,12 @@ function EventCardSkeleton() {
 }
 
 export default function Events() {
+  useSeo({
+    title: 'Event, Relawan, dan Peta Dampak',
+    description: 'Lihat program relawan, event lapangan, peta dampak, dan cerita perjalanan Sekolah Tanah Air di berbagai wilayah Indonesia.',
+    path: '/events',
+  });
+
   const [locations, setLocations] = React.useState<EventMapLocation[]>([]);
   const [volunteerPrograms, setVolunteerPrograms] = React.useState<VolunteerProgramData[]>([]);
   const [selectedLocationId, setSelectedLocationId] = React.useState<string | null>(null);

@@ -5,6 +5,7 @@ import { fetchLeaderboard, LeaderboardEntry } from '../../lib/leaderboard';
 import { formatCurrency, cn } from '../../lib/utils';
 import { Link } from 'react-router-dom';
 import { Skeleton } from '../../components/ui/skeleton';
+import { useSeo } from '../../lib/seo';
 
 function LeaderboardSkeleton() {
   return (
@@ -37,6 +38,12 @@ function LeaderboardSkeleton() {
 }
 
 export default function Leaderboard() {
+  useSeo({
+    title: 'Leaderboard Donatur',
+    description: 'Lihat apresiasi untuk para pejuang kebaikan yang mendukung campaign pendidikan Sekolah Tanah Air.',
+    path: '/leaderboard',
+  });
+
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
 

@@ -3,4 +3,34 @@ Allow: /
 Disallow: /admin/
 Disallow: /admin/*
 
-Sitemap: https://sekolahtanahair.org/sitemap.xml
+User-agent: GPTBot
+Allow: /
+Disallow: /admin/
+Disallow: /admin/*
+
+User-agent: ChatGPT-User
+Allow: /
+Disallow: /admin/
+Disallow: /admin/*
+
+User-agent: ClaudeBot
+Allow: /
+Disallow: /admin/
+Disallow: /admin/*
+
+User-agent: PerplexityBot
+Allow: /
+Disallow: /admin/
+Disallow: /admin/*
+
+User-agent: Googlebot
+Allow: /
+Disallow: /admin/
+Disallow: /admin/*
+
+User-agent: Googlebot-Image
+Allow: /
+Disallow: /admin/
+Disallow: /admin/*
+
+Sitemap: https://www.sekolahtanahair.org/sitemap.xml

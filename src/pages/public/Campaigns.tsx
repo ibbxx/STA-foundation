@@ -6,6 +6,7 @@ import { Skeleton } from '../../components/ui/skeleton';
 import { logError } from '../../lib/error-logger';
 import { fetchPublicCampaigns } from '../../lib/public-campaigns';
 import { Campaign } from '../../lib/supabase';
+import { useSeo } from '../../lib/seo';
 
 function CampaignCardSkeleton() {
   return (
@@ -37,6 +38,12 @@ function CampaignCardSkeleton() {
 }
 
 export default function Campaigns() {
+  useSeo({
+    title: 'Campaign Donasi Pendidikan',
+    description: 'Jelajahi campaign Sekolah Tanah Air dan dukung kebutuhan pendidikan, fasilitas sekolah, komunitas belajar, serta program sosial di Indonesia.',
+    path: '/campaigns',
+  });
+
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState('Semua');

@@ -8,6 +8,7 @@ import type { HomeProgramSlide } from '../../lib/admin/home-programs';
 import { supabase } from '../../lib/supabase/types';
 import { logError } from '../../lib/error-logger';
 import { sanitizeHTML } from '../../lib/sanitize';
+import { absoluteUrl, createBreadcrumbJsonLd, stripHtmlToText, truncateText, useSeo } from '../../lib/seo';
 
 /** Type guard for parsed content JSON from DB */
 interface ProgramContentJson {
@@ -30,6 +31,46 @@ export default function ProgramDetail() {
 
   // Static fallback data
   const staticProgram = getProgramBySlug(slug);
+  const program = dynamicProgram || staticProgram;
+  const heroImage = program && 'hero_image_url' in program && typeof program.hero_image_url === 'string'
+    ? program.hero_image_url
+    : '';
+  const programDescription = program
+    ? truncateText(
+      stripHtmlToText(
+        ('overview' in program && program.overview)
+          || ('short_description' in program && program.short_description)
+          || '',
+      ) || `Pelajari program ${program.title} dari Sekolah Tanah Air.`,
+    )
+    : 'Detail program pendidikan dan kerelawanan Sekolah Tanah Air.';
+  const programStructuredData = program
+    ? [
+      createBreadcrumbJsonLd([
+        { name: 'Beranda', path: '/' },
+        { name: 'Program', path: '/' },
+        { name: program.title, path: `/programs/${program.slug}` },
+      ]),
+      {
+        '@context': 'https://schema.org',
+        '@type': 'Article',
+        headline: program.title,
+        description: programDescription,
+        image: heroImage ? absoluteUrl(heroImage) : undefined,
+        mainEntityOfPage: absoluteUrl(`/programs/${program.slug}`),
+      },
+    ]
+    : undefined;
+
+  useSeo({
+    title: program ? program.title : 'Detail Program',
+    description: programDescription,
+    path: `/programs/${slug ?? ''}`,
+    image: heroImage,
+    type: 'article',
+    robots: !loading && !program ? 'noindex,follow' : 'index,follow',
+    structuredData: programStructuredData,
+  });
 
   useEffect(() => {
     async function loadDynamicData() {
@@ -84,10 +125,6 @@ export default function ProgramDetail() {
     );
   }
 
-  // Combine static and dynamic data
-  // Dynamic data (from admin) takes precedence for title, description, and images
-  const program = dynamicProgram || staticProgram;
-
   if (!program) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center py-24 px-5">
@@ -137,12 +174,6 @@ export default function ProgramDetail() {
     hidden: { opacity: 0, y: 20 },
     visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: "easeOut" as const } }
   };
-
-  // Image Logic:
-  // 1. dynamic hero_image_url
-  const heroImage = ('hero_image_url' in program && typeof program.hero_image_url === 'string')
-    ? program.hero_image_url
-    : '';
 
   return (
     <div className="bg-white min-h-screen selection:bg-emerald-100 selection:text-emerald-900 overflow-x-hidden">

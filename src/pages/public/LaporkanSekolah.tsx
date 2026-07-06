@@ -28,6 +28,7 @@ import {
 import { getEdgeFunctionErrorMessage, submitSchoolReport } from '../../lib/admin/repository';
 import { logError } from '../../lib/error-logger';
 import { supabase } from '../../lib/supabase/types';
+import { useSeo } from '../../lib/seo';
 
 // Derive type from Zod schema to keep resolver and form in sync
 type FormValues = z.infer<typeof reportSchoolFormSchema>;
@@ -50,6 +51,12 @@ function renderStepContent(
 }
 
 export default function LaporkanSekolah() {
+  useSeo({
+    title: 'Laporkan Sekolah yang Membutuhkan Bantuan',
+    description: 'Laporkan kondisi sekolah atau komunitas belajar yang membutuhkan dukungan agar tim Sekolah Tanah Air dapat melakukan verifikasi dan pemetaan kebutuhan.',
+    path: '/laporkan',
+  });
+
   const [draftValues] = useState(() => loadReportSchoolDraft());
   const [currentStep, setCurrentStep] = useState(0);
   const [assets, setAssets] = useState<ReportSchoolAssets>(createEmptyAssets);

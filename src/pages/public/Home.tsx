@@ -20,6 +20,7 @@ import { formatCurrency, calculateProgress, cn } from '../../lib/utils';
 import { supabase, parseSiteContentValue } from '../../lib/supabase/types';
 import { DEFAULT_PROGRAMS_HEADER, DEFAULT_CTA_DATA } from '../../lib/constants';
 import type { ProgramsHeaderData, CtaData } from '../../lib/constants';
+import { useSeo } from '../../lib/seo';
 
 /* ── Extracted Section Components ── */
 import HeroSlideshow from '../../components/public/HeroSlideshow';
@@ -39,6 +40,12 @@ const fadeUp = {
 /* ─────────── Main Component ─────────── */
 
 export default function Home() {
+  useSeo({
+    title: 'Sekolah Tanah Air | Bersama Membangun Negeri',
+    description: 'Sekolah Tanah Air menghubungkan aksi pendidikan, relawan, campaign donasi, dan pemetaan kebutuhan sekolah untuk membangun masa depan anak Indonesia.',
+    path: '/',
+  });
+
   const [featuredCampaigns, setFeaturedCampaigns] = React.useState<Campaign[]>([]);
   const [loadingFeaturedCampaigns, setLoadingFeaturedCampaigns] = React.useState(true);
   const [featuredCampaignError, setFeaturedCampaignError] = React.useState<string | null>(null);

@@ -19,6 +19,7 @@ import { fetchPublicCampaignForDonate } from '../../lib/public-campaigns';
 import { Campaign, supabase } from '../../lib/supabase';
 import { formatCurrency, cn } from '../../lib/utils';
 import { Skeleton } from '../../components/ui/skeleton';
+import { stripHtmlToText, truncateText, useSeo } from '../../lib/seo';
 
 const donationSchema = z.object({
   amount: z.number().min(10000, 'Minimal donasi Rp 10.000'),
@@ -115,6 +116,17 @@ export default function Donate() {
   const [pageError, setPageError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const seoDescription = campaign
+    ? truncateText(stripHtmlToText(campaign.full_description) || `Donasi untuk campaign ${campaign.title} bersama Sekolah Tanah Air.`)
+    : 'Form donasi campaign Sekolah Tanah Air.';
+
+  useSeo({
+    title: campaign ? `Donasi ${campaign.title}` : 'Donasi Campaign',
+    description: seoDescription,
+    path: `/donate/${slug}`,
+    image: campaign?.thumbnail_url,
+    robots: 'noindex,follow',
+  });
 
   const {
     register,

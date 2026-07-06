@@ -3,6 +3,7 @@ import { Mail, Phone, MapPin, Send, MessageCircle, ArrowRight } from 'lucide-rea
 import { motion } from 'framer-motion';
 import { supabase, parseSiteContentValue } from '../../lib/supabase';
 import { logError } from '../../lib/error-logger';
+import { STA_BUSINESS_PROFILE, useSeo } from '../../lib/seo';
 
 /**
  * Komponen Halaman Kontak (Contact).
@@ -12,6 +13,13 @@ import { logError } from '../../lib/error-logger';
 export default function Contact() {
   const [heroImage, setHeroImage] = React.useState<string | null>(null);
   const [formNotice, setFormNotice] = React.useState<string | null>(null);
+
+  useSeo({
+    title: 'Kontak Sekolah Tanah Air',
+    description: 'Hubungi Sekolah Tanah Air untuk kolaborasi, donasi, program relawan, atau laporan kebutuhan pendidikan di Indonesia.',
+    path: '/kontak',
+    image: heroImage,
+  });
 
   React.useEffect(() => {
     async function loadHero() {
@@ -40,7 +48,7 @@ export default function Contact() {
     }
 
     const body = `Nama: ${name}\nEmail: ${email}\n\n${message}`;
-    window.location.href = `mailto:admin@sekolahtanahair.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    window.location.href = `mailto:${STA_BUSINESS_PROFILE.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
     setFormNotice('Aplikasi email Anda sedang dibuka.');
   }
 
@@ -90,15 +98,15 @@ export default function Contact() {
                 {[
                   {
                     label: 'Email',
-                    value: 'admin@sekolahtanahair.com',
-                    href: 'mailto:admin@sekolahtanahair.com',
+                    value: STA_BUSINESS_PROFILE.email,
+                    href: `mailto:${STA_BUSINESS_PROFILE.email}`,
                     icon: Mail,
                     color: 'bg-blue-500',
                   },
                   {
                     label: 'WhatsApp',
                     value: '+62 878-8279-9026',
-                    href: 'https://wa.me/6287882799026',
+                    href: STA_BUSINESS_PROFILE.whatsappUrl,
                     icon: MessageCircle,
                     color: 'bg-emerald-500',
                     target: '_blank',
@@ -106,8 +114,8 @@ export default function Contact() {
                   },
                   {
                     label: 'Alamat',
-                    value: 'Tangsel, Indonesia',
-                    href: 'https://maps.google.com/?q=Tangsel,%20Indonesia',
+                    value: STA_BUSINESS_PROFILE.addressLabel,
+                    href: STA_BUSINESS_PROFILE.googleMapsUrl,
                     icon: MapPin,
                     color: 'bg-rose-500',
                     target: '_blank',

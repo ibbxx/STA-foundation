@@ -28,6 +28,7 @@ import { Campaign, CampaignUpdateRow } from '../../lib/supabase/types';
 import { calculateProgress, formatCurrency, formatLongDate } from '../../lib/utils';
 import { sanitizeHTML } from '../../lib/sanitize';
 import CampaignStatusBadge, { getCampaignTemporalStatus } from '../../components/admin/campaigns/CampaignStatusBadge';
+import { absoluteUrl, createBreadcrumbJsonLd, stripHtmlToText, truncateText, useSeo } from '../../lib/seo';
 
 function CampaignDetailSkeleton() {
   return (
@@ -166,6 +167,45 @@ export default function CampaignDetail() {
     [campaign],
   );
   const daysLeft = getDaysLeft(campaign?.end_date ?? campaign?.deadline);
+  const seoDescription = campaign
+    ? truncateText(stripHtmlToText(campaign.full_description) || campaign.short_description || `Dukung campaign ${campaign.title} bersama Sekolah Tanah Air.`)
+    : 'Detail campaign donasi pendidikan Sekolah Tanah Air.';
+  const seoStructuredData = useMemo(() => {
+    if (!campaign) return undefined;
+    const campaignPath = `/campaigns/${campaign.slug}`;
+
+    return [
+      createBreadcrumbJsonLd([
+        { name: 'Beranda', path: '/' },
+        { name: 'Campaign', path: '/campaigns' },
+        { name: campaign.title, path: campaignPath },
+      ]),
+      {
+        '@context': 'https://schema.org',
+        '@type': 'Article',
+        headline: campaign.title,
+        description: seoDescription,
+        image: campaign.thumbnail_url ? absoluteUrl(campaign.thumbnail_url) : undefined,
+        datePublished: campaign.created_at,
+        mainEntityOfPage: absoluteUrl(campaignPath),
+        publisher: {
+          '@type': 'Organization',
+          name: 'Sekolah Tanah Air',
+          url: absoluteUrl('/'),
+        },
+      },
+    ];
+  }, [campaign, seoDescription]);
+
+  useSeo({
+    title: campaign ? campaign.title : 'Detail Campaign',
+    description: seoDescription,
+    path: `/campaigns/${slug}`,
+    image: campaign?.thumbnail_url,
+    type: 'article',
+    robots: !loading && !campaign ? 'noindex,follow' : 'index,follow',
+    structuredData: seoStructuredData,
+  });
 
   if (loading) {
     return <CampaignDetailSkeleton />;

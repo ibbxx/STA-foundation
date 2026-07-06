@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import { useSeo } from '../../lib/seo';
 
 const FAQ_ITEMS = [
   {
@@ -31,6 +32,24 @@ const FAQ_ITEMS = [
 ];
 
 export default function Faq() {
+  useSeo({
+    title: 'FAQ Sekolah Tanah Air',
+    description: 'Jawaban untuk pertanyaan umum tentang campaign, donasi, relawan, dan transparansi Sekolah Tanah Air.',
+    path: '/faq',
+    structuredData: {
+      '@context': 'https://schema.org',
+      '@type': 'FAQPage',
+      mainEntity: FAQ_ITEMS.map((item) => ({
+        '@type': 'Question',
+        name: item.question,
+        acceptedAnswer: {
+          '@type': 'Answer',
+          text: item.answer,
+        },
+      })),
+    },
+  });
+
   const [openItem, setOpenItem] = useState<number>(0);
 
   return (

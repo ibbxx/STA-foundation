@@ -7,6 +7,7 @@ import { cn } from '../../lib/utils';
 import { useShare } from '../../hooks/useShare';
 import ShareToast from '../../components/shared/ShareToast';
 import { Skeleton } from '../../components/ui/skeleton';
+import { createBreadcrumbJsonLd, truncateText, useSeo } from '../../lib/seo';
 
 const fadeUp = {
   initial: { opacity: 0, y: 20 },
@@ -78,13 +79,32 @@ export default function JourneyDetail() {
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
   const { share, shareStatus } = useShare();
+  const seoDescription = journey
+    ? truncateText(journey.description || `Cerita perjalanan dan dampak Sekolah Tanah Air di ${journey.locationLabel ?? journey.province ?? journey.title}.`)
+    : 'Cerita perjalanan dan peta dampak Sekolah Tanah Air.';
+
+  useSeo({
+    title: journey ? journey.title : 'Detail Journey',
+    description: seoDescription,
+    path: `/journey/${id ?? ''}`,
+    image: journey?.imageUrl,
+    type: 'article',
+    robots: !loading && !journey ? 'noindex,follow' : 'index,follow',
+    structuredData: journey
+      ? createBreadcrumbJsonLd([
+        { name: 'Beranda', path: '/' },
+        { name: 'Event', path: '/events' },
+        { name: journey.title, path: `/journey/${journey.slug ?? journey.id}` },
+      ])
+      : undefined,
+  });
 
   React.useEffect(() => {
     async function loadJourney() {
       try {
         setLoading(true);
         const locations = await fetchImpactMapLocations();
-        const found = locations.find(loc => loc.id === id);
+        const found = locations.find(loc => loc.id === id || loc.slug === id);
         if (found) {
           setJourney(found);
         } else {

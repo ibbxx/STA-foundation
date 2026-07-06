@@ -13,12 +13,46 @@ import type { VolunteerProgramData, VolunteerTimelineItem } from '../../lib/edux
 import { getVolunteerProgramStatus } from '../../lib/eduxplore';
 import type { VolunteerProgramRow } from '../../lib/supabase/types';
 import { logError } from '../../lib/error-logger';
+import { createBreadcrumbJsonLd, createEventJsonLd, truncateText, useSeo } from '../../lib/seo';
 
 export default function EduxploreDetailView() {
   const { slug } = useParams<{ slug: string }>();
   const location = useLocation();
   const [loading, setLoading] = useState(true);
   const [program, setProgram] = useState<VolunteerProgramData | null>(null);
+  const seoDescription = program
+    ? truncateText(program.short_description || program.description || `Pendaftaran dan detail program relawan ${program.title} bersama Sekolah Tanah Air.`)
+    : 'Detail program relawan EduXplore Sekolah Tanah Air.';
+  const eventSchema = program
+    ? createEventJsonLd({
+      name: program.title,
+      description: seoDescription,
+      path: `/eduxplore/${program.slug}`,
+      image: program.image_url,
+      location: program.location,
+      startDate: program.registration_start,
+      endDate: program.program_end ?? program.registration_end,
+    })
+    : null;
+
+  useSeo({
+    title: program ? program.title : 'Detail Program Relawan',
+    description: seoDescription,
+    path: `/eduxplore/${slug ?? ''}`,
+    image: program?.image_url,
+    type: 'article',
+    robots: !loading && !program ? 'noindex,follow' : 'index,follow',
+    structuredData: program
+      ? [
+        createBreadcrumbJsonLd([
+          { name: 'Beranda', path: '/' },
+          { name: 'Event', path: '/events' },
+          { name: program.title, path: `/eduxplore/${program.slug}` },
+        ]),
+        ...(eventSchema ? [eventSchema] : []),
+      ]
+      : undefined,
+  });
 
   useEffect(() => {
     if (!loading && program && location.hash === '#form-pendaftaran') {

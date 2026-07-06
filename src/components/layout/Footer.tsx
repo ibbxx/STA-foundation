@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { Mail, Phone, MapPin, Instagram, Facebook, Twitter } from 'lucide-react';
 import Logo from '../shared/Logo';
+import { STA_BUSINESS_PROFILE } from '../../lib/seo';
 
 /**
  * Komponen Catatan Kaki (Footer) yang berisi tautan navigasi tambahan,
@@ -20,10 +21,10 @@ export default function Footer() {
               Platform kolaboratif penggalangan dana dan aksi nyata untuk membangkitkan fasilitas pendidikan Indonesia yang berakar pada kearifan lokal.
             </p>
             <div className="flex items-center gap-4">
-              <a href="https://www.instagram.com/sekolah.tanahair" target="_blank" rel="noreferrer" className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center hover:bg-emerald-600 hover:text-white transition-all duration-300">
+              <a href={STA_BUSINESS_PROFILE.instagramUrl} target="_blank" rel="noreferrer" className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center hover:bg-emerald-600 hover:text-white transition-all duration-300">
                 <Instagram size={16} />
               </a>
-              <a href="https://wa.me/6287882799026" target="_blank" rel="noreferrer" className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center hover:bg-emerald-600 hover:text-white transition-all duration-300">
+              <a href={STA_BUSINESS_PROFILE.whatsappUrl} target="_blank" rel="noreferrer" className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center hover:bg-emerald-600 hover:text-white transition-all duration-300">
                 <Phone size={16} />
               </a>
             </div>
@@ -45,15 +46,17 @@ export default function Footer() {
             <ul className="space-y-3 text-[13px]">
               <li className="flex items-start gap-3">
                 <Mail size={14} className="mt-0.5 text-emerald-500" />
-                <a href="mailto:admin@sekolahtanahair.com" className="hover:text-white transition-colors truncate">admin@sekolahtanahair.com</a>
+                <a href={`mailto:${STA_BUSINESS_PROFILE.email}`} className="hover:text-white transition-colors truncate">{STA_BUSINESS_PROFILE.email}</a>
               </li>
               <li className="flex items-start gap-3">
                 <Phone size={14} className="mt-0.5 text-emerald-500" />
-                <span>0878-8279-9026</span>
+                <span>+62 878-8279-9026</span>
               </li>
               <li className="flex items-start gap-3 text-gray-500 italic">
                 <MapPin size={14} className="mt-0.5 text-emerald-500 shrink-0" />
-                <span>Tangsel, Indonesia</span>
+                <a href={STA_BUSINESS_PROFILE.googleMapsUrl} target="_blank" rel="noreferrer" className="hover:text-white transition-colors">
+                  {STA_BUSINESS_PROFILE.addressLabel}
+                </a>
               </li>
             </ul>
           </div>

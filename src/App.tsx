@@ -5,6 +5,7 @@ import GuestRoute from './components/shared/GuestRoute';
 import Footer from './components/layout/Footer';
 import ProtectedRoute from './components/shared/ProtectedRoute';
 import { AuthContext, useAuthProvider } from './hooks/useAuth';
+import { useSeo } from './lib/seo';
 
 /* ── Public Pages ── */
 const Home = lazy(() => import('./pages/public/Home'));
@@ -59,6 +60,38 @@ function ScrollToTop() {
   return null;
 }
 
+function RouteSeoGuard() {
+  const location = useLocation();
+  const isPrivateRoute = location.pathname.startsWith('/admin');
+
+  if (!isPrivateRoute) return null;
+
+  return <PrivateRouteSeo path={location.pathname} />;
+}
+
+function PrivateRouteSeo({ path }: { path: string }) {
+  useSeo({
+    title: 'Admin Sekolah Tanah Air',
+    description: 'Area administrasi Sekolah Tanah Air.',
+    path,
+    robots: 'noindex,nofollow',
+    includeOrganizationSchema: false,
+  });
+
+  return null;
+}
+
+function NotFoundPage() {
+  useSeo({
+    title: 'Halaman Tidak Ditemukan',
+    description: 'Halaman yang Anda cari tidak tersedia di website Sekolah Tanah Air.',
+    robots: 'noindex,follow',
+    includeOrganizationSchema: false,
+  });
+
+  return <div className="py-24 text-center sm:py-32">Halaman tidak ditemukan.</div>;
+}
+
 /**
  * Komponen pembungkus (wrapper) untuk halaman-halaman publik.
  * Navbar publik bersifat fixed, jadi seluruh halaman publik memakai spacer
@@ -94,6 +127,7 @@ export default function App() {
     <Router>
       <AuthProvider>
         <ScrollToTop />
+        <RouteSeoGuard />
         <Routes>
           {/* Rute-rute Publik */}
           <Route path="/" element={renderWithSuspense(<PublicLayout><Home /></PublicLayout>)} />
@@ -132,7 +166,7 @@ export default function App() {
             path="*"
             element={renderWithSuspense(
               <PublicLayout>
-                <div className="py-24 text-center sm:py-32">Halaman tidak ditemukan.</div>
+                <NotFoundPage />
               </PublicLayout>,
             )}
           />
