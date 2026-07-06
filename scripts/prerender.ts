@@ -1,6 +1,6 @@
 import { chromium } from 'playwright';
 import { createServer } from 'node:http';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { extname, join, resolve } from 'node:path';
 
 const DIST_DIR = resolve(process.cwd(), 'dist');
@@ -49,10 +49,10 @@ function safeFilePath(pathname: string) {
 
 function findStaticFile(pathname: string) {
   const direct = safeFilePath(pathname);
-  if (existsSync(direct) && !direct.endsWith('/')) return direct;
+  if (existsSync(direct) && statSync(direct).isFile()) return direct;
 
   const indexPath = join(safeFilePath(pathname), 'index.html');
-  if (existsSync(indexPath)) return indexPath;
+  if (existsSync(indexPath) && statSync(indexPath).isFile()) return indexPath;
 
   return join(DIST_DIR, 'index.html');
 }

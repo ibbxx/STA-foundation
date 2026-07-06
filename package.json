@@ -8,9 +8,10 @@
     "generate:seo": "tsx scripts/generate-seo.ts",
     "postinstall": "node scripts/postinstall.mjs",
     "prebuild": "npm run generate:seo",
-    "build": "vite build && npm run prerender",
+    "build": "vite build && npm run static-prerender && npm run prerender",
     "preview": "vite preview",
     "prerender": "tsx scripts/prerender.ts",
+    "static-prerender": "tsx scripts/static-prerender.ts",
     "validate:seo": "node scripts/validate-seo-output.mjs",
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit"

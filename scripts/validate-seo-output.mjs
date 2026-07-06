@@ -42,7 +42,7 @@ const llms = readRequired(join(distDir, 'llms.txt'));
 assert(llms.includes('Official source: https://www.sekolahtanahair.org'), 'llms.txt is missing canonical source statement');
 
 validateRoute('/', 'Sekolah Tanah Air');
-validateRoute('/campaigns', 'Jelajahi Program Kebaikan');
+validateRoute('/campaigns', 'Campaign Donasi Pendidikan');
 validateRoute('/kontak', 'Hubungi Kami');
 
 console.log('[seo] SEO output validation passed.');
