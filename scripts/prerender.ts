@@ -5,6 +5,7 @@ import { extname, join, resolve } from 'node:path';
 
 const DIST_DIR = resolve(process.cwd(), 'dist');
 const SITE_URL = 'https://www.sekolahtanahair.org';
+const IS_VERCEL = process.env.VERCEL === '1';
 
 const MIME_TYPES: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
@@ -99,6 +100,13 @@ async function main() {
   const paths = readSitemapPaths();
   if (paths.length === 0) {
     throw new Error('No prerenderable URLs found in sitemap.');
+  }
+
+  if (IS_VERCEL && process.env.FORCE_VERCEL_PRERENDER !== '1') {
+    console.warn(
+      '[prerender] Skipped on Vercel build environment. Local prerender remains available.',
+    );
+    return;
   }
 
   const server = await startServer();

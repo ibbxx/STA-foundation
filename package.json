@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite --port=3000 --host=0.0.0.0",
     "generate:seo": "tsx scripts/generate-seo.ts",
-    "postinstall": "playwright install chromium",
+    "postinstall": "node scripts/postinstall.mjs",
     "prebuild": "npm run generate:seo",
     "build": "vite build && npm run prerender",
     "preview": "vite preview",
