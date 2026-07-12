@@ -11,33 +11,186 @@ import {
   FileImage, Filter, FileSpreadsheet, Trash2, FileText, MessageCircle
 } from 'lucide-react';
 import { logError } from '../../lib/error-logger';
+import { downloadXlsx } from '../../lib/admin-export';
 
 type StatusFilter = 'all' | 'pending' | 'verified' | 'rejected';
 type TypeFilter = 'all' | 'reguler' | 'beasiswa';
 type ProgramTypeFilter = 'all' | 'jelajah' | 'eduxplore' | 'bangun-asa';
+type ExportField = { id: string; label: string; type?: string };
+type FormQuestion = { id: string; label?: string; type?: string };
+
+const VOLUNTEER_ASSETS_BUCKET = 'volunteer-assets';
+const EXPORT_SIGNED_URL_EXPIRES_IN_SECONDS = 60 * 60 * 24 * 7;
+
+const CORE_EXPORT_FIELDS: ExportField[] = [
+  { id: 'nama_lengkap', label: 'Nama Lengkap' },
+  { id: 'email', label: 'Email' },
+  { id: 'whatsapp', label: 'WhatsApp' },
+];
+
+const LEGACY_DETAIL_FIELDS: ExportField[] = [
+  { id: 'whatsapp_emergency', label: 'Kontak Darurat' },
+  { id: 'alamat', label: 'Alamat' },
+  { id: 'tanggal_lahir', label: 'Tanggal Lahir' },
+  { id: 'size_baju', label: 'Ukuran Baju' },
+  { id: 'pendidikan', label: 'Latar Belakang Pendidikan' },
+  { id: 'bidang_diminati', label: 'Bidang Diminati' },
+  { id: 'riwayat_penyakit', label: 'Riwayat Penyakit' },
+];
+
+const LEGACY_FILE_COLUMNS: Record<string, keyof VolunteerRegistrationRow> = {
+  bukti_dp: 'bukti_dp_url',
+  bukti_pembayaran: 'bukti_dp_url',
+  bukti_follow_ig: 'bukti_follow_url',
+  bukti_follow_sta: 'bukti_follow_url',
+  bukti_follow_bepro: 'bukti_follow_url',
+  foto_id_card: 'foto_id_url',
+};
+
+const PROGRAM_TYPE_LABELS: Record<ProgramTypeFilter, string> = {
+  all: 'Semua Program',
+  jelajah: 'Jelajah Tanah Air',
+  eduxplore: 'EduXplore',
+  'bangun-asa': 'Bangun 1000 Asa',
+};
+
+const STATUS_EXPORT_LABELS: Record<StatusFilter, string> = {
+  all: 'Semua Status',
+  pending: 'Perlu Review',
+  verified: 'Diterima',
+  rejected: 'Ditolak',
+};
+
+const METADATA_EXPORT_FIELDS: ExportField[] = [
+  { id: 'registration_type_label', label: 'Jalur Pendaftaran' },
+  { id: 'program_title', label: 'Program Relawan' },
+  { id: 'program_type_label', label: 'Kategori Program' },
+  { id: 'status_label', label: 'Status Pendaftaran' },
+  { id: 'created_at_label', label: 'Tanggal Daftar' },
+];
+
+function getDefaultFormConfig(registrationType: string | null | undefined) {
+  return registrationType === 'beasiswa' ? DEFAULT_BEASISWA_FORM_CONFIG : DEFAULT_REGULER_FORM_CONFIG;
+}
 
 // Helper to extract dynamic form config based on path
 function getRegistrationFormConfig(prog: VolunteerProgramRow | undefined, registrationType: string | null | undefined) {
-  if (!prog || !prog.form_config) return DEFAULT_REGULER_FORM_CONFIG;
+  const fallbackConfig = getDefaultFormConfig(registrationType);
+  if (!prog || !prog.form_config) return fallbackConfig;
   let raw: any;
   try {
     raw = typeof prog.form_config === 'string'
       ? JSON.parse(prog.form_config)
       : prog.form_config;
   } catch {
-    return DEFAULT_REGULER_FORM_CONFIG;
+    return fallbackConfig;
   }
 
   if (Array.isArray(raw)) {
-    return raw.length > 0 ? raw : DEFAULT_REGULER_FORM_CONFIG;
+    return raw.length > 0 ? raw : fallbackConfig;
   }
 
   if (raw && typeof raw === 'object') {
     const type = registrationType || 'reguler';
-    return raw[type] || raw['reguler'] || DEFAULT_REGULER_FORM_CONFIG;
+    return raw[type] || raw['reguler'] || fallbackConfig;
   }
 
-  return DEFAULT_REGULER_FORM_CONFIG;
+  return fallbackConfig;
+}
+
+function parseAnswers(value: VolunteerRegistrationRow['answers']): Record<string, unknown> {
+  try {
+    const parsed = typeof value === 'string' ? JSON.parse(value) : value;
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      return parsed as Record<string, unknown>;
+    }
+  } catch {
+    // Broken JSON should not break the admin page or exports.
+  }
+  return {};
+}
+
+function valueIsBlank(value: unknown) {
+  if (value == null) return true;
+  if (typeof value === 'string') return value.trim() === '';
+  if (Array.isArray(value)) return value.every(valueIsBlank);
+  if (typeof value === 'object') return Object.values(value as Record<string, unknown>).every(valueIsBlank);
+  return false;
+}
+
+function stringifyValue(value: unknown): string {
+  if (valueIsBlank(value)) return '-';
+  if (Array.isArray(value)) return value.map(stringifyValue).filter((item) => item !== '-').join(', ') || '-';
+  if (typeof value === 'object') return JSON.stringify(value);
+  return String(value);
+}
+
+function getFileReference(value: unknown) {
+  if (typeof value === 'string') return value;
+  if (Array.isArray(value)) {
+    return value.map(getFileReference).find(Boolean) || '';
+  }
+  if (value && typeof value === 'object') {
+    const objectValue = value as Record<string, unknown>;
+    for (const key of ['url', 'publicUrl', 'public_url', 'path', 'filePath', 'file_path', 'storagePath', 'storage_path']) {
+      const candidate = objectValue[key];
+      if (typeof candidate === 'string' && candidate) return candidate;
+    }
+  }
+  return '';
+}
+
+function isHttpUrl(value: string) {
+  return /^https?:\/\//i.test(value);
+}
+
+function isFileExportField(field: ExportField) {
+  return field.type === 'file' || field.id in LEGACY_FILE_COLUMNS;
+}
+
+function getExportFieldValue(registration: VolunteerRegistrationRow, field: ExportField) {
+  const answersObj = parseAnswers(registration.answers);
+  const legacyFileColumn = LEGACY_FILE_COLUMNS[field.id];
+  const answerValue = answersObj[field.id];
+
+  if (isFileExportField(field)) {
+    return getFileReference(answerValue) || (legacyFileColumn ? registration[legacyFileColumn] : '');
+  }
+
+  if (!valueIsBlank(answerValue)) return answerValue;
+  return registration[field.id as keyof VolunteerRegistrationRow];
+}
+
+function hasExportableValue(registration: VolunteerRegistrationRow, field: ExportField) {
+  const value = getExportFieldValue(registration, field);
+  return isFileExportField(field) ? Boolean(getFileReference(value)) : !valueIsBlank(value);
+}
+
+async function resolveFileExportUrl(pathOrUrl: string) {
+  if (!pathOrUrl) return '';
+  if (isHttpUrl(pathOrUrl)) return pathOrUrl;
+
+  const { data, error } = await supabase.storage
+    .from(VOLUNTEER_ASSETS_BUCKET)
+    .createSignedUrl(pathOrUrl, EXPORT_SIGNED_URL_EXPIRES_IN_SECONDS);
+
+  if (!error && data?.signedUrl) return data.signedUrl;
+  return pathOrUrl;
+}
+
+function slugifyFilenamePart(value: string) {
+  return value
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+function addExportField(fields: ExportField[], seen: Set<string>, field: ExportField) {
+  if (!field.id || seen.has(field.id)) return;
+  fields.push(field);
+  seen.add(field.id);
 }
 
 export default function AdminEduxplore() {
@@ -51,6 +204,7 @@ export default function AdminEduxplore() {
   const [selected, setSelected] = useState<VolunteerRegistrationRow | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [updating, setUpdating] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [signedUrls, setSignedUrls] = useState<Record<string, string>>({});
 
@@ -67,9 +221,7 @@ export default function AdminEduxplore() {
 
     async function resolveUrls() {
       const urls: Record<string, string> = {};
-      const answersObj: Record<string, any> = typeof selected!.answers === 'string'
-        ? JSON.parse(selected!.answers as string)
-        : (selected!.answers as Record<string, any> || {});
+      const answersObj = parseAnswers(selected!.answers);
 
       // Find program formConfig
       const prog = programs.find(p => p.id === selected!.program_id);
@@ -79,21 +231,20 @@ export default function AdminEduxplore() {
 
       await Promise.all(
         fileQuestions.map(async (q: any) => {
-          let pathOrUrl = answersObj[q.id];
+          let pathOrUrl = getFileReference(answersObj[q.id]);
 
           // Fallback to table columns (legacy support)
           if (!pathOrUrl) {
-            if (q.id === 'bukti_dp') pathOrUrl = selected!.bukti_dp_url;
-            else if (q.id === 'bukti_follow_ig') pathOrUrl = selected!.bukti_follow_url;
-            else if (q.id === 'foto_id_card') pathOrUrl = selected!.foto_id_url;
+            const legacyFileColumn = LEGACY_FILE_COLUMNS[q.id];
+            pathOrUrl = legacyFileColumn ? selected![legacyFileColumn] : '';
           }
 
           if (pathOrUrl) {
-            if (pathOrUrl.startsWith('http')) {
+            if (isHttpUrl(pathOrUrl)) {
               urls[q.id] = pathOrUrl;
             } else {
               const { data, error } = await supabase.storage
-                .from('volunteer-assets')
+                .from(VOLUNTEER_ASSETS_BUCKET)
                 .createSignedUrl(pathOrUrl, 60 * 60);
 
               if (!error && data) {
@@ -205,95 +356,106 @@ export default function AdminEduxplore() {
     rejected: statsFiltered.filter(r => r.status === 'rejected').length,
   };
 
-  const exportCsv = () => {
-    let fieldsToExport: { id: string; label: string }[] = [
-      { id: 'nama_lengkap', label: 'Nama Lengkap' },
-      { id: 'email', label: 'Email' },
-      { id: 'whatsapp', label: 'WhatsApp' },
-    ];
+  const exportExcel = async () => {
+    if (filtered.length === 0 || exporting) return;
 
-    // General exporter includes standard fields
-    fieldsToExport.push(
-      { id: 'whatsapp_emergency', label: 'Kontak Darurat' },
-      { id: 'alamat', label: 'Alamat' },
-      { id: 'tanggal_lahir', label: 'Tanggal Lahir' },
-      { id: 'size_baju', label: 'Ukuran Baju' },
-      { id: 'pendidikan', label: 'Latar Belakang Pendidikan' },
-      { id: 'bidang_diminati', label: 'Bidang Diminati' },
-      { id: 'riwayat_penyakit', label: 'Riwayat Penyakit' }
-    );
+    setExporting(true);
+    setActionError(null);
 
-    // Accumulate any other dynamic answers that might be in the database
-    const foundKeys = new Set<string>();
-    filtered.forEach(r => {
-      const answersObj: Record<string, any> = typeof r.answers === 'string'
-        ? JSON.parse(r.answers)
-        : (r.answers as Record<string, any> || {});
-      Object.keys(answersObj).forEach(key => {
-        if (!fieldsToExport.some(f => f.id === key) && !['bukti_dp', 'bukti_follow_ig', 'foto_id_card'].includes(key)) {
-          foundKeys.add(key);
-        }
+    try {
+      const fieldsToExport: ExportField[] = [];
+      const seenFields = new Set<string>();
+      const candidateFields: ExportField[] = [];
+      const reservedFieldIds = [...CORE_EXPORT_FIELDS, ...METADATA_EXPORT_FIELDS].map((field) => field.id);
+      const seenCandidates = new Set<string>(reservedFieldIds);
+
+      const addCandidateField = (field: ExportField) => {
+        if (!field.id || seenCandidates.has(field.id)) return;
+        candidateFields.push(field);
+        seenCandidates.add(field.id);
+      };
+
+      CORE_EXPORT_FIELDS.forEach((field) => addExportField(fieldsToExport, seenFields, field));
+
+      filtered.forEach((registration) => {
+        const registrationProgram = programs.find(p => p.id === registration.program_id);
+        const activeConfig = getRegistrationFormConfig(registrationProgram, registration.registration_type);
+        activeConfig.forEach((question: FormQuestion) => {
+          addCandidateField({
+            id: question.id,
+            label: question.label || question.id,
+            type: question.type,
+          });
+        });
       });
-    });
-    foundKeys.forEach(key => {
-      fieldsToExport.push({ id: key, label: key });
-    });
 
-    // Add metadata
-    fieldsToExport.push(
-      { id: 'registration_type_label', label: 'Jalur Pendaftaran' },
-      { id: 'program_title', label: 'Program Relawan' },
-      { id: 'status_label', label: 'Status Pendaftaran' },
-      { id: 'created_at_label', label: 'Tanggal Daftar' }
-    );
+      LEGACY_DETAIL_FIELDS.forEach(addCandidateField);
 
-    const exportData = filtered.map(r => {
-      const answersObj: Record<string, any> = typeof r.answers === 'string'
-        ? JSON.parse(r.answers)
-        : (r.answers as Record<string, any> || {});
+      filtered.forEach((registration) => {
+        const answersObj = parseAnswers(registration.answers);
+        Object.keys(answersObj).forEach((key) => {
+          addCandidateField({ id: key, label: key });
+        });
+      });
 
-      const row: Record<string, string> = {};
+      candidateFields
+        .filter((field) => filtered.some((registration) => hasExportableValue(registration, field)))
+        .forEach((field) => addExportField(fieldsToExport, seenFields, field));
 
-      fieldsToExport.forEach(f => {
-        if (f.id === 'nama_lengkap') row[f.label] = r.nama_lengkap;
-        else if (f.id === 'email') row[f.label] = r.email;
-        else if (f.id === 'whatsapp') row[f.label] = r.whatsapp;
-        else if (f.id === 'registration_type_label') row[f.label] = (r.registration_type || 'reguler').toUpperCase();
-        else if (f.id === 'program_title') row[f.label] = programs.find(p => p.id === r.program_id)?.title || '-';
-        else if (f.id === 'status_label') row[f.label] = r.status === 'verified' ? 'Diterima' : r.status === 'rejected' ? 'Ditolak' : 'Perlu Review';
-        else if (f.id === 'created_at_label') row[f.label] = formatAdminDate(r.created_at);
-        else {
-          let val = answersObj[f.id];
-          if (val === undefined || val === null) {
-            const colName = f.id as keyof VolunteerRegistrationRow;
-            val = r[colName] !== undefined ? r[colName] : '-';
+      METADATA_EXPORT_FIELDS.forEach((field) => addExportField(fieldsToExport, seenFields, field));
+
+      const exportData = await Promise.all(filtered.map(async (registration) => {
+        const registrationProgram = programs.find(p => p.id === registration.program_id);
+        const programType = registrationProgram?.program_type as ProgramTypeFilter | undefined;
+        const row: Record<string, string> = {};
+
+        const rowEntries = await Promise.all(fieldsToExport.map(async (field) => {
+          let value: string;
+          if (field.id === 'nama_lengkap') value = stringifyValue(registration.nama_lengkap);
+          else if (field.id === 'email') value = stringifyValue(registration.email);
+          else if (field.id === 'whatsapp') value = stringifyValue(registration.whatsapp);
+          else if (field.id === 'registration_type_label') value = (registration.registration_type || 'reguler').toUpperCase();
+          else if (field.id === 'program_title') value = stringifyValue(registrationProgram?.title);
+          else if (field.id === 'program_type_label') value = PROGRAM_TYPE_LABELS[programType || 'all'] || stringifyValue(programType);
+          else if (field.id === 'status_label') value = statusLabel(registration.status);
+          else if (field.id === 'created_at_label') value = formatAdminDate(registration.created_at);
+          else if (isFileExportField(field)) {
+            const fileReference = getFileReference(getExportFieldValue(registration, field));
+            value = fileReference ? await resolveFileExportUrl(fileReference) : '-';
+          } else {
+            value = stringifyValue(getExportFieldValue(registration, field));
           }
-          row[f.label] = String(val ?? '-');
-        }
-      });
 
-      return row;
-    });
+          return [field.label, value] as const;
+        }));
+        rowEntries.forEach(([label, value]) => {
+          row[label] = value;
+        });
 
-    if (exportData.length === 0) return;
+        return row;
+      }));
 
-    const escapeCsvCell = (value: unknown) => {
-      let text = String(value ?? '');
-      if (/^[=+\-@]/.test(text)) text = `'${text}`;
-      return `"${text.replaceAll('"', '""')}"`;
-    };
+      const datePart = new Date().toISOString().split('T')[0];
+      const filenameParts = [
+        'sta-volunteer',
+        selectedProgramType === 'all' ? 'semua-program' : selectedProgramType,
+        selectedType !== 'all' ? selectedType : '',
+        selectedStatus !== 'all' ? slugifyFilenamePart(STATUS_EXPORT_LABELS[selectedStatus]) : '',
+        searchQuery.trim() ? 'search' : '',
+        datePart,
+      ].filter(Boolean);
 
-    const headers = fieldsToExport.map(f => f.label);
-    const rows = exportData.map((row) => (
-      headers.map((header) => escapeCsvCell(row[header])).join(',')
-    ));
-    const csv = `\uFEFF${headers.map(escapeCsvCell).join(',')}\n${rows.join('\n')}`;
-    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `Data_Volunteer_STA_${new Date().toISOString().split('T')[0]}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
+      await downloadXlsx(
+        `${filenameParts.join('-')}.xlsx`,
+        'Pendaftar Volunteer',
+        exportData,
+      );
+    } catch (err) {
+      logError('AdminEduxplore.exportExcel', err);
+      setActionError('Gagal mengekspor data. Coba lagi.');
+    } finally {
+      setExporting(false);
+    }
   };
 
   const getProgramName = (id: string) => programs.find(p => p.id === id)?.title || 'Unknown';
@@ -313,11 +475,7 @@ export default function AdminEduxplore() {
   const program = programs.find(p => p.id === selected?.program_id);
   const activeFormConfig = getRegistrationFormConfig(program, selected?.registration_type);
 
-  const parsedAnswers: Record<string, any> = selected
-    ? (typeof selected.answers === 'string'
-      ? JSON.parse(selected.answers as string)
-      : (selected.answers as Record<string, any> || {}))
-    : {};
+  const parsedAnswers = selected ? parseAnswers(selected.answers) : {};
 
   const getAnswerValue = (qId: string) => {
     if (!selected) return null;
@@ -341,11 +499,12 @@ export default function AdminEduxplore() {
         </div>
         <div className="flex items-center gap-2">
           <button
-            onClick={exportCsv}
-            disabled={filtered.length === 0}
+            onClick={exportExcel}
+            disabled={filtered.length === 0 || exporting}
             className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-xl hover:bg-emerald-500 transition-colors text-sm font-semibold shadow-sm disabled:opacity-40"
           >
-            <FileSpreadsheet size={15} /> Export CSV
+            {exporting ? <Loader2 size={15} className="animate-spin" /> : <FileSpreadsheet size={15} />}
+            {exporting ? 'Mengekspor...' : 'Export Excel'}
           </button>
           <button onClick={loadData} className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 transition-colors text-sm">
             <RefreshCw size={15} /> Refresh
@@ -593,6 +752,7 @@ export default function AdminEduxplore() {
                         .filter((q: any) => q.type !== 'file')
                         .map((q: any) => {
                           const val = getAnswerValue(q.id);
+                          const displayValue = stringifyValue(val);
 
                           // Determine color/icon for specific standard questions to look premium
                           let icon = Target;
@@ -614,7 +774,7 @@ export default function AdminEduxplore() {
                               <div className="flex-1">
                                 <p className="text-[11px] text-slate-400 font-medium">{q.label}</p>
                                 <p className="text-sm text-slate-800 font-semibold leading-relaxed whitespace-pre-wrap">
-                                  {val || <span className="italic text-slate-300 font-normal">Belum diisi</span>}
+                                  {displayValue !== '-' ? displayValue : <span className="italic text-slate-300 font-normal">Belum diisi</span>}
                                 </p>
                               </div>
                             </div>
