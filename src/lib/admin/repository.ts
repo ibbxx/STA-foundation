@@ -18,6 +18,7 @@ import { supabase } from '../supabase/types';
 import { logError } from '../error-logger';
 import {
   normalizeSafeUrl,
+  normalizeGuidebookUrl,
   sanitizeJsonForStorage,
   sanitizePlainTextForStorage,
   sanitizeRichTextForStorage,
@@ -138,7 +139,7 @@ function sanitizeVolunteerProgramPayload<T extends VolunteerProgramInsert | Volu
     ...(payload.description !== undefined ? { description: payload.description ? sanitizeRichTextForStorage(payload.description, 'Deskripsi program relawan') : payload.description } : {}),
     ...(payload.short_description !== undefined ? { short_description: payload.short_description ? sanitizeRichTextForStorage(payload.short_description, 'Deskripsi singkat program relawan') : payload.short_description } : {}),
     ...(payload.image_url ? { image_url: normalizeSafeUrl(payload.image_url, { fieldName: 'Gambar program relawan' }) } : {}),
-    ...(payload.external_link !== undefined ? { external_link: payload.external_link ? normalizeSafeUrl(payload.external_link, { fieldName: 'Link eksternal program relawan' }) : null } : {}),
+    ...(payload.external_link !== undefined ? { external_link: payload.external_link ? normalizeGuidebookUrl(payload.external_link) : null } : {}),
     ...(payload.timeline !== undefined ? { timeline: sanitizeJsonForStorage(payload.timeline, 'Timeline program relawan') } : {}),
     ...(payload.requirements !== undefined ? { requirements: sanitizeJsonForStorage(payload.requirements, 'Syarat program relawan') } : {}),
     ...(payload.form_config !== undefined ? { form_config: sanitizeJsonForStorage(payload.form_config, 'Konfigurasi form relawan') } : {}),

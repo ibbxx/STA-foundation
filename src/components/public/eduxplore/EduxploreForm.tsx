@@ -19,7 +19,7 @@ import {
 } from '../../../lib/admin/repository';
 import { compressImage } from '../../../lib/image-compression';
 import { logError } from '../../../lib/error-logger';
-import { safeNormalizeUrl } from '../../../lib/sanitize';
+import { safeNormalizeGuidebookUrl } from '../../../lib/sanitize';
 
 interface Props {
   programId: string;
@@ -151,7 +151,7 @@ interface InnerProps {
 
 function VolunteerFormInner({ registrationType, programId, programTitle, activeFormConfig, isDualForm, externalLink }: InnerProps) {
   const dynamicSchema = createDynamicSchema(activeFormConfig);
-  const safeExternalLink = externalLink ? safeNormalizeUrl(externalLink, '') : '';
+  const safeExternalLink = externalLink ? safeNormalizeGuidebookUrl(externalLink, '') : '';
 
   const [draftValues] = useState(() => loadEduxploreDraft());
   const [assets, setAssets] = useState<Record<string, File | null>>({});

@@ -1,7 +1,7 @@
 import { supabase, type Json, type SiteContentRow } from '../supabase/types';
 import type { VolunteerProgramData, VolunteerTimelineItem } from '../eduxplore';
 import { getVolunteerProgramStatus } from '../eduxplore';
-import { safeNormalizeUrl, sanitizeRichTextForRender } from '../sanitize';
+import { safeNormalizeGuidebookUrl, safeNormalizeUrl, sanitizeRichTextForRender } from '../sanitize';
 
 export type { VolunteerProgramData };
 
@@ -203,7 +203,7 @@ export async function fetchPublicVolunteerPrograms(): Promise<VolunteerProgramDa
       program_type: row.program_type || 'eduxplore',
       status: computedStatus,
       form_config: formConfig,
-      external_link: safeNormalizeUrl(row.external_link, '') || null,
+      external_link: safeNormalizeGuidebookUrl(row.external_link, '') || null,
       registration_start: row.registration_start,
       registration_end: row.registration_end,
       program_end: row.program_end,

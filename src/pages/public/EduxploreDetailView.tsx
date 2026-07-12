@@ -14,6 +14,7 @@ import { getVolunteerProgramStatus } from '../../lib/eduxplore';
 import type { VolunteerProgramRow } from '../../lib/supabase/types';
 import { logError } from '../../lib/error-logger';
 import { createBreadcrumbJsonLd, createEventJsonLd, truncateText, useSeo } from '../../lib/seo';
+import { safeNormalizeGuidebookUrl } from '../../lib/sanitize';
 
 export default function EduxploreDetailView() {
   const { slug } = useParams<{ slug: string }>();
@@ -106,7 +107,7 @@ export default function EduxploreDetailView() {
             program_type: data.program_type || 'eduxplore',
             status: getVolunteerProgramStatus(data),
             form_config: formConfig,
-            external_link: data.external_link,
+            external_link: safeNormalizeGuidebookUrl(data.external_link, '') || null,
             registration_start: data.registration_start,
             registration_end: data.registration_end,
             program_end: data.program_end,

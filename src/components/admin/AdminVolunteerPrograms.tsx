@@ -18,7 +18,7 @@ import { getVolunteerProgramStatus } from '../../lib/eduxplore';
 import { logError } from '../../lib/error-logger';
 import { useConfirmDialog } from './ConfirmDialog';
 import { slugify } from '../../lib/admin/campaign-utils';
-import { normalizeSafeUrl } from '../../lib/sanitize';
+import { normalizeGuidebookUrl, normalizeSafeUrl } from '../../lib/sanitize';
 
 /** Label mapping untuk jenis program relawan */
 const PROGRAM_TYPE_OPTIONS = [
@@ -84,6 +84,17 @@ const safeOptionalUrl = (message: string) =>
     }
   }, message);
 
+const safeOptionalGuidebookUrl = (message: string) =>
+  z.string().trim().optional().nullable().or(z.literal('')).refine((value) => {
+    if (!value) return true;
+    try {
+      normalizeGuidebookUrl(value);
+      return true;
+    } catch {
+      return false;
+    }
+  }, message);
+
 const schema = z.object({
   title: z.string().min(1, 'Judul wajib diisi'),
   slug: z.string().min(1, 'Slug wajib diisi'),
@@ -100,7 +111,7 @@ const schema = z.object({
     reguler: z.array(questionSchema),
     beasiswa: z.array(questionSchema),
   }).optional(),
-  external_link: safeOptionalUrl('Link eksternal tidak aman atau domain belum diizinkan.'),
+  external_link: safeOptionalGuidebookUrl('Link guidebook tidak aman atau domain belum diizinkan.'),
   registration_start: z.string().optional().nullable().or(z.literal('')),
   registration_end: z.string().optional().nullable().or(z.literal('')),
   program_end: z.string().optional().nullable().or(z.literal('')),

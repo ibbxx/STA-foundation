@@ -49,6 +49,8 @@ const SUSPICIOUS_KEYWORDS = [
   /\bdeposit\s+pulsa\b/i,
 ];
 
+export const GUIDEBOOK_SHORTENER_HOSTS = ['bit.ly'] as const;
+
 const SHORTENER_HOSTS = [
   'bit.ly',
   'tinyurl.com',
@@ -81,9 +83,16 @@ export class SecurityValidationError extends Error {
   }
 }
 
-function isAllowedHost(hostname: string) {
+type SafeUrlOptions = {
+  allowEmpty?: boolean;
+  allowExternal?: boolean;
+  fieldName?: string;
+  extraAllowedHosts?: readonly string[];
+};
+
+function isAllowedHost(hostname: string, extraAllowedHosts: readonly string[] = []) {
   const host = hostname.toLowerCase();
-  return ALLOWED_HOSTS.some((allowedHost) => {
+  return [...ALLOWED_HOSTS, ...extraAllowedHosts].some((allowedHost) => {
     const normalized = allowedHost.toLowerCase();
     return host === normalized || host.endsWith(`.${normalized}`);
   });
@@ -125,7 +134,7 @@ export function isExternalUrl(value: string) {
 
 export function normalizeSafeUrl(
   value: string | null | undefined,
-  options: { allowEmpty?: boolean; allowExternal?: boolean; fieldName?: string } = {},
+  options: SafeUrlOptions = {},
 ) {
   const trimmed = cleanUrlInput(value ?? '');
   const fieldName = options.fieldName ?? 'URL';
@@ -163,7 +172,7 @@ export function normalizeSafeUrl(
     throw new SecurityValidationError(`${fieldName} harus berupa path internal.`, ['external-url-blocked']);
   }
 
-  if (!isAllowedHost(parsed.hostname)) {
+  if (!isAllowedHost(parsed.hostname, options.extraAllowedHosts)) {
     throw new SecurityValidationError(`${fieldName} memakai domain yang belum diizinkan.`, [
       `untrusted-domain:${parsed.hostname}`,
     ]);
@@ -175,6 +184,22 @@ export function normalizeSafeUrl(
 export function safeNormalizeUrl(value: string | null | undefined, fallback = '') {
   try {
     return normalizeSafeUrl(value, { allowEmpty: true });
+  } catch {
+    return fallback;
+  }
+}
+
+export function normalizeGuidebookUrl(value: string | null | undefined) {
+  return normalizeSafeUrl(value, {
+    allowEmpty: true,
+    fieldName: 'Link guidebook',
+    extraAllowedHosts: GUIDEBOOK_SHORTENER_HOSTS,
+  });
+}
+
+export function safeNormalizeGuidebookUrl(value: string | null | undefined, fallback = '') {
+  try {
+    return normalizeGuidebookUrl(value);
   } catch {
     return fallback;
   }

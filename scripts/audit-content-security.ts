@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { detectSuspiciousContent } from '../src/lib/sanitize';
+import { GUIDEBOOK_SHORTENER_HOSTS, detectSuspiciousContent } from '../src/lib/sanitize';
 
 type AuditTarget = {
   table: string;
@@ -55,6 +55,18 @@ function rowLabel(row: Record<string, unknown>) {
   return String(row.slug ?? row.key ?? row.title ?? row.id ?? 'unknown');
 }
 
+function isAllowedGuidebookShortenerFinding(
+  table: string,
+  field: string,
+  result: ReturnType<typeof detectSuspiciousContent>,
+) {
+  return table === 'volunteer_programs'
+    && field === 'external_link'
+    && result.reasons.length === 1
+    && result.reasons[0] === 'url-shortener'
+    && result.matches.every((match) => GUIDEBOOK_SHORTENER_HOSTS.includes(match as (typeof GUIDEBOOK_SHORTENER_HOSTS)[number]));
+}
+
 async function main() {
   loadEnvFile('.env');
   loadEnvFile('.env.local');
@@ -93,6 +105,7 @@ async function main() {
 
         const result = detectSuspiciousContent(value);
         if (!result.suspicious) continue;
+        if (isAllowedGuidebookShortenerFinding(target.table, field, result)) continue;
 
         findingCount += 1;
         console.log(JSON.stringify({
