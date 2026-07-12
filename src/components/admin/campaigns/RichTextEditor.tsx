@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { cn } from '../../../lib/utils';
 import React, { useEffect, useRef, useState } from 'react';
+import { normalizeSafeUrl } from '../../../lib/sanitize';
 
 /* ──────────────────── FontSize Extension ──────────────────── */
 
@@ -147,7 +148,12 @@ function MenuBar({ editor }: { editor: Editor }) {
       editor.chain().focus().extendMarkRange('link').unsetLink().run();
       return;
     }
-    editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
+    try {
+      const safeUrl = normalizeSafeUrl(url, { fieldName: 'URL editor' });
+      editor.chain().focus().extendMarkRange('link').setLink({ href: safeUrl }).run();
+    } catch (err) {
+      window.alert(err instanceof Error ? err.message : 'URL tidak valid.');
+    }
   };
 
   // Get current font size from selection

@@ -1,6 +1,18 @@
 import { z } from 'zod';
+import { normalizeSafeUrl } from '../sanitize';
 
 export const programIconOptions = ['search', 'graduation-cap', 'hammer'] as const;
+
+const safeOptionalUrl = (message: string) =>
+  z.string().trim().optional().or(z.literal('')).refine((value) => {
+    if (!value) return true;
+    try {
+      normalizeSafeUrl(value);
+      return true;
+    } catch {
+      return false;
+    }
+  }, message);
 
 export const adminProgramSchema = z.object({
   slug: z.string().trim().min(1, 'Slug wajib diisi.'),
@@ -11,13 +23,23 @@ export const adminProgramSchema = z.object({
     .trim()
     .min(1, 'Nama ikon wajib diisi.')
     .refine((value) => programIconOptions.includes(value as (typeof programIconOptions)[number]), 'Pilih ikon yang tersedia.'),
-  hero_image_url: z.string().trim().optional().or(z.literal('')),
-  home_slider_image: z.string().trim().optional().or(z.literal('')),
+  hero_image_url: safeOptionalUrl('URL gambar hero tidak aman atau domain belum diizinkan.'),
+  home_slider_image: safeOptionalUrl('URL gambar slider tidak aman atau domain belum diizinkan.'),
   overview: z.string().trim().optional().or(z.literal('')),
   stage_label: z.string().trim().optional().or(z.literal('')),
   stage_value: z.string().trim().optional().or(z.literal('')),
   focus_areas: z.string().trim().optional().or(z.literal('')), // Akan disimpan sebagai JSON atau string terpisah
-  gallery_images: z.string().trim().optional().or(z.literal('')),
+  gallery_images: z.string().trim().optional().or(z.literal('')).refine((value) => {
+    if (!value) return true;
+    return value.split('\n').map((item) => item.trim()).filter(Boolean).every((url) => {
+      try {
+        normalizeSafeUrl(url);
+        return true;
+      } catch {
+        return false;
+      }
+    });
+  }, 'Salah satu URL galeri tidak aman atau domain belum diizinkan.'),
   content: z.string().trim().optional().or(z.literal('')),
 });
 
@@ -43,7 +65,7 @@ export const campaignManagerSchema = z
         role: z.string().trim().min(1, 'Peran wajib diisi.'),
         quote: z.string().trim().min(1, 'Quote wajib diisi.'),
         avatar: z.string().nullable().optional(),
-        url: z.string().trim().optional().or(z.literal('')),
+        url: safeOptionalUrl('URL mitra tidak aman atau domain belum diizinkan.'),
       })
     ),
   })
@@ -93,9 +115,16 @@ export const adminHeroSettingsSchema = z.object({
   hero_title: z.string().trim().min(1, 'Judul hero wajib diisi.'),
   hero_description: z.string().trim().min(1, 'Deskripsi hero wajib diisi.'),
   hero_primary_label: z.string().trim().min(1, 'Label CTA utama wajib diisi.'),
-  hero_primary_link: z.string().trim().min(1, 'Link CTA utama wajib diisi.'),
+  hero_primary_link: z.string().trim().min(1, 'Link CTA utama wajib diisi.').refine((value) => {
+    try {
+      normalizeSafeUrl(value);
+      return true;
+    } catch {
+      return false;
+    }
+  }, 'Link CTA utama tidak aman atau domain belum diizinkan.'),
   hero_secondary_label: z.string().trim().optional().or(z.literal('')),
-  hero_secondary_link: z.string().trim().optional().or(z.literal('')),
+  hero_secondary_link: safeOptionalUrl('Link CTA sekunder tidak aman atau domain belum diizinkan.'),
 });
 
 export type AdminHeroSettingsValues = z.infer<typeof adminHeroSettingsSchema>;
@@ -126,14 +155,28 @@ export const adminMapLocationSchema = z.object({
   id: z.string().trim().optional(),
   title: z.string().trim().min(1, 'Judul wajib diisi.'),
   description: z.string().trim().min(1, 'Deskripsi wajib diisi.'),
-  imageUrl: z.string().trim().min(1, 'URL Gambar wajib diisi.'),
+  imageUrl: z.string().trim().min(1, 'URL Gambar wajib diisi.').refine((value) => {
+    try {
+      normalizeSafeUrl(value);
+      return true;
+    } catch {
+      return false;
+    }
+  }, 'URL gambar tidak aman atau domain belum diizinkan.'),
   latitude: z.number().min(-90).max(90),
   longitude: z.number().min(-180).max(180),
   status: z.enum(['Berjalan', 'Selesai', 'Akan Datang']),
   locationLabel: z.string().trim().optional().or(z.literal('')),
-  actionHref: z.string().trim().optional().or(z.literal('')),
+  actionHref: safeOptionalUrl('Link aksi tidak aman atau domain belum diizinkan.'),
   actionLabel: z.string().trim().optional().or(z.literal('')),
-  images: z.array(z.string()),
+  images: z.array(z.string().refine((value) => {
+    try {
+      normalizeSafeUrl(value);
+      return true;
+    } catch {
+      return false;
+    }
+  }, 'URL gambar galeri tidak aman atau domain belum diizinkan.')),
   fullContent: z.string().trim().optional().or(z.literal('')),
   journeyPeriod: z.string().trim().optional().or(z.literal('')),
   journeyProgress: z.string().trim().optional().or(z.literal('')),

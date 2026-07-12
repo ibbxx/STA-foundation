@@ -248,19 +248,28 @@ export default function AdminContent() {
       }
     }
 
-    const payload = toProgramPayload(values);
-    const query = mode === 'edit' && editingProgram
-      ? updateProgram(editingProgram.id, payload)
-      : insertProgram(payload);
+    try {
+      const payload = toProgramPayload(values);
+      const query = mode === 'edit' && editingProgram
+        ? updateProgram(editingProgram.id, payload)
+        : insertProgram(payload);
 
-    const { error: submitError } = await query;
+      const { error: submitError } = await query;
 
-    if (submitError) {
-      logError('AdminContent.submitProgram', submitError, {
+      if (submitError) {
+        logError('AdminContent.submitProgram', submitError, {
+          mode,
+          programId: editingProgram?.id,
+        });
+        setError(submitError.message);
+        return;
+      }
+    } catch (err) {
+      logError('AdminContent.submitProgram.security', err, {
         mode,
         programId: editingProgram?.id,
       });
-      setError(submitError.message);
+      setError(err instanceof Error ? err.message : 'Konten tidak valid.');
       return;
     }
 

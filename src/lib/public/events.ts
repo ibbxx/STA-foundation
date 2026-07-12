@@ -1,6 +1,7 @@
 import { supabase, type Json, type SiteContentRow } from '../supabase/types';
 import type { VolunteerProgramData, VolunteerTimelineItem } from '../eduxplore';
 import { getVolunteerProgramStatus } from '../eduxplore';
+import { safeNormalizeUrl, sanitizeRichTextForRender } from '../sanitize';
 
 export type { VolunteerProgramData };
 
@@ -80,22 +81,27 @@ function parseLocation(location: unknown, index: number): EventMapLocation | nul
   if (!inferred) return null;
 
   const slug = toText(location.slug);
-  const actionHref = toText(location.action_href) ?? toText(location.actionHref) ?? (slug ? `/journey/${slug}` : null);
+  const rawActionHref = toText(location.action_href) ?? toText(location.actionHref) ?? (slug ? `/journey/${slug}` : null);
+  const actionHref = rawActionHref ? safeNormalizeUrl(rawActionHref, '') || null : null;
   const actionLabel = toText(location.action_label) ?? toText(location.actionLabel) ?? (actionHref ? 'Lihat Detail' : null);
   const title = toText(location.title) ?? toText(location.name) ?? `Lokasi ${index + 1}`;
   const province = toText(location.province);
   const locationLabel = toText(location.location_label) ?? toText(location.locationLabel) ?? province;
+  const imageUrl = safeNormalizeUrl(toText(location.image_url) ?? toText(location.imageUrl), '')
+    || 'https://images.unsplash.com/photo-1509062522246-3755977927d7?q=80&w=1200&auto=format&fit=crop';
+  const description = sanitizeRichTextForRender(
+    toText(location.description)
+      ?? `Dokumentasi kegiatan Sekolah Tanah Air di ${locationLabel ?? title}.`,
+  )
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
 
   return {
     id: toText(location.id) ?? `impact-location-${index + 1}`,
     title,
-    description:
-      toText(location.description)
-      ?? `Dokumentasi kegiatan Sekolah Tanah Air di ${locationLabel ?? title}.`,
-    imageUrl:
-      toText(location.image_url)
-      ?? toText(location.imageUrl)
-      ?? 'https://images.unsplash.com/photo-1509062522246-3755977927d7?q=80&w=1200&auto=format&fit=crop',
+    description,
+    imageUrl,
     latitude: inferred.latitude,
     longitude: inferred.longitude,
     status: toStatus(location.status),
@@ -104,8 +110,8 @@ function parseLocation(location: unknown, index: number): EventMapLocation | nul
     locationLabel,
     actionHref,
     actionLabel,
-    images: Array.isArray(location.images) ? location.images.map(img => String(img)) : [],
-    fullContent: toText(location.full_content) ?? toText(location.fullContent),
+    images: Array.isArray(location.images) ? location.images.map(img => safeNormalizeUrl(String(img), '')).filter(Boolean) : [],
+    fullContent: sanitizeRichTextForRender(toText(location.full_content) ?? toText(location.fullContent) ?? ''),
     journeyPeriod: toText(location.journey_period) ?? toText(location.journeyPeriod),
     journeyProgress: toText(location.journey_progress) ?? toText(location.journeyProgress),
   };
@@ -188,16 +194,16 @@ export async function fetchPublicVolunteerPrograms(): Promise<VolunteerProgramDa
       slug: row.slug,
       title: row.title,
       location: row.location,
-      image_url: row.image_url,
       timeline,
       requirements,
-      description: row.description,
-      short_description: row.short_description,
+      image_url: safeNormalizeUrl(row.image_url, '') || null,
+      description: sanitizeRichTextForRender(row.description),
+      short_description: sanitizeRichTextForRender(row.short_description),
       show_in_hero: row.show_in_hero,
       program_type: row.program_type || 'eduxplore',
       status: computedStatus,
       form_config: formConfig,
-      external_link: row.external_link,
+      external_link: safeNormalizeUrl(row.external_link, '') || null,
       registration_start: row.registration_start,
       registration_end: row.registration_end,
       program_end: row.program_end,

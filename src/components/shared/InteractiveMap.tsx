@@ -10,6 +10,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { EventMapLocation } from '../../lib/public/events';
 import { cn } from '../../lib/utils';
+import { safeNormalizeUrl } from '../../lib/sanitize';
 
 // Assign worker for Vite production build
 if (!(maplibregl as any).workerClass) {
@@ -100,10 +101,11 @@ function MapActionButton({ location }: { location: EventMapLocation }) {
     href = href.replace('/campaigns/', '/journey/');
   }
 
+  href = safeNormalizeUrl(href, '');
   if (!href) return null;
 
   if (/^https?:\/\//.test(href)) {
-    return <a href={href} target="_blank" rel="noreferrer" className={cls}>{location.actionLabel ?? 'Lihat Detail'}<ArrowRight className="h-3 w-3" /></a>;
+    return <a href={href} target="_blank" rel="noopener noreferrer nofollow ugc" className={cls}>{location.actionLabel ?? 'Lihat Detail'}<ArrowRight className="h-3 w-3" /></a>;
   }
   return <Link to={href} className={cls}>{location.actionLabel ?? 'Lihat Detail'}<ArrowRight className="h-3 w-3" /></Link>;
 }

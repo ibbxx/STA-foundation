@@ -1,3 +1,5 @@
+import { safeNormalizeUrl } from '../sanitize';
+
 function normalizeExportValue(value: unknown) {
   if (value == null) return '';
 
@@ -45,7 +47,7 @@ function createSafeSheetName(sheetName: string) {
 }
 
 function isHttpUrl(value: string) {
-  return /^https?:\/\//i.test(value);
+  return /^https:\/\//i.test(value) && Boolean(safeNormalizeUrl(value, ''));
 }
 
 export async function downloadXlsx(

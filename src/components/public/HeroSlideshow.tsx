@@ -9,7 +9,7 @@ import { fetchHeroVolunteerPrograms } from '../../lib/admin/repository';
 import type { VolunteerProgramRow } from '../../lib/supabase/types';
 import { getVolunteerProgramStatus } from '../../lib/eduxplore';
 import { logError } from '../../lib/error-logger';
-import { sanitizeHTML } from '../../lib/sanitize';
+import { isExternalUrl, safeNormalizeUrl, sanitizeHTML } from '../../lib/sanitize';
 
 /** Extended slide type — adds optional CTA fields for auto-injected volunteer program slides */
 interface DisplaySlide extends HeroSlide {
@@ -88,6 +88,8 @@ export default function HeroSlideshow() {
   }, [heroSlides.length, isLoading]);
 
   const currentSlide = heroSlides[currentSlideIndex] ?? heroSlides[0];
+  const safeButtonLink = currentSlide.buttonLink ? safeNormalizeUrl(currentSlide.buttonLink, '') : '';
+  const buttonIsExternal = safeButtonLink ? isExternalUrl(safeButtonLink) : false;
 
   return (
     <section className="relative min-h-screen bg-emerald-950">
@@ -206,14 +208,26 @@ export default function HeroSlideshow() {
                 )}
 
                 <div className="mt-8 flex flex-col items-start gap-3 sm:mt-12 sm:flex-row">
-                  {currentSlide.buttonText && currentSlide.buttonLink ? (
-                    <Link
-                      to={currentSlide.buttonLink}
-                      className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-emerald-600 pl-6 pr-4 text-sm font-bold text-white transition-all duration-300 hover:bg-emerald-500 md:h-12 md:text-base shadow-lg shadow-emerald-900/50"
-                    >
-                      <span className="whitespace-nowrap">{currentSlide.buttonText}</span>
-                      <ArrowRight className="ml-1 h-4 w-4" />
-                    </Link>
+                  {currentSlide.buttonText && safeButtonLink ? (
+                    buttonIsExternal ? (
+                      <a
+                        href={safeButtonLink}
+                        target="_blank"
+                        rel="noopener noreferrer nofollow ugc"
+                        className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-emerald-600 pl-6 pr-4 text-sm font-bold text-white transition-all duration-300 hover:bg-emerald-500 md:h-12 md:text-base shadow-lg shadow-emerald-900/50"
+                      >
+                        <span className="whitespace-nowrap">{currentSlide.buttonText}</span>
+                        <ArrowRight className="ml-1 h-4 w-4" />
+                      </a>
+                    ) : (
+                      <Link
+                        to={safeButtonLink}
+                        className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-emerald-600 pl-6 pr-4 text-sm font-bold text-white transition-all duration-300 hover:bg-emerald-500 md:h-12 md:text-base shadow-lg shadow-emerald-900/50"
+                      >
+                        <span className="whitespace-nowrap">{currentSlide.buttonText}</span>
+                        <ArrowRight className="ml-1 h-4 w-4" />
+                      </Link>
+                    )
                   ) : (
                     <>
                       <Link

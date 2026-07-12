@@ -18,6 +18,7 @@ import { getVolunteerProgramStatus } from '../../lib/eduxplore';
 import { logError } from '../../lib/error-logger';
 import { useConfirmDialog } from './ConfirmDialog';
 import { slugify } from '../../lib/admin/campaign-utils';
+import { normalizeSafeUrl } from '../../lib/sanitize';
 
 /** Label mapping untuk jenis program relawan */
 const PROGRAM_TYPE_OPTIONS = [
@@ -72,13 +73,24 @@ const questionSchema = z.object({
   options: z.array(z.string()).nullable().optional(),
 });
 
+const safeOptionalUrl = (message: string) =>
+  z.string().trim().optional().nullable().or(z.literal('')).refine((value) => {
+    if (!value) return true;
+    try {
+      normalizeSafeUrl(value);
+      return true;
+    } catch {
+      return false;
+    }
+  }, message);
+
 const schema = z.object({
   title: z.string().min(1, 'Judul wajib diisi'),
   slug: z.string().min(1, 'Slug wajib diisi'),
   location: z.string().min(1, 'Lokasi wajib diisi'),
   description: z.string().optional(),
   short_description: z.string().optional(),
-  image_url: z.string().optional(),
+  image_url: safeOptionalUrl('URL gambar tidak aman atau domain belum diizinkan.'),
   show_in_hero: z.boolean(),
   program_type: z.enum(['jelajah', 'eduxplore', 'bangun-asa']),
   status: z.enum(['open', 'closed', 'ongoing']),
@@ -88,7 +100,7 @@ const schema = z.object({
     reguler: z.array(questionSchema),
     beasiswa: z.array(questionSchema),
   }).optional(),
-  external_link: z.string().optional().nullable().or(z.literal('')),
+  external_link: safeOptionalUrl('Link eksternal tidak aman atau domain belum diizinkan.'),
   registration_start: z.string().optional().nullable().or(z.literal('')),
   registration_end: z.string().optional().nullable().or(z.literal('')),
   program_end: z.string().optional().nullable().or(z.literal('')),

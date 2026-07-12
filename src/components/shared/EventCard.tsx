@@ -3,6 +3,7 @@ import { MapPinned, Calendar, CheckCircle2, ArrowRight } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { type EventMapLocation } from '../../lib/public/events';
 import OptimizedImage from '../ui/OptimizedImage';
+import { isExternalUrl, safeNormalizeUrl } from '../../lib/sanitize';
 
 /**
  * Properti untuk komponen EventCard.
@@ -43,7 +44,8 @@ export default function EventCard({ event, isSelected, onSelect, className }: Ev
   const isFinished = event.status === 'Selesai';
 
   // Tentukan href dan label untuk tombol aksi
-  const actionHref = event.actionHref ?? (event.slug ? `/journey/${event.slug}` : null);
+  const rawActionHref = event.actionHref ?? (event.slug ? `/journey/${event.slug}` : null);
+  const actionHref = rawActionHref ? safeNormalizeUrl(rawActionHref, '') : null;
   const actionLabel = event.actionLabel ?? (isFinished ? 'Lihat Detail' : 'Lihat Detail');
 
   const handleCardClick = () => {
@@ -51,7 +53,7 @@ export default function EventCard({ event, isSelected, onSelect, className }: Ev
   };
 
   // Wrapper: jika ada actionHref internal, bungkus dengan Link; jika external, gunakan <a>
-  const isExternal = actionHref && /^https?:\/\//.test(actionHref);
+  const isExternal = actionHref && isExternalUrl(actionHref);
 
   return (
     <div
@@ -145,7 +147,7 @@ export default function EventCard({ event, isSelected, onSelect, className }: Ev
                 <a
                   href={actionHref}
                   target="_blank"
-                  rel="noreferrer"
+                  rel="noopener noreferrer nofollow ugc"
                   onClick={(e) => e.stopPropagation()}
                   className={cn(
                     'inline-flex items-center gap-1.5 text-[10px] sm:text-xs font-semibold transition-colors',

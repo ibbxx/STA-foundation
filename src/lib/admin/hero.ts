@@ -1,5 +1,10 @@
 import { supabase } from '../supabase/types';
 import type { Json, SiteContentRow } from '../supabase/types';
+import {
+  normalizeSafeUrl,
+  sanitizePlainTextForStorage,
+  sanitizeRichTextForStorage,
+} from '../sanitize';
 
 /* ─────────── Types ─────────── */
 
@@ -67,9 +72,21 @@ export async function fetchHeroContent(): Promise<HeroContent> {
  * Menggunakan upsert berdasarkan `key` agar selalu hanya ada 1 row.
  */
 export async function saveHeroContent(content: HeroContent) {
+  const sanitizedContent: HeroContent = {
+    slides: content.slides.map((slide) => ({
+      id: sanitizePlainTextForStorage(slide.id, 'ID slide hero'),
+      title: sanitizePlainTextForStorage(slide.title, 'Judul slide hero'),
+      subtitle: sanitizeRichTextForStorage(slide.subtitle, 'Deskripsi slide hero'),
+      imageUrl: slide.imageUrl ? normalizeSafeUrl(slide.imageUrl, { fieldName: 'Gambar slide hero' }) : '',
+      videoUrl: slide.videoUrl ? normalizeSafeUrl(slide.videoUrl, { fieldName: 'Video slide hero' }) : '',
+      buttonText: slide.buttonText ? sanitizePlainTextForStorage(slide.buttonText, 'Teks tombol hero') : '',
+      buttonLink: slide.buttonLink ? normalizeSafeUrl(slide.buttonLink, { fieldName: 'Link tombol hero' }) : '',
+    })),
+  };
+
   const payload: { key: string; value: Json; updated_at: string } = {
     key: HERO_CONTENT_KEY,
-    value: content as unknown as Json,
+    value: sanitizedContent as unknown as Json,
     updated_at: new Date().toISOString(),
   };
 

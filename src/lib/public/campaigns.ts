@@ -7,6 +7,7 @@ import {
 } from '../supabase/types';
 import { getEdgeFunctionErrorMessage } from '../admin/repository';
 import { logError } from '../error-logger';
+import { safeNormalizeUrl, sanitizeRichTextForRender } from '../sanitize';
 
 export type CampaignDonationSummary = {
   donor_name_display: string;
@@ -24,11 +25,12 @@ export function getCampaignImages(row: Pick<CampaignRow, 'images' | 'image_url'>
   if (!row) return [];
 
   if (Array.isArray(row.images) && row.images.length > 0) {
-    return row.images;
+    return row.images.map((url) => safeNormalizeUrl(url)).filter(Boolean);
   }
 
   if (row.image_url) {
-    return [row.image_url];
+    const imageUrl = safeNormalizeUrl(row.image_url);
+    return imageUrl ? [imageUrl] : [];
   }
 
   return [];
@@ -55,7 +57,7 @@ export function mapCampaignRowToPublicCampaign(
   categoryMap: Map<string, CategoryRow>,
 ): Campaign {
   const images = getCampaignImages(row);
-  const htmlDescription = row.description ?? '';
+  const htmlDescription = sanitizeRichTextForRender(row.description ?? '');
   const shortDescription = stripHtml(htmlDescription).slice(0, 180);
 
   // Resolve category name: prioritas lookup UUID, fallback ke kolom text legacy
@@ -88,7 +90,13 @@ export function mapCampaignRowToPublicCampaign(
     start_date: row.start_date ?? undefined,
     end_date: row.end_date ?? undefined,
     images,
-    collaborators: Array.isArray(row.collaborators) ? row.collaborators as Campaign['collaborators'] : [],
+    collaborators: Array.isArray(row.collaborators)
+      ? (row.collaborators as Campaign['collaborators']).map((collaborator) => ({
+        ...collaborator,
+        avatar: collaborator.avatar ? safeNormalizeUrl(collaborator.avatar, '') : collaborator.avatar,
+        url: collaborator.url ? safeNormalizeUrl(collaborator.url, '') : collaborator.url,
+      }))
+      : [],
   };
 }
 

@@ -16,6 +16,12 @@ import type {
 } from '../supabase/types';
 import { supabase } from '../supabase/types';
 import { logError } from '../error-logger';
+import {
+  normalizeSafeUrl,
+  sanitizeJsonForStorage,
+  sanitizePlainTextForStorage,
+  sanitizeRichTextForStorage,
+} from '../sanitize';
 
 // ── Typed table helpers (workaround for Supabase v2.99.x generic strictness) ──
 // Supabase v2.99.x uses `PostgrestVersion: "12"` in its generic system, which
@@ -38,6 +44,106 @@ type CU = Tables['campaign_updates'];
 type SB = Tables['spammer_blacklist'];
 type VP = Tables['volunteer_programs'];
 type VR = Tables['volunteer_registrations'];
+
+function sanitizeProgramPayload(payload: ProgramInsert): ProgramInsert {
+  let content = payload.content ?? null;
+
+  if (content?.trim()) {
+    try {
+      content = JSON.stringify(sanitizeJsonForStorage(JSON.parse(content), 'program.content'));
+    } catch {
+      content = sanitizeRichTextForStorage(content, 'Konten program');
+    }
+  }
+
+  return {
+    ...payload,
+    slug: sanitizePlainTextForStorage(payload.slug, 'Slug program'),
+    title: sanitizePlainTextForStorage(payload.title, 'Judul program'),
+    description: sanitizeRichTextForStorage(payload.description, 'Deskripsi program'),
+    icon_name: sanitizePlainTextForStorage(payload.icon_name, 'Ikon program'),
+    content,
+  };
+}
+
+function sanitizeSiteContentPayload<T extends SiteContentInsert | SiteContentUpdate>(payload: T): T {
+  return {
+    ...payload,
+    ...(payload.key ? { key: sanitizePlainTextForStorage(payload.key, 'Key konten') } : {}),
+    ...(payload.value !== undefined ? { value: sanitizeJsonForStorage(payload.value, payload.key ?? 'site_content.value') } : {}),
+  };
+}
+
+function sanitizeCampaignCollaborators(collaborators: CampaignInsert['collaborators']) {
+  if (!Array.isArray(collaborators)) return collaborators;
+
+  return collaborators.map((collaborator) => {
+    const item = collaborator as {
+      id?: string;
+      name?: string;
+      role?: string;
+      quote?: string;
+      avatar?: string | null;
+      url?: string | null;
+    };
+
+    return {
+      ...item,
+      id: sanitizePlainTextForStorage(item.id ?? '', 'ID mitra'),
+      name: sanitizePlainTextForStorage(item.name ?? '', 'Nama mitra'),
+      role: sanitizePlainTextForStorage(item.role ?? '', 'Peran mitra'),
+      quote: sanitizePlainTextForStorage(item.quote ?? '', 'Quote mitra'),
+      avatar: item.avatar && item.avatar !== 'PENDING_UPLOAD'
+        ? normalizeSafeUrl(item.avatar, { fieldName: 'Avatar mitra' })
+        : null,
+      url: item.url ? normalizeSafeUrl(item.url, { fieldName: 'URL mitra' }) : '',
+    };
+  });
+}
+
+function sanitizeCampaignPayload(payload: CampaignInsert): CampaignInsert {
+  return {
+    ...payload,
+    slug: sanitizePlainTextForStorage(payload.slug, 'Slug campaign'),
+    title: sanitizePlainTextForStorage(payload.title, 'Judul campaign'),
+    category: payload.category ? sanitizePlainTextForStorage(payload.category, 'Kategori campaign') : payload.category,
+    description: payload.description ? sanitizeRichTextForStorage(payload.description, 'Deskripsi campaign') : payload.description,
+    image_url: payload.image_url ? normalizeSafeUrl(payload.image_url, { fieldName: 'Gambar campaign' }) : payload.image_url,
+    images: Array.isArray(payload.images)
+      ? payload.images.map((url) => normalizeSafeUrl(url, { fieldName: 'Galeri campaign' }))
+      : payload.images,
+    collaborators: sanitizeCampaignCollaborators(payload.collaborators),
+  };
+}
+
+function sanitizeCampaignUpdatePayload(payload: CampaignUpdateInsert): CampaignUpdateInsert {
+  return {
+    ...payload,
+    title: sanitizePlainTextForStorage(payload.title, 'Judul update campaign'),
+    content: sanitizeRichTextForStorage(payload.content, 'Isi update campaign'),
+    update_type: sanitizePlainTextForStorage(payload.update_type, 'Jenis update campaign') as CampaignUpdateInsert['update_type'],
+    image_url: payload.image_url ? normalizeSafeUrl(payload.image_url, { fieldName: 'Gambar update campaign' }) : payload.image_url,
+    images: Array.isArray(payload.images)
+      ? payload.images.map((url) => normalizeSafeUrl(url, { fieldName: 'Galeri update campaign' }))
+      : payload.images,
+  };
+}
+
+function sanitizeVolunteerProgramPayload<T extends VolunteerProgramInsert | VolunteerProgramUpdate>(payload: T): T {
+  return {
+    ...payload,
+    ...(payload.slug ? { slug: sanitizePlainTextForStorage(payload.slug, 'Slug program relawan') } : {}),
+    ...(payload.title ? { title: sanitizePlainTextForStorage(payload.title, 'Judul program relawan') } : {}),
+    ...(payload.location ? { location: sanitizePlainTextForStorage(payload.location, 'Lokasi program relawan') } : {}),
+    ...(payload.description !== undefined ? { description: payload.description ? sanitizeRichTextForStorage(payload.description, 'Deskripsi program relawan') : payload.description } : {}),
+    ...(payload.short_description !== undefined ? { short_description: payload.short_description ? sanitizeRichTextForStorage(payload.short_description, 'Deskripsi singkat program relawan') : payload.short_description } : {}),
+    ...(payload.image_url ? { image_url: normalizeSafeUrl(payload.image_url, { fieldName: 'Gambar program relawan' }) } : {}),
+    ...(payload.external_link !== undefined ? { external_link: payload.external_link ? normalizeSafeUrl(payload.external_link, { fieldName: 'Link eksternal program relawan' }) : null } : {}),
+    ...(payload.timeline !== undefined ? { timeline: sanitizeJsonForStorage(payload.timeline, 'Timeline program relawan') } : {}),
+    ...(payload.requirements !== undefined ? { requirements: sanitizeJsonForStorage(payload.requirements, 'Syarat program relawan') } : {}),
+    ...(payload.form_config !== undefined ? { form_config: sanitizeJsonForStorage(payload.form_config, 'Konfigurasi form relawan') } : {}),
+  };
+}
 
 // ── Dashboard ──
 
@@ -116,11 +222,11 @@ export function fetchProgramRows() {
 }
 
 export function insertProgram(payload: ProgramInsert) {
-  return supabase.from('programs').insert(payload as unknown as P['Insert']);
+  return supabase.from('programs').insert(sanitizeProgramPayload(payload) as unknown as P['Insert']);
 }
 
 export function updateProgram(programId: string, payload: ProgramInsert) {
-  return supabase.from('programs').update(payload as unknown as P['Update']).eq('id', programId);
+  return supabase.from('programs').update(sanitizeProgramPayload(payload) as unknown as P['Update']).eq('id', programId);
 }
 
 export function deleteProgram(programId: string) {
@@ -143,15 +249,15 @@ export function listStorageBuckets() {
 export function upsertSiteContent(payload: SiteContentInsert[]) {
   return supabase
     .from('site_content')
-    .upsert(payload as unknown as SC['Insert'][], { onConflict: 'key' });
+    .upsert(payload.map(sanitizeSiteContentPayload) as unknown as SC['Insert'][], { onConflict: 'key' });
 }
 
 export function insertSiteContent(payload: SiteContentInsert) {
-  return supabase.from('site_content').insert(payload as unknown as SC['Insert']);
+  return supabase.from('site_content').insert(sanitizeSiteContentPayload(payload) as unknown as SC['Insert']);
 }
 
 export function updateSiteContent(entryId: string, payload: SiteContentUpdate) {
-  return supabase.from('site_content').update(payload as unknown as SC['Update']).eq('id', entryId);
+  return supabase.from('site_content').update(sanitizeSiteContentPayload(payload) as unknown as SC['Update']).eq('id', entryId);
 }
 
 export function deleteSiteContent(entryId: string) {
@@ -186,13 +292,14 @@ export function fetchCampaignDonationRows(campaignId: string) {
 }
 
 export function saveCampaign(payload: CampaignInsert, campaignId?: string) {
+  const sanitizedPayload = sanitizeCampaignPayload(payload);
   return campaignId
-    ? supabase.from('campaigns').update(payload as unknown as C['Update']).eq('id', campaignId).select('*').single()
-    : supabase.from('campaigns').insert(payload as unknown as C['Insert']).select('*').single();
+    ? supabase.from('campaigns').update(sanitizedPayload as unknown as C['Update']).eq('id', campaignId).select('*').single()
+    : supabase.from('campaigns').insert(sanitizedPayload as unknown as C['Insert']).select('*').single();
 }
 
 export function insertCampaignUpdate(payload: CampaignUpdateInsert) {
-  return supabase.from('campaign_updates').insert(payload as unknown as CU['Insert']);
+  return supabase.from('campaign_updates').insert(sanitizeCampaignUpdatePayload(payload) as unknown as CU['Insert']);
 }
 
 export function fetchCampaignDonationProbe(campaignId: string) {
@@ -294,9 +401,10 @@ export function fetchVolunteerProgramBySlug(slug: string) {
 }
 
 export function saveVolunteerProgram(payload: VolunteerProgramInsert | VolunteerProgramUpdate, programId?: string) {
+  const sanitizedPayload = sanitizeVolunteerProgramPayload(payload);
   return programId
-    ? supabase.from('volunteer_programs').update(payload as unknown as VP['Update']).eq('id', programId).select('*').single()
-    : supabase.from('volunteer_programs').insert(payload as unknown as VP['Insert']).select('*').single();
+    ? supabase.from('volunteer_programs').update(sanitizedPayload as unknown as VP['Update']).eq('id', programId).select('*').single()
+    : supabase.from('volunteer_programs').insert(sanitizedPayload as unknown as VP['Insert']).select('*').single();
 }
 
 export function deleteVolunteerProgram(programId: string) {

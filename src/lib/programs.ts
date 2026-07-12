@@ -1,4 +1,5 @@
 import { ProgramContent } from './supabase/types';
+import { safeNormalizeUrl, sanitizeRichTextForRender } from './sanitize';
 
 export const PROGRAMS: ProgramContent[] = [
   {
@@ -101,14 +102,16 @@ export function parseProgramContent(content: string | null | undefined): Program
     if (content.startsWith('{') || content.startsWith('[')) {
       const parsed = JSON.parse(content);
       return {
-        hero_image_url: parsed.hero_image_url || '',
-        home_slider_image: parsed.home_slider_image || '',
-        overview: parsed.overview || '',
-        stage_label: parsed.stage_label || '',
-        stage_value: parsed.stage_value || '',
-        focus_areas: Array.isArray(parsed.focus_areas) ? parsed.focus_areas : [],
-        gallery_images: Array.isArray(parsed.gallery_images) ? parsed.gallery_images : [],
-        body_content: parsed.body_content || '',
+        hero_image_url: safeNormalizeUrl(parsed.hero_image_url, ''),
+        home_slider_image: safeNormalizeUrl(parsed.home_slider_image, ''),
+        overview: sanitizeRichTextForRender(parsed.overview || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim(),
+        stage_label: String(parsed.stage_label || ''),
+        stage_value: String(parsed.stage_value || ''),
+        focus_areas: Array.isArray(parsed.focus_areas) ? parsed.focus_areas.map((item: unknown) => String(item)) : [],
+        gallery_images: Array.isArray(parsed.gallery_images)
+          ? parsed.gallery_images.map((url: unknown) => safeNormalizeUrl(String(url), '')).filter(Boolean)
+          : [],
+        body_content: sanitizeRichTextForRender(parsed.body_content || ''),
       };
     }
   } catch {

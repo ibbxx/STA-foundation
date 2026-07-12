@@ -13,6 +13,7 @@
     "prerender": "tsx scripts/prerender.ts",
     "static-prerender": "tsx scripts/static-prerender.ts",
     "validate:seo": "node scripts/validate-seo-output.mjs",
+    "audit:content-security": "tsx scripts/audit-content-security.ts",
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit"
   },

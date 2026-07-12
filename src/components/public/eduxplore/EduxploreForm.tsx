@@ -19,6 +19,7 @@ import {
 } from '../../../lib/admin/repository';
 import { compressImage } from '../../../lib/image-compression';
 import { logError } from '../../../lib/error-logger';
+import { safeNormalizeUrl } from '../../../lib/sanitize';
 
 interface Props {
   programId: string;
@@ -150,6 +151,7 @@ interface InnerProps {
 
 function VolunteerFormInner({ registrationType, programId, programTitle, activeFormConfig, isDualForm, externalLink }: InnerProps) {
   const dynamicSchema = createDynamicSchema(activeFormConfig);
+  const safeExternalLink = externalLink ? safeNormalizeUrl(externalLink, '') : '';
 
   const [draftValues] = useState(() => loadEduxploreDraft());
   const [assets, setAssets] = useState<Record<string, File | null>>({});
@@ -493,7 +495,7 @@ function VolunteerFormInner({ registrationType, programId, programTitle, activeF
             })}
 
             {/* Guidebook */}
-            {externalLink && (
+            {safeExternalLink && (
               <div className="bg-emerald-50/70 rounded-2xl p-6 border border-emerald-200/70">
                 <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
                   <div className="text-center sm:text-left">
@@ -505,9 +507,9 @@ function VolunteerFormInner({ registrationType, programId, programTitle, activeF
                     </p>
                   </div>
                   <a
-                    href={externalLink}
+                    href={safeExternalLink}
                     target="_blank"
-                    rel="noopener noreferrer"
+                    rel="noopener noreferrer nofollow ugc"
                     className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-6 text-xs font-bold text-white transition-all hover:bg-emerald-500 active:scale-95 shadow-md shadow-emerald-900/10 cursor-pointer shrink-0 w-full sm:w-auto text-center"
                   >
                     Lihat Guidebook

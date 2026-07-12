@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams, useLocation, Link } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Loader2, Globe, ArrowLeft } from 'lucide-react';
 
@@ -17,7 +17,7 @@ import { createBreadcrumbJsonLd, createEventJsonLd, truncateText, useSeo } from 
 
 export default function EduxploreDetailView() {
   const { slug } = useParams<{ slug: string }>();
-  const location = useLocation();
+
   const [loading, setLoading] = useState(true);
   const [program, setProgram] = useState<VolunteerProgramData | null>(null);
   const seoDescription = program
@@ -54,17 +54,7 @@ export default function EduxploreDetailView() {
       : undefined,
   });
 
-  useEffect(() => {
-    if (!loading && program && location.hash === '#form-pendaftaran') {
-      const timer = setTimeout(() => {
-        const element = document.getElementById('form-pendaftaran');
-        if (element) {
-          element.scrollIntoView({ behavior: 'smooth' });
-        }
-      }, 200);
-      return () => clearTimeout(timer);
-    }
-  }, [loading, program, location.hash]);
+
 
   useEffect(() => {
     if (!slug) {
@@ -114,7 +104,7 @@ export default function EduxploreDetailView() {
             short_description: data.short_description,
             show_in_hero: data.show_in_hero,
             program_type: data.program_type || 'eduxplore',
-            status: data.status,
+            status: getVolunteerProgramStatus(data),
             form_config: formConfig,
             external_link: data.external_link,
             registration_start: data.registration_start,

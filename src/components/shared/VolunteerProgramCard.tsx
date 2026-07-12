@@ -3,6 +3,7 @@ import { MapPin, Calendar, Clock, ArrowRight, Users } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import type { VolunteerProgramData } from '../../lib/public/events';
 import OptimizedImage from '../ui/OptimizedImage';
+import { isExternalUrl, safeNormalizeUrl } from '../../lib/sanitize';
 
 /**
  * Properti untuk komponen VolunteerProgramCard.
@@ -59,8 +60,11 @@ export default function VolunteerProgramCard({ program, className }: VolunteerPr
   const daysLeft = getDaysUntil(program.registration_end);
 
   // Link ke halaman detail program atau pendaftaran
-  const targetUrl = program.external_link || `/eduxplore/${program.slug}${isOpen ? '#form-pendaftaran' : ''}`;
-  const isExternal = program.external_link && /^https?:\/\//.test(program.external_link);
+  const targetUrl = safeNormalizeUrl(
+    program.external_link || `/eduxplore/${program.slug}`,
+    `/eduxplore/${program.slug}`,
+  );
+  const isExternal = targetUrl && isExternalUrl(targetUrl);
 
   const cardContent = (
     <>
@@ -165,7 +169,7 @@ export default function VolunteerProgramCard({ program, className }: VolunteerPr
       <a
         href={targetUrl}
         target="_blank"
-        rel="noreferrer"
+        rel="noopener noreferrer nofollow ugc"
         className={cardClassName}
       >
         {cardContent}

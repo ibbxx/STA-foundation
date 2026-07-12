@@ -1,12 +1,21 @@
 import { Quote } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import type { CtaData } from '../../lib/constants';
+import { isExternalUrl, safeNormalizeUrl } from '../../lib/sanitize';
 
 type CtaSectionProps = {
   data: CtaData;
 };
 
 export default function CtaSection({ data }: CtaSectionProps) {
+  const primaryLink = safeNormalizeUrl(data.primaryButtonLink, '/laporkan');
+  const secondaryLink = safeNormalizeUrl(data.secondaryButtonLink, '/kontak');
+  const imageUrl = safeNormalizeUrl(data.imageUrl, '');
+  const primaryIsExternal = isExternalUrl(primaryLink);
+  const secondaryIsExternal = isExternalUrl(secondaryLink);
+  const primaryClassName = 'bg-white text-emerald-700 px-2.5 sm:px-7 py-1.5 sm:py-3.5 rounded-full font-bold hover:bg-emerald-50 transition-all text-center text-[9px] sm:text-sm shadow-lg whitespace-nowrap';
+  const secondaryClassName = 'bg-emerald-800/60 text-white px-2.5 sm:px-7 py-1.5 sm:py-3.5 rounded-full font-bold hover:bg-emerald-800 transition-all text-center text-[9px] sm:text-sm border border-emerald-600/40 whitespace-nowrap';
+
   return (
     <section className="py-8 sm:py-14 md:py-16 lg:py-20">
       <div className="max-w-7xl mx-auto px-5 sm:px-6 lg:px-8">
@@ -24,21 +33,33 @@ export default function CtaSection({ data }: CtaSectionProps) {
                 {data.description}
               </p>
               <div className="flex flex-row gap-1.5 pt-1.5 sm:pt-2 sm:gap-3 flex-wrap">
-                <Link to={data.primaryButtonLink} className="bg-white text-emerald-700 px-2.5 sm:px-7 py-1.5 sm:py-3.5 rounded-full font-bold hover:bg-emerald-50 transition-all text-center text-[9px] sm:text-sm shadow-lg whitespace-nowrap">
-                  {data.primaryButtonText}
-                </Link>
-                <Link to={data.secondaryButtonLink} className="bg-emerald-800/60 text-white px-2.5 sm:px-7 py-1.5 sm:py-3.5 rounded-full font-bold hover:bg-emerald-800 transition-all text-center text-[9px] sm:text-sm border border-emerald-600/40 whitespace-nowrap">
-                  {data.secondaryButtonText}
-                </Link>
+                {primaryIsExternal ? (
+                  <a href={primaryLink} target="_blank" rel="noopener noreferrer nofollow ugc" className={primaryClassName}>
+                    {data.primaryButtonText}
+                  </a>
+                ) : (
+                  <Link to={primaryLink} className={primaryClassName}>
+                    {data.primaryButtonText}
+                  </Link>
+                )}
+                {secondaryIsExternal ? (
+                  <a href={secondaryLink} target="_blank" rel="noopener noreferrer nofollow ugc" className={secondaryClassName}>
+                    {data.secondaryButtonText}
+                  </a>
+                ) : (
+                  <Link to={secondaryLink} className={secondaryClassName}>
+                    {data.secondaryButtonText}
+                  </Link>
+                )}
               </div>
             </div>
           </div>
 
           {/* Image - Right Column */}
           <div className="relative col-span-5 sm:col-span-6 bg-emerald-800/10 min-h-full">
-            {data.imageUrl && (
+            {imageUrl && (
               <img
-                src={data.imageUrl}
+                src={imageUrl}
                 alt={data.title}
                 className="absolute inset-0 w-full h-full object-cover"
                 loading="lazy"

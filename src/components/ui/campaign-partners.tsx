@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { cn } from "../../lib/utils";
+import { safeNormalizeUrl } from "../../lib/sanitize";
 
 export interface CampaignPartner {
   id: string;
@@ -64,13 +65,16 @@ export function CampaignPartners({ partners, title = "Mitra Kolaborator", size =
         >
           {/* Quadruple partners for a very long loop to support dragging */}
           {[...partners, ...partners, ...partners, ...partners].map((partner, index) => (
+            (() => {
+              const partnerUrl = partner.url ? safeNormalizeUrl(partner.url, '') : '';
+              return (
             <a
               key={`${partner.id}-${index}`}
-              href={partner.url || "#"}
-              target={partner.url ? "_blank" : undefined}
-              rel={partner.url ? "noopener noreferrer" : undefined}
+              href={partnerUrl || "#"}
+              target={partnerUrl ? "_blank" : undefined}
+              rel={partnerUrl ? "noopener noreferrer nofollow ugc" : undefined}
               onClick={(e) => {
-                if (!partner.url) e.preventDefault();
+                if (!partnerUrl) e.preventDefault();
                 handleSelect(index % partners.length);
               }}
               className="mx-6 sm:mx-10 flex flex-col items-center gap-3 transition-all duration-300 hover:scale-110 active:scale-95 group select-none pointer-events-auto"
@@ -92,6 +96,8 @@ export function CampaignPartners({ partners, title = "Mitra Kolaborator", size =
                 {partner.name}
               </span>
             </a>
+              );
+            })()
           ))}
         </motion.div>
       </div>
