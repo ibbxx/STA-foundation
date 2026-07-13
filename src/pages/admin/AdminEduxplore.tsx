@@ -3,7 +3,12 @@ import { fetchAllVolunteerRegistrations, fetchVolunteerPrograms, updateVolunteer
 import type { VolunteerRegistrationRow, VolunteerProgramRow } from '../../lib/supabase/types';
 import { supabase } from '../../lib/supabase/types';
 import { formatAdminDate } from '../../lib/admin/helpers';
-import { DEFAULT_REGULER_FORM_CONFIG, DEFAULT_BEASISWA_FORM_CONFIG } from '../../components/admin/AdminVolunteerPrograms';
+import {
+  DEFAULT_BEASISWA_FORM_CONFIG,
+  DEFAULT_REGULER_FORM_CONFIG,
+  getEduxploreQuestionsForRegistrationType,
+  normalizeEduxploreFormConfig,
+} from '../../lib/eduxplore';
 import {
   Loader2, RefreshCw, CheckCircle2, XCircle, Search, ExternalLink,
   UserCheck, Clock, Users, ChevronRight,
@@ -73,29 +78,12 @@ function getDefaultFormConfig(registrationType: string | null | undefined) {
   return registrationType === 'beasiswa' ? DEFAULT_BEASISWA_FORM_CONFIG : DEFAULT_REGULER_FORM_CONFIG;
 }
 
-// Helper to extract dynamic form config based on path
 function getRegistrationFormConfig(prog: VolunteerProgramRow | undefined, registrationType: string | null | undefined) {
-  const fallbackConfig = getDefaultFormConfig(registrationType);
-  if (!prog || !prog.form_config) return fallbackConfig;
-  let raw: any;
-  try {
-    raw = typeof prog.form_config === 'string'
-      ? JSON.parse(prog.form_config)
-      : prog.form_config;
-  } catch {
-    return fallbackConfig;
-  }
-
-  if (Array.isArray(raw)) {
-    return raw.length > 0 ? raw : fallbackConfig;
-  }
-
-  if (raw && typeof raw === 'object') {
-    const type = registrationType || 'reguler';
-    return raw[type] || raw['reguler'] || fallbackConfig;
-  }
-
-  return fallbackConfig;
+  if (!prog || !prog.form_config) return getDefaultFormConfig(registrationType);
+  return getEduxploreQuestionsForRegistrationType(
+    normalizeEduxploreFormConfig(prog.form_config),
+    registrationType,
+  );
 }
 
 function parseAnswers(value: VolunteerRegistrationRow['answers']): Record<string, unknown> {

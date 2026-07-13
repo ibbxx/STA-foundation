@@ -14,7 +14,12 @@ import {
 import { uploadAdminImage } from '../../lib/supabase/storage';
 import type { VolunteerProgramRow } from '../../lib/supabase/types';
 import type { VolunteerTimelineItem } from '../../lib/eduxplore';
-import { getVolunteerProgramStatus } from '../../lib/eduxplore';
+import {
+  DEFAULT_BEASISWA_FORM_CONFIG,
+  DEFAULT_REGULER_FORM_CONFIG,
+  getVolunteerProgramStatus,
+  normalizeEduxploreFormConfig,
+} from '../../lib/eduxplore';
 import { logError } from '../../lib/error-logger';
 import { useConfirmDialog } from './ConfirmDialog';
 import { slugify } from '../../lib/admin/campaign-utils';
@@ -34,36 +39,6 @@ function getProgramTypeLabel(type: string) {
 function getProgramTypeBadge(type: string) {
   return PROGRAM_TYPE_OPTIONS.find(o => o.value === type)?.color || 'bg-slate-100 text-slate-600 border-slate-200';
 }
-
-// ── Default Configurations ──
-
-export const DEFAULT_REGULER_FORM_CONFIG = [
-  { id: 'nama_lengkap', type: 'text' as const, label: 'Nama Lengkap', required: true },
-  { id: 'email', type: 'email' as const, label: 'Email Aktif', required: true },
-  { id: 'whatsapp', type: 'tel' as const, label: 'No. WhatsApp', required: true },
-  { id: 'instagram', type: 'text' as const, label: 'Instagram', required: true },
-  { id: 'institusi', type: 'text' as const, label: 'Institusi / Sekolah / Kampus', required: true },
-  { id: 'jurusan', type: 'text' as const, label: 'Jurusan / Kelas / Lainnya', required: true },
-  { id: 'bukti_follow_sta', type: 'file' as const, label: 'Bukti Follow Instagram @sekolah.tanahair', required: true },
-  { id: 'bukti_follow_bepro', type: 'file' as const, label: 'Bukti Follow Instagram @bepro_id', required: true },
-  { id: 'mini_esai', type: 'textarea' as const, label: 'Mini Esai (Motivasi & Kontribusi)', required: true },
-  { id: 'meeting_point', type: 'select' as const, label: 'Meeting Point', required: true, options: ['Payakumbuh', 'Padang', 'Jakarta'] },
-  { id: 'bukti_pembayaran', type: 'file' as const, label: 'Bukti Pembayaran (Full Payment / Cicilan 50%)', required: true },
-];
-
-export const DEFAULT_BEASISWA_FORM_CONFIG = [
-  { id: 'nama_lengkap', type: 'text' as const, label: 'Nama Lengkap', required: true },
-  { id: 'email', type: 'email' as const, label: 'Email Aktif', required: true },
-  { id: 'whatsapp', type: 'tel' as const, label: 'No. WhatsApp', required: true },
-  { id: 'instagram', type: 'text' as const, label: 'Instagram', required: true },
-  { id: 'institusi', type: 'text' as const, label: 'Institusi / Sekolah / Kampus', required: true },
-  { id: 'jurusan', type: 'text' as const, label: 'Jurusan / Kelas / Lainnya', required: true },
-  { id: 'bukti_follow_sta', type: 'file' as const, label: 'Bukti Follow Instagram @sekolah.tanahair', required: true },
-  { id: 'bukti_follow_bepro', type: 'file' as const, label: 'Bukti Follow Instagram @bepro_id', required: true },
-  { id: 'cv', type: 'file' as const, label: 'Curriculum Vitae', required: true },
-  { id: 'motivation_letter', type: 'file' as const, label: 'Motivation Letter (PDF)', required: true },
-  { id: 'social_project_proposal', type: 'file' as const, label: 'Mini Proposal Project atau Gagasan Dampak Sosial (PDF)', required: true },
-];
 
 const questionSchema = z.object({
   id: z.string(),
@@ -110,6 +85,10 @@ const schema = z.object({
   form_config: z.object({
     reguler: z.array(questionSchema),
     beasiswa: z.array(questionSchema),
+    enabled_registration_types: z.object({
+      reguler: z.boolean(),
+      beasiswa: z.boolean(),
+    }),
   }).optional(),
   external_link: safeOptionalGuidebookUrl('Link guidebook tidak aman atau domain belum diizinkan.'),
   registration_start: z.string().optional().nullable().or(z.literal('')),
@@ -174,6 +153,10 @@ const defaultValues: FormValues = {
   form_config: {
     reguler: [...DEFAULT_REGULER_FORM_CONFIG],
     beasiswa: [...DEFAULT_BEASISWA_FORM_CONFIG],
+    enabled_registration_types: {
+      reguler: true,
+      beasiswa: true,
+    },
   },
   external_link: '',
   registration_start: '',
@@ -309,16 +292,14 @@ export default function AdminVolunteerPrograms() {
   }, []);
 
   function openCreate() {
+    const defaultFormConfig = normalizeEduxploreFormConfig(null);
     setNotice(null);
     setError(null);
     setEditingProgram(null);
     setActiveFormTab('reguler');
     reset({
       ...defaultValues,
-      form_config: {
-        reguler: [...DEFAULT_REGULER_FORM_CONFIG],
-        beasiswa: [...DEFAULT_BEASISWA_FORM_CONFIG],
-      },
+      form_config: defaultFormConfig,
     });
     setMode('create');
   }
@@ -353,31 +334,7 @@ export default function AdminVolunteerPrograms() {
       reqText = `<ul>${items}</ul>`;
     } catch (e) {}
 
-    // Parse form config with dual support and legacy conversion
-    let parsedFormConfig = {
-      reguler: [...DEFAULT_REGULER_FORM_CONFIG],
-      beasiswa: [...DEFAULT_BEASISWA_FORM_CONFIG],
-    };
-
-    if (program.form_config) {
-      try {
-        const raw = typeof program.form_config === 'string'
-          ? JSON.parse(program.form_config)
-          : program.form_config;
-
-        if (Array.isArray(raw)) {
-          // Legacy flat array: map to reguler, keep beasiswa as default
-          if (raw.length > 0) {
-            parsedFormConfig.reguler = raw;
-          }
-        } else if (raw && typeof raw === 'object') {
-          parsedFormConfig.reguler = raw.reguler || [...DEFAULT_REGULER_FORM_CONFIG];
-          parsedFormConfig.beasiswa = raw.beasiswa || [...DEFAULT_BEASISWA_FORM_CONFIG];
-        }
-      } catch (e) {
-        logError('AdminVolunteerPrograms.openEdit.parseFormConfig', e);
-      }
-    }
+    const parsedFormConfig = normalizeEduxploreFormConfig(program.form_config);
 
     reset({
       title: program.title,
@@ -486,7 +443,7 @@ export default function AdminVolunteerPrograms() {
         status: values.status,
         timeline: timeline as unknown as import('../../lib/supabase/types').Json,
         requirements: requirements as unknown as import('../../lib/supabase/types').Json,
-        form_config: values.form_config as unknown as import('../../lib/supabase/types').Json,
+        form_config: normalizeEduxploreFormConfig(values.form_config) as unknown as import('../../lib/supabase/types').Json,
         external_link: values.external_link || null,
         registration_start: values.registration_start ? new Date(values.registration_start).toISOString() : null,
         registration_end: values.registration_end ? new Date(values.registration_end).toISOString() : null,
@@ -888,6 +845,31 @@ export default function AdminVolunteerPrograms() {
                   Beasiswa
                 </button>
               </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <label className="flex items-start gap-3 p-3.5 rounded-xl border border-slate-200 bg-white cursor-pointer hover:border-emerald-300 transition-colors">
+                <input
+                  type="checkbox"
+                  {...register('form_config.enabled_registration_types.reguler')}
+                  className="mt-1 h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                />
+                <div>
+                  <p className="text-xs font-bold text-slate-800">Tampilkan Jalur Reguler di halaman user</p>
+                  <p className="text-[11px] text-slate-500 mt-0.5">Pertanyaan reguler tetap tersimpan meski jalur disembunyikan.</p>
+                </div>
+              </label>
+              <label className="flex items-start gap-3 p-3.5 rounded-xl border border-slate-200 bg-white cursor-pointer hover:border-violet-300 transition-colors">
+                <input
+                  type="checkbox"
+                  {...register('form_config.enabled_registration_types.beasiswa')}
+                  className="mt-1 h-4 w-4 rounded border-slate-300 text-violet-600 focus:ring-violet-500 cursor-pointer"
+                />
+                <div>
+                  <p className="text-xs font-bold text-slate-800">Tampilkan Jalur Beasiswa di halaman user</p>
+                  <p className="text-[11px] text-slate-500 mt-0.5">Pertanyaan beasiswa tetap tersimpan meski jalur disembunyikan.</p>
+                </div>
+              </label>
             </div>
 
             <div className="flex justify-between items-center bg-emerald-50/50 border border-emerald-100 p-3.5 rounded-xl">

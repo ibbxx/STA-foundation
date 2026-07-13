@@ -43,6 +43,130 @@ export interface VolunteerProgramData {
   program_end?: string | null;
 }
 
+export type EduxploreRegistrationType = 'reguler' | 'beasiswa';
+
+export interface EduxploreQuestion {
+  id: string;
+  type: 'text' | 'textarea' | 'select' | 'date' | 'file' | 'number' | 'email' | 'tel';
+  label: string;
+  required: boolean;
+  options?: string[] | null;
+}
+
+export interface EduxploreEnabledRegistrationTypes {
+  reguler: boolean;
+  beasiswa: boolean;
+}
+
+export interface NormalizedEduxploreFormConfig {
+  reguler: EduxploreQuestion[];
+  beasiswa: EduxploreQuestion[];
+  enabled_registration_types: EduxploreEnabledRegistrationTypes;
+}
+
+export const DEFAULT_REGULER_FORM_CONFIG: EduxploreQuestion[] = [
+  { id: 'nama_lengkap', type: 'text', label: 'Nama Lengkap', required: true },
+  { id: 'email', type: 'email', label: 'Email Aktif', required: true },
+  { id: 'whatsapp', type: 'tel', label: 'No. WhatsApp', required: true },
+  { id: 'instagram', type: 'text', label: 'Instagram', required: true },
+  { id: 'institusi', type: 'text', label: 'Institusi / Sekolah / Kampus', required: true },
+  { id: 'jurusan', type: 'text', label: 'Jurusan / Kelas / Lainnya', required: true },
+  { id: 'bukti_follow_sta', type: 'file', label: 'Bukti Follow Instagram @sekolah.tanahair', required: true },
+  { id: 'bukti_follow_bepro', type: 'file', label: 'Bukti Follow Instagram @bepro_id', required: true },
+  { id: 'mini_esai', type: 'textarea', label: 'Mini Esai (Motivasi & Kontribusi)', required: true },
+  { id: 'meeting_point', type: 'select', label: 'Meeting Point', required: true, options: ['Payakumbuh', 'Padang', 'Jakarta'] },
+  { id: 'bukti_pembayaran', type: 'file', label: 'Bukti Pembayaran (Full Payment / Cicilan 50%)', required: true },
+];
+
+export const DEFAULT_BEASISWA_FORM_CONFIG: EduxploreQuestion[] = [
+  { id: 'nama_lengkap', type: 'text', label: 'Nama Lengkap', required: true },
+  { id: 'email', type: 'email', label: 'Email Aktif', required: true },
+  { id: 'whatsapp', type: 'tel', label: 'No. WhatsApp', required: true },
+  { id: 'instagram', type: 'text', label: 'Instagram', required: true },
+  { id: 'institusi', type: 'text', label: 'Institusi / Sekolah / Kampus', required: true },
+  { id: 'jurusan', type: 'text', label: 'Jurusan / Kelas / Lainnya', required: true },
+  { id: 'bukti_follow_sta', type: 'file', label: 'Bukti Follow Instagram @sekolah.tanahair', required: true },
+  { id: 'bukti_follow_bepro', type: 'file', label: 'Bukti Follow Instagram @bepro_id', required: true },
+  { id: 'cv', type: 'file', label: 'Curriculum Vitae', required: true },
+  { id: 'motivation_letter', type: 'file', label: 'Motivation Letter (PDF)', required: true },
+  { id: 'social_project_proposal', type: 'file', label: 'Mini Proposal Project atau Gagasan Dampak Sosial (PDF)', required: true },
+];
+
+const DEFAULT_ENABLED_REGISTRATION_TYPES: EduxploreEnabledRegistrationTypes = {
+  reguler: true,
+  beasiswa: true,
+};
+
+function cloneQuestions(questions: EduxploreQuestion[]): EduxploreQuestion[] {
+  return questions.map((q) => ({
+    ...q,
+    options: Array.isArray(q.options) ? [...q.options] : q.options ?? undefined,
+  }));
+}
+
+function parseFormConfigValue(value: unknown): unknown {
+  if (typeof value !== 'string') return value;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return null;
+  }
+}
+
+function normalizeQuestions(value: unknown, fallback: EduxploreQuestion[]): EduxploreQuestion[] {
+  return Array.isArray(value) && value.length > 0
+    ? cloneQuestions(value as EduxploreQuestion[])
+    : cloneQuestions(fallback);
+}
+
+export function normalizeEduxploreFormConfig(value: unknown): NormalizedEduxploreFormConfig {
+  const raw = parseFormConfigValue(value);
+
+  if (Array.isArray(raw)) {
+    return {
+      reguler: normalizeQuestions(raw, DEFAULT_REGULER_FORM_CONFIG),
+      beasiswa: cloneQuestions(DEFAULT_BEASISWA_FORM_CONFIG),
+      enabled_registration_types: { ...DEFAULT_ENABLED_REGISTRATION_TYPES },
+    };
+  }
+
+  if (raw && typeof raw === 'object') {
+    const config = raw as Record<string, unknown>;
+    const enabled = config.enabled_registration_types && typeof config.enabled_registration_types === 'object'
+      ? config.enabled_registration_types as Partial<EduxploreEnabledRegistrationTypes>
+      : {};
+
+    return {
+      reguler: normalizeQuestions(config.reguler, DEFAULT_REGULER_FORM_CONFIG),
+      beasiswa: normalizeQuestions(config.beasiswa, DEFAULT_BEASISWA_FORM_CONFIG),
+      enabled_registration_types: {
+        reguler: typeof enabled.reguler === 'boolean' ? enabled.reguler : true,
+        beasiswa: typeof enabled.beasiswa === 'boolean' ? enabled.beasiswa : true,
+      },
+    };
+  }
+
+  return {
+    reguler: cloneQuestions(DEFAULT_REGULER_FORM_CONFIG),
+    beasiswa: cloneQuestions(DEFAULT_BEASISWA_FORM_CONFIG),
+    enabled_registration_types: { ...DEFAULT_ENABLED_REGISTRATION_TYPES },
+  };
+}
+
+export function getEnabledEduxploreRegistrationTypes(config: NormalizedEduxploreFormConfig): EduxploreRegistrationType[] {
+  const enabled: EduxploreRegistrationType[] = [];
+  if (config.enabled_registration_types.reguler) enabled.push('reguler');
+  if (config.enabled_registration_types.beasiswa) enabled.push('beasiswa');
+  return enabled;
+}
+
+export function getEduxploreQuestionsForRegistrationType(
+  config: NormalizedEduxploreFormConfig,
+  registrationType: EduxploreRegistrationType | string | null | undefined,
+): EduxploreQuestion[] {
+  return registrationType === 'beasiswa' ? config.beasiswa : config.reguler;
+}
+
 export function getVolunteerProgramStatus(program: {
   status: 'open' | 'closed' | 'ongoing';
   registration_start?: string | null;

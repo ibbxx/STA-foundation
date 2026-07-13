@@ -12,6 +12,9 @@ import {
   persistEduxploreDraft,
   clearEduxploreDraft,
   createEduxploreWhatsAppUrl,
+  getEduxploreQuestionsForRegistrationType,
+  getEnabledEduxploreRegistrationTypes,
+  normalizeEduxploreFormConfig,
 } from '../../../lib/eduxplore';
 import {
   getEdgeFunctionErrorMessage,
@@ -29,45 +32,21 @@ interface Props {
   externalLink?: string | null;
 }
 
-// ── Default Configurations ──
-
-const DEFAULT_REGULER_FORM_CONFIG = [
-  { id: 'nama_lengkap', type: 'text', label: 'Nama Lengkap', required: true },
-  { id: 'email', type: 'email', label: 'Email Aktif', required: true },
-  { id: 'whatsapp', type: 'tel', label: 'No. WhatsApp', required: true },
-  { id: 'instagram', type: 'text', label: 'Instagram', required: true },
-  { id: 'institusi', type: 'text', label: 'Institusi / Sekolah / Kampus', required: true },
-  { id: 'jurusan', type: 'text', label: 'Jurusan / Kelas / Lainnya', required: true },
-  { id: 'bukti_follow_sta', type: 'file', label: 'Bukti Follow Instagram @sekolah.tanahair', required: true },
-  { id: 'bukti_follow_bepro', type: 'file', label: 'Bukti Follow Instagram @bepro_id', required: true },
-  { id: 'mini_esai', type: 'textarea', label: 'Mini Esai (Motivasi & Kontribusi)', required: true },
-  { id: 'meeting_point', type: 'select', label: 'Meeting Point', required: true, options: ['Payakumbuh', 'Padang', 'Jakarta'] },
-  { id: 'bukti_pembayaran', type: 'file', label: 'Bukti Pembayaran (Full Payment / Cicilan 50%)', required: true },
-];
-
-const DEFAULT_BEASISWA_FORM_CONFIG = [
-  { id: 'nama_lengkap', type: 'text', label: 'Nama Lengkap', required: true },
-  { id: 'email', type: 'email', label: 'Email Aktif', required: true },
-  { id: 'whatsapp', type: 'tel', label: 'No. WhatsApp', required: true },
-  { id: 'instagram', type: 'text', label: 'Instagram', required: true },
-  { id: 'institusi', type: 'text', label: 'Institusi / Sekolah / Kampus', required: true },
-  { id: 'jurusan', type: 'text', label: 'Jurusan / Kelas / Lainnya', required: true },
-  { id: 'bukti_follow_sta', type: 'file', label: 'Bukti Follow Instagram @sekolah.tanahair', required: true },
-  { id: 'bukti_follow_bepro', type: 'file', label: 'Bukti Follow Instagram @bepro_id', required: true },
-  { id: 'cv', type: 'file', label: 'Curriculum Vitae', required: true },
-  { id: 'motivation_letter', type: 'file', label: 'Motivation Letter (PDF)', required: true },
-  { id: 'social_project_proposal', type: 'file', label: 'Mini Proposal Project atau Gagasan Dampak Sosial (PDF)', required: true },
-];
-
 export default function EduxploreForm({ programId, programTitle, isOpen, formConfig, externalLink }: Props) {
-  const [registrationType, setRegistrationType] = useState<'reguler' | 'beasiswa'>('reguler');
+  const [registrationType, setRegistrationType] = useState<'reguler' | 'beasiswa'>(() => {
+    const enabledTypes = getEnabledEduxploreRegistrationTypes(normalizeEduxploreFormConfig(formConfig));
+    return enabledTypes[0] || 'reguler';
+  });
+  const normalizedFormConfig = normalizeEduxploreFormConfig(formConfig);
+  const enabledRegistrationTypes = getEnabledEduxploreRegistrationTypes(normalizedFormConfig);
+  const showRegistrationTabs = enabledRegistrationTypes.length === 2;
+  const activeFormConfig = getEduxploreQuestionsForRegistrationType(normalizedFormConfig, registrationType);
 
-  // Cek apakah data form_config di DB mendukung dual-template (object) atau legacy (array)
-  const isDualForm = formConfig && typeof formConfig === 'object' && !Array.isArray(formConfig) && ('reguler' in formConfig || 'beasiswa' in formConfig);
-
-  const activeFormConfig = isDualForm
-    ? (registrationType === 'beasiswa' ? (formConfig.beasiswa || DEFAULT_BEASISWA_FORM_CONFIG) : (formConfig.reguler || DEFAULT_REGULER_FORM_CONFIG))
-    : (Array.isArray(formConfig) && formConfig.length > 0 ? formConfig : DEFAULT_REGULER_FORM_CONFIG);
+  useEffect(() => {
+    if (enabledRegistrationTypes.length > 0 && !enabledRegistrationTypes.includes(registrationType)) {
+      setRegistrationType(enabledRegistrationTypes[0]);
+    }
+  }, [enabledRegistrationTypes, registrationType]);
 
   if (!isOpen) {
     return (
@@ -90,11 +69,20 @@ export default function EduxploreForm({ programId, programTitle, isOpen, formCon
           <h2 className="text-xl sm:text-3xl md:text-4xl font-black text-gray-900 tracking-tight">
             Daftar Sebagai Volunteer
           </h2>
-          <p className="text-sm text-slate-500 mt-2">Pilih jalur pendaftaran relawan Anda di bawah ini.</p>
+          {showRegistrationTabs && (
+            <p className="text-sm text-slate-500 mt-2">Pilih jalur pendaftaran relawan Anda di bawah ini.</p>
+          )}
         </div>
 
+        {enabledRegistrationTypes.length === 0 && (
+          <div className="rounded-3xl border border-slate-200 bg-slate-50 p-8 text-center">
+            <p className="text-base font-bold text-slate-800">Pendaftaran jalur belum tersedia.</p>
+            <p className="text-sm text-slate-500 mt-2">Silakan cek kembali informasi pendaftaran program ini nanti.</p>
+          </div>
+        )}
+
         {/* Tab Pemilih Jalur (Hanya tampil jika program mendukung dual form) */}
-        {isDualForm && (
+        {showRegistrationTabs && (
           <div className="flex justify-center mb-10">
             <div className="inline-flex p-1.5 bg-slate-100 rounded-2xl border border-slate-200/50 shadow-inner">
               <button
@@ -124,15 +112,16 @@ export default function EduxploreForm({ programId, programTitle, isOpen, formCon
         )}
 
         {/* Form Body - Dikey berdasarkan jalur pendaftaran agar hooks re-initialize secara total */}
-        <VolunteerFormInner
-          key={registrationType}
-          registrationType={registrationType}
-          programId={programId}
-          programTitle={programTitle}
-          activeFormConfig={activeFormConfig}
-          isDualForm={isDualForm}
-          externalLink={externalLink}
-        />
+        {enabledRegistrationTypes.length > 0 && (
+          <VolunteerFormInner
+            key={registrationType}
+            registrationType={registrationType}
+            programId={programId}
+            programTitle={programTitle}
+            activeFormConfig={activeFormConfig}
+            externalLink={externalLink}
+          />
+        )}
       </div>
     </section>
   );
@@ -145,11 +134,10 @@ interface InnerProps {
   programId: string;
   programTitle: string;
   activeFormConfig: any[];
-  isDualForm: boolean;
   externalLink?: string | null;
 }
 
-function VolunteerFormInner({ registrationType, programId, programTitle, activeFormConfig, isDualForm, externalLink }: InnerProps) {
+function VolunteerFormInner({ registrationType, programId, programTitle, activeFormConfig, externalLink }: InnerProps) {
   const dynamicSchema = createDynamicSchema(activeFormConfig);
   const safeExternalLink = externalLink ? safeNormalizeGuidebookUrl(externalLink, '') : '';
 
@@ -305,7 +293,7 @@ function VolunteerFormInner({ registrationType, programId, programTitle, activeF
         email,
         whatsapp,
         answers,
-        registration_type: isDualForm ? registrationType : 'reguler',
+        registration_type: registrationType,
       };
 
       if (!nama_lengkap || !email || !whatsapp) {
@@ -546,7 +534,7 @@ function VolunteerFormInner({ registrationType, programId, programTitle, activeF
               type="submit"
               disabled={isSubmitting}
               className={`w-full h-14 rounded-xl text-white font-bold text-base transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 ${
-                isDualForm && registrationType === 'beasiswa'
+                registrationType === 'beasiswa'
                   ? 'bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 shadow-md shadow-violet-100'
                   : 'bg-emerald-600 hover:bg-emerald-500 shadow-md shadow-emerald-100'
               }`}

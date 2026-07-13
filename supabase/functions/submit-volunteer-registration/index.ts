@@ -3,6 +3,32 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { corsHeaders, jsonResponse, safeFileName, validateImage } from '../_shared/http.ts';
 import { verifyTurnstile } from '../_shared/turnstile.ts';
 
+type RegistrationType = 'reguler' | 'beasiswa';
+
+function getEnabledRegistrationTypes(formConfig: unknown): Record<RegistrationType, boolean> {
+  let raw = formConfig;
+  if (typeof raw === 'string') {
+    try {
+      raw = JSON.parse(raw);
+    } catch {
+      raw = null;
+    }
+  }
+
+  if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
+    const enabled = (raw as Record<string, unknown>).enabled_registration_types;
+    if (enabled && typeof enabled === 'object' && !Array.isArray(enabled)) {
+      const enabledMap = enabled as Record<string, unknown>;
+      return {
+        reguler: typeof enabledMap.reguler === 'boolean' ? enabledMap.reguler : true,
+        beasiswa: typeof enabledMap.beasiswa === 'boolean' ? enabledMap.beasiswa : true,
+      };
+    }
+  }
+
+  return { reguler: true, beasiswa: true };
+}
+
 Deno.serve(async (request) => {
   if (request.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -37,7 +63,7 @@ Deno.serve(async (request) => {
     // Verify program is open
     const { data: program, error: programError } = await supabase
       .from('volunteer_programs')
-      .select('status, registration_start, registration_end')
+      .select('status, registration_start, registration_end, form_config')
       .eq('id', payload.program_id)
       .single();
 
@@ -56,6 +82,17 @@ Deno.serve(async (request) => {
     if (!isOpen) {
       console.log('[submit-volunteer-registration] Program registration is closed.');
       return jsonResponse({ error: 'Pendaftaran program sedang ditutup.' }, 400);
+    }
+
+    const requestedRegistrationType = payload.registration_type ?? 'reguler';
+    if (requestedRegistrationType !== 'reguler' && requestedRegistrationType !== 'beasiswa') {
+      return jsonResponse({ error: 'Jalur pendaftaran tidak valid.' }, 400);
+    }
+    const registrationType = requestedRegistrationType as RegistrationType;
+    const enabledRegistrationTypes = getEnabledRegistrationTypes(program.form_config);
+    if (!enabledRegistrationTypes[registrationType]) {
+      console.log('[submit-volunteer-registration] Registration type is disabled:', registrationType);
+      return jsonResponse({ error: 'Jalur pendaftaran yang dipilih sedang tidak tersedia.' }, 400);
     }
 
     const uploadPrivateFile = async (prefix: string, file: File) => {
@@ -108,7 +145,7 @@ Deno.serve(async (request) => {
         bukti_follow_url: uploadedFiles['bukti_follow_ig'] || null,
         foto_id_url: uploadedFiles['foto_id_card'] || null,
         answers: answers,
-        registration_type: payload.registration_type || 'reguler',
+        registration_type: registrationType,
       })
       .select('id')
       .single();
