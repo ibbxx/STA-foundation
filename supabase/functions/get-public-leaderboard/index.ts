@@ -4,10 +4,10 @@ import { corsHeaders, jsonResponse } from '../_shared/http.ts';
 
 Deno.serve(async (request) => {
   if (request.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+    return new Response('ok', { headers: corsHeaders(request) });
   }
   if (request.method !== 'POST') {
-    return jsonResponse({ error: 'Method not allowed.' }, 405);
+    return jsonResponse({ error: 'Method not allowed.' }, 405, request);
   }
 
   try {
@@ -27,11 +27,12 @@ Deno.serve(async (request) => {
 
     if (error) throw error;
 
-    return jsonResponse({ entries: data ?? [] });
+    return jsonResponse({ entries: data ?? [] }, 200, request);
   } catch (error) {
     return jsonResponse(
       { error: error instanceof Error ? error.message : 'Gagal memuat leaderboard.' },
       400,
+      request,
     );
   }
 });

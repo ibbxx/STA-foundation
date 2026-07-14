@@ -373,7 +373,19 @@ export async function getEdgeFunctionErrorMessage(error: unknown, fallback: stri
     }
   }
 
-  return error instanceof Error ? error.message : fallback;
+  const errorName = error && typeof error === 'object' && 'name' in error
+    ? String(error.name)
+    : '';
+  const errorMessage = error instanceof Error ? error.message : '';
+
+  if (
+    errorName === 'FunctionsFetchError'
+    || /failed to send a request to the edge function/i.test(errorMessage)
+  ) {
+    return 'Request gagal dikirim ke server. Coba muat ulang halaman atau gunakan jaringan lain. Jika masih gagal, admin perlu cek CORS/deploy Edge Function.';
+  }
+
+  return errorMessage || fallback;
 }
 
 // ── Volunteer Programs ──

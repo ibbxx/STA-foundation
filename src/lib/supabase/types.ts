@@ -139,6 +139,7 @@ export interface Database {
           amount: number;
           payment_status: 'pending' | 'success' | 'failed';
           payment_method: string | null;
+          payment_proof_path: string | null;
           message: string | null;
           is_anonymous: boolean;
           created_at: string;
@@ -152,6 +153,7 @@ export interface Database {
           amount: number;
           payment_status?: 'pending' | 'success' | 'failed';
           payment_method?: string | null;
+          payment_proof_path?: string | null;
           message?: string | null;
           is_anonymous?: boolean;
           created_at?: string;
@@ -165,6 +167,7 @@ export interface Database {
           amount?: number;
           payment_status?: 'pending' | 'success' | 'failed';
           payment_method?: string | null;
+          payment_proof_path?: string | null;
           message?: string | null;
           is_anonymous?: boolean;
           created_at?: string;

@@ -1,31 +1,50 @@
 // @ts-nocheck
-function resolveAllowedOrigin() {
-  const configuredOrigin = Deno.env.get('ALLOWED_ORIGIN')?.trim();
-  if (configuredOrigin) return configuredOrigin;
+const DEFAULT_ALLOWED_ORIGINS = [
+  'https://www.sekolahtanahair.org',
+  'https://sekolahtanahair.org',
+  'http://localhost:3000',
+  'http://127.0.0.1:3000',
+];
 
-  const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
-  const isLocal =
-    Deno.env.get('SUPABASE_FUNCTIONS_LOCAL') === 'true'
-    || supabaseUrl.includes('localhost')
-    || supabaseUrl.includes('127.0.0.1');
-
-  if (isLocal) return '*';
-
-  throw new Error('ALLOWED_ORIGIN wajib diset untuk Edge Function production.');
+function parseOrigins(value: string | undefined) {
+  return (value ?? '')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
 }
 
-export const corsHeaders = {
-  'Access-Control-Allow-Origin': resolveAllowedOrigin(),
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Vary': 'Origin',
-};
+function getAllowedOrigins() {
+  const configuredOrigins = parseOrigins(Deno.env.get('ALLOWED_ORIGINS'));
+  if (configuredOrigins.length > 0) return configuredOrigins;
 
-export function jsonResponse(body: unknown, status = 200) {
+  const legacyOrigin = parseOrigins(Deno.env.get('ALLOWED_ORIGIN'));
+  return [...new Set([...DEFAULT_ALLOWED_ORIGINS, ...legacyOrigin])];
+}
+
+export function corsHeaders(request?: Request) {
+  const headers: Record<string, string> = {
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Vary': 'Origin',
+  };
+
+  const origin = request?.headers.get('Origin')?.trim();
+  if (!origin) return headers;
+
+  if (getAllowedOrigins().includes(origin)) {
+    headers['Access-Control-Allow-Origin'] = origin;
+  } else {
+    console.error('[cors] Rejected request origin:', origin);
+  }
+
+  return headers;
+}
+
+export function jsonResponse(body: unknown, status = 200, request?: Request) {
   return new Response(JSON.stringify(body), {
     status,
     headers: {
-      ...corsHeaders,
+      ...corsHeaders(request),
       'Content-Type': 'application/json',
     },
   });

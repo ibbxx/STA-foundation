@@ -4,10 +4,10 @@ import { corsHeaders, jsonResponse } from '../_shared/http.ts';
 
 Deno.serve(async (request) => {
   if (request.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+    return new Response('ok', { headers: corsHeaders(request) });
   }
   if (request.method !== 'POST') {
-    return jsonResponse({ error: 'Method not allowed.' }, 405);
+    return jsonResponse({ error: 'Method not allowed.' }, 405, request);
   }
 
   try {
@@ -16,7 +16,7 @@ Deno.serve(async (request) => {
     const limit = Math.min(Math.max(Number(payload.limit ?? 10), 1), 50);
 
     if (!campaignId) {
-      return jsonResponse({ error: 'campaign_id wajib diisi.' }, 400);
+      return jsonResponse({ error: 'campaign_id wajib diisi.' }, 400, request);
     }
 
     const supabase = createClient(
@@ -33,11 +33,12 @@ Deno.serve(async (request) => {
 
     if (error) throw error;
 
-    return jsonResponse({ donations: data ?? [] });
+    return jsonResponse({ donations: data ?? [] }, 200, request);
   } catch (error) {
     return jsonResponse(
       { error: error instanceof Error ? error.message : 'Gagal memuat donasi publik.' },
       400,
+      request,
     );
   }
 });

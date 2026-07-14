@@ -10,7 +10,9 @@ Gunakan urutan ini agar database, Edge Functions, dan frontend tetap sinkron.
 2. Set secret untuk Edge Functions publik:
 
    ```bash
-   supabase secrets set TURNSTILE_SECRET_KEY=your-secret ALLOWED_ORIGIN=https://your-domain.example
+   supabase secrets set \
+     TURNSTILE_SECRET_KEY=your-secret \
+     ALLOWED_ORIGINS=https://www.sekolahtanahair.org,https://sekolahtanahair.org,http://localhost:3000,http://127.0.0.1:3000
    ```
 
 3. Deploy Edge Functions publik:

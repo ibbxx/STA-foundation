@@ -7,19 +7,30 @@ import {
   Heart,
   ArrowLeft,
   CreditCard,
-  Wallet,
   QrCode,
   Banknote,
   CheckCircle2,
+  Building2,
+  Upload,
+  X,
 } from 'lucide-react';
 import { SecureTurnstile } from '../../components/shared/SecureTurnstile';
 import { getEdgeFunctionErrorMessage } from '../../lib/admin/repository';
 import { logError } from '../../lib/error-logger';
 import { fetchPublicCampaignForDonate } from '../../lib/public-campaigns';
-import { Campaign, supabase } from '../../lib/supabase';
+import { Campaign, parseSiteContentValue, supabase } from '../../lib/supabase';
 import { formatCurrency, cn } from '../../lib/utils';
 import { Skeleton } from '../../components/ui/skeleton';
 import { stripHtmlToText, truncateText, useSeo } from '../../lib/seo';
+import { compressImage } from '../../lib/image-compression';
+import {
+  DEFAULT_PAYMENT_SETTINGS,
+  PAYMENT_SETTINGS_KEY,
+  getVisibleManualPaymentMethods,
+  normalizePaymentSettings,
+  type ManualPaymentMethod,
+  type PaymentSettings,
+} from '../../lib/payment-settings';
 
 const donationSchema = z.object({
   amount: z.number().min(10000, 'Minimal donasi Rp 10.000'),
@@ -35,13 +46,37 @@ type DonationFormValues = z.infer<typeof donationSchema>;
 
 const QUICK_AMOUNTS = [50000, 100000, 250000, 500000, 1000000];
 
-const PAYMENT_METHODS = [
-  { id: 'qris', name: 'QRIS (Gopay, OVO, Dana, LinkAja)', icon: QrCode },
-  { id: 'va_bca', name: 'BCA Virtual Account', icon: CreditCard },
-  { id: 'va_mandiri', name: 'Mandiri Virtual Account', icon: CreditCard },
-  { id: 'gopay', name: 'GoPay', icon: Wallet },
-  { id: 'shopeepay', name: 'ShopeePay', icon: Wallet },
-] as const;
+const PAYMENT_METHOD_ICONS: Record<ManualPaymentMethod, typeof QrCode> = {
+  qris: QrCode,
+  bank_transfer: Building2,
+};
+
+async function compressPaymentProof(file: File): Promise<File> {
+  const normalized = await compressImage(file);
+  if (!normalized.type.startsWith('image/')) return normalized;
+
+  try {
+    const imageCompression = (await import('browser-image-compression')).default;
+    const compressed = await imageCompression(normalized, {
+      maxSizeMB: 0.4,
+      maxWidthOrHeight: 1600,
+      useWebWorker: true,
+      fileType: 'image/webp',
+    });
+
+    return new File(
+      [compressed],
+      normalized.name.replace(/\.[^.]+$/, '') + '.webp',
+      { type: 'image/webp', lastModified: Date.now() },
+    );
+  } catch (err) {
+    logError('Donate.compressPaymentProof', err, {
+      fileType: normalized.type,
+      fileSize: normalized.size,
+    });
+    return normalized;
+  }
+}
 
 function DonateSkeleton() {
   return (
@@ -113,9 +148,12 @@ export default function Donate() {
   const navigate = useNavigate();
   const [campaign, setCampaign] = useState<Campaign | null>(null);
   const [loadingCampaign, setLoadingCampaign] = useState(true);
+  const [paymentSettings, setPaymentSettings] = useState<PaymentSettings>(DEFAULT_PAYMENT_SETTINGS);
+  const [loadingPaymentSettings, setLoadingPaymentSettings] = useState(true);
   const [pageError, setPageError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const [paymentProof, setPaymentProof] = useState<File | null>(null);
   const seoDescription = campaign
     ? truncateText(stripHtmlToText(campaign.full_description) || `Donasi untuk campaign ${campaign.title} bersama Sekolah Tanah Air.`)
     : 'Form donasi campaign Sekolah Tanah Air.';
@@ -149,6 +187,9 @@ export default function Donate() {
 
   const selectedAmount = watch('amount');
   const selectedPayment = watch('paymentMethod');
+  const visibleManualPaymentMethods = getVisibleManualPaymentMethods(paymentSettings);
+  const selectedManualMethod = visibleManualPaymentMethods.find((method) => method.id === selectedPayment);
+  const manualPaymentUnavailable = !paymentSettings.manual_enabled || visibleManualPaymentMethods.length === 0;
   const formId = 'donation-form';
 
   useEffect(() => {
@@ -186,6 +227,65 @@ export default function Donate() {
     };
   }, [slug]);
 
+  useEffect(() => {
+    let ignore = false;
+
+    async function loadPaymentSettings() {
+      setLoadingPaymentSettings(true);
+      try {
+        const { data, error } = await supabase
+          .from('site_content')
+          .select('value')
+          .eq('key', PAYMENT_SETTINGS_KEY)
+          .maybeSingle();
+
+        if (error) throw error;
+        if (ignore) return;
+
+        const parsed = parseSiteContentValue<PaymentSettings>(data?.value);
+        setPaymentSettings(normalizePaymentSettings(parsed));
+      } catch (settingsError) {
+        logError('Donate.loadPaymentSettings', settingsError);
+        if (!ignore) setPaymentSettings(DEFAULT_PAYMENT_SETTINGS);
+      } finally {
+        if (!ignore) setLoadingPaymentSettings(false);
+      }
+    }
+
+    loadPaymentSettings();
+
+    return () => {
+      ignore = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (selectedPayment && !visibleManualPaymentMethods.some((method) => method.id === selectedPayment)) {
+      setValue('paymentMethod', '');
+      setPaymentProof(null);
+    }
+  }, [selectedPayment, setValue, visibleManualPaymentMethods]);
+
+  const handleProofChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] ?? null;
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      setPageError('Bukti pembayaran harus berupa gambar.');
+      event.target.value = '';
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      setPageError('Ukuran gambar maksimal 10MB sebelum dikompres.');
+      event.target.value = '';
+      return;
+    }
+
+    setPaymentProof(file);
+    setPageError(null);
+  };
+
   const onSubmit = async (data: DonationFormValues) => {
     if (!campaign) return;
     if (!turnstileToken) {
@@ -196,18 +296,37 @@ export default function Donate() {
     setIsSubmitting(true);
     setPageError(null);
 
+    if (manualPaymentUnavailable || !selectedManualMethod) {
+      setPageError('Metode pembayaran belum tersedia.');
+      setIsSubmitting(false);
+      return;
+    }
+
+    if (!paymentProof) {
+      setPageError('Mohon unggah bukti pembayaran.');
+      setIsSubmitting(false);
+      return;
+    }
+
+    const processedProof = await compressPaymentProof(paymentProof);
+    const payload = {
+      turnstile_token: turnstileToken,
+      campaign_id: campaign.id,
+      donor_name: data.name.trim(),
+      donor_email: data.email.trim(),
+      donor_phone: data.whatsapp.trim(),
+      amount: data.amount,
+      payment_method: data.paymentMethod,
+      message: data.message?.trim() || '',
+      is_anonymous: data.isAnonymous,
+    };
+
+    const formData = new FormData();
+    formData.append('payload', JSON.stringify(payload));
+    formData.append('payment_proof', processedProof);
+
     const { data: insertedDonation, error } = await supabase.functions.invoke<{ id: string }>('create-pending-donation', {
-      body: {
-        turnstile_token: turnstileToken,
-        campaign_id: campaign.id,
-        donor_name: data.name.trim(),
-        donor_email: data.email.trim(),
-        donor_phone: data.whatsapp.trim(),
-        amount: data.amount,
-        payment_method: data.paymentMethod,
-        message: data.message?.trim() || '',
-        is_anonymous: data.isAnonymous,
-      },
+      body: formData,
     });
 
     if (error) {
@@ -220,17 +339,16 @@ export default function Donate() {
       return;
     }
 
-    const paymentMethodLabel = PAYMENT_METHODS.find((method) => method.id === data.paymentMethod)?.name ?? data.paymentMethod;
     navigate('/payment/success', {
       state: {
         amount: data.amount,
-        paymentMethod: paymentMethodLabel,
+        paymentMethod: selectedManualMethod.name,
         transactionId: insertedDonation?.id,
       },
     });
   };
 
-  if (loadingCampaign) {
+  if (loadingCampaign || loadingPaymentSettings) {
     return <DonateSkeleton />;
   }
 
@@ -382,6 +500,7 @@ export default function Donate() {
           </div>
 
           <div className="space-y-5 rounded-[1.5rem] border border-gray-100 bg-white p-5 shadow-lg shadow-emerald-100/30 sm:rounded-[2rem] sm:p-8">
+            <input type="hidden" {...register('paymentMethod')} />
             <div className="mb-2 flex items-center space-x-3">
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
                 <CreditCard size={18} />
@@ -389,47 +508,115 @@ export default function Donate() {
               <h2 className="text-lg font-bold text-gray-900">Metode Pembayaran</h2>
             </div>
 
-            <div className="space-y-3">
-              {PAYMENT_METHODS.map((method) => (
-                <button
-                  key={method.id}
-                  type="button"
-                  onClick={() => setValue('paymentMethod', method.id)}
-                  className={cn(
-                    'w-full rounded-2xl border-2 p-4 text-left transition-all sm:p-5',
-                    selectedPayment === method.id
-                      ? 'border-emerald-500 bg-emerald-50 shadow-md'
-                      : 'border-gray-100 hover:border-emerald-100',
-                  )}
-                >
-                  <div className="flex items-start justify-between gap-3 sm:items-center">
-                    <div className="flex min-w-0 items-start space-x-3 sm:items-center sm:space-x-4">
-                      <div
+            {manualPaymentUnavailable ? (
+              <div className="rounded-2xl border border-amber-100 bg-amber-50 px-4 py-5 text-sm font-medium text-amber-800">
+                Metode pembayaran manual sedang tidak tersedia. Silakan coba kembali nanti.
+              </div>
+            ) : (
+              <>
+                <div className="space-y-3">
+                  {visibleManualPaymentMethods.map((method) => {
+                    const Icon = PAYMENT_METHOD_ICONS[method.id];
+                    return (
+                      <button
+                        key={method.id}
+                        type="button"
+                        onClick={() => {
+                          setValue('paymentMethod', method.id, { shouldDirty: true, shouldValidate: true });
+                          setPaymentProof(null);
+                        }}
                         className={cn(
-                          'shrink-0 rounded-xl p-2',
-                          selectedPayment === method.id ? 'bg-emerald-100 text-emerald-600' : 'bg-gray-100 text-gray-400',
+                          'w-full rounded-2xl border-2 p-4 text-left transition-all sm:p-5',
+                          selectedPayment === method.id
+                            ? 'border-emerald-500 bg-emerald-50 shadow-md'
+                            : 'border-gray-100 hover:border-emerald-100',
                         )}
                       >
-                        <method.icon size={20} />
-                      </div>
-                      <span
-                        className={cn(
-                          'block text-sm font-bold leading-relaxed',
-                          selectedPayment === method.id ? 'text-emerald-700' : 'text-gray-600',
-                        )}
-                      >
-                        {method.name}
-                      </span>
-                    </div>
-                    {selectedPayment === method.id ? (
-                      <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-500 sm:mt-0">
-                        <CheckCircle2 size={14} className="text-white" />
-                      </div>
-                    ) : null}
+                        <div className="flex items-start justify-between gap-3 sm:items-center">
+                          <div className="flex min-w-0 items-start space-x-3 sm:items-center sm:space-x-4">
+                            <div
+                              className={cn(
+                                'shrink-0 rounded-xl p-2',
+                                selectedPayment === method.id ? 'bg-emerald-100 text-emerald-600' : 'bg-gray-100 text-gray-400',
+                              )}
+                            >
+                              <Icon size={20} />
+                            </div>
+                            <div>
+                              <span
+                                className={cn(
+                                  'block text-sm font-bold leading-relaxed',
+                                  selectedPayment === method.id ? 'text-emerald-700' : 'text-gray-600',
+                                )}
+                              >
+                                {method.name}
+                              </span>
+                              <span className="mt-1 block text-xs font-medium leading-relaxed text-gray-400">
+                                {method.description}
+                              </span>
+                            </div>
+                          </div>
+                          {selectedPayment === method.id ? (
+                            <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-500 sm:mt-0">
+                              <CheckCircle2 size={14} className="text-white" />
+                            </div>
+                          ) : null}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {selectedPayment === 'qris' && paymentSettings.qris_image_url ? (
+                  <div className="rounded-2xl border border-emerald-100 bg-emerald-50/70 p-5">
+                    <p className="mb-4 text-xs font-bold uppercase tracking-wider text-emerald-700">Scan QRIS</p>
+                    <a href={paymentSettings.qris_image_url} target="_blank" rel="noopener noreferrer" className="mx-auto block max-w-xs overflow-hidden rounded-2xl border border-emerald-100 bg-white p-3 shadow-sm">
+                      <img src={paymentSettings.qris_image_url} alt="QRIS Donasi Sekolah Tanah Air" className="w-full rounded-xl" />
+                    </a>
                   </div>
-                </button>
-              ))}
-            </div>
+                ) : null}
+
+                {selectedPayment === 'bank_transfer' && paymentSettings.bank_accounts.length > 0 ? (
+                  <div className="space-y-3 rounded-2xl border border-emerald-100 bg-emerald-50/70 p-5">
+                    <p className="text-xs font-bold uppercase tracking-wider text-emerald-700">Rekening Transfer</p>
+                    {paymentSettings.bank_accounts.map((account) => (
+                      <div key={account.id} className="rounded-xl border border-emerald-100 bg-white p-4">
+                        <p className="text-sm font-black text-gray-900">{account.bank_name}</p>
+                        <p className="mt-1 font-mono text-lg font-black text-emerald-700">{account.account_number}</p>
+                        <p className="mt-1 text-xs font-semibold text-gray-500">a.n. {account.account_name}</p>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+
+                {selectedManualMethod ? (
+                  <div className="space-y-3">
+                    <div className="rounded-2xl border border-gray-100 bg-gray-50 px-4 py-4 text-sm text-gray-600">
+                      {paymentSettings.manual_instructions}
+                    </div>
+                    {paymentProof ? (
+                      <div className="flex items-center gap-3 rounded-2xl border border-emerald-100 bg-emerald-50 p-4">
+                        <Upload size={18} className="shrink-0 text-emerald-600" />
+                        <span className="min-w-0 flex-1 truncate text-sm font-bold text-emerald-800">{paymentProof.name}</span>
+                        <button
+                          type="button"
+                          onClick={() => setPaymentProof(null)}
+                          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-emerald-700 hover:bg-emerald-100"
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                    ) : (
+                      <label className="flex cursor-pointer items-center gap-3 rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50 p-4 transition-colors hover:border-emerald-300 hover:bg-emerald-50">
+                        <Upload size={18} className="text-gray-400" />
+                        <span className="text-sm font-bold text-gray-600">Unggah bukti pembayaran</span>
+                        <input type="file" accept="image/*" className="hidden" onChange={handleProofChange} />
+                      </label>
+                    )}
+                  </div>
+                ) : null}
+              </>
+            )}
             {errors.paymentMethod ? <p className="text-xs font-bold text-red-500">{errors.paymentMethod.message}</p> : null}
 
             <div className="rounded-2xl border border-gray-100 bg-gray-50 px-4 py-5">
@@ -458,10 +645,10 @@ export default function Donate() {
           <button
             form={formId}
             type="submit"
-            disabled={isSubmitting}
+            disabled={isSubmitting || manualPaymentUnavailable}
             className="inline-flex min-h-12 min-w-[160px] items-center justify-center rounded-2xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {isSubmitting ? 'Saving...' : `Donasi ${formatCurrency(selectedAmount || 0)}`}
+            {isSubmitting ? 'Saving...' : manualPaymentUnavailable ? 'Belum Tersedia' : `Donasi ${formatCurrency(selectedAmount || 0)}`}
           </button>
         </div>
       </div>

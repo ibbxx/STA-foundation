@@ -5,10 +5,10 @@ import { verifyTurnstile } from '../_shared/turnstile.ts';
 
 Deno.serve(async (request) => {
   if (request.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+    return new Response('ok', { headers: corsHeaders(request) });
   }
   if (request.method !== 'POST') {
-    return jsonResponse({ error: 'Method not allowed.' }, 405);
+    return jsonResponse({ error: 'Method not allowed.' }, 405, request);
   }
 
   const uploadedPaths: string[] = [];
@@ -23,13 +23,13 @@ Deno.serve(async (request) => {
       || 'unknown';
 
     if (photos.length < 1 || photos.length > 3) {
-      return jsonResponse({ error: 'Unggah 1 sampai 3 foto sekolah.' }, 400);
+      return jsonResponse({ error: 'Unggah 1 sampai 3 foto sekolah.' }, 400, request);
     }
     photos.forEach(validateImage);
 
     const isHuman = await verifyTurnstile(token, remoteIp);
     if (!isHuman) {
-      return jsonResponse({ error: 'Verifikasi keamanan gagal atau kedaluwarsa.' }, 403);
+      return jsonResponse({ error: 'Verifikasi keamanan gagal atau kedaluwarsa.' }, 403, request);
     }
 
     const supabase = createClient(
@@ -61,7 +61,7 @@ Deno.serve(async (request) => {
     });
     if (error) throw error;
 
-    return jsonResponse({ id }, 201);
+    return jsonResponse({ id }, 201, request);
   } catch (error) {
     if (uploadedPaths.length > 0) {
       const cleanupClient = createClient(
@@ -70,6 +70,6 @@ Deno.serve(async (request) => {
       );
       await cleanupClient.storage.from('site-media').remove(uploadedPaths);
     }
-    return jsonResponse({ error: error instanceof Error ? error.message : 'Laporan gagal dikirim.' }, 400);
+    return jsonResponse({ error: error instanceof Error ? error.message : 'Laporan gagal dikirim.' }, 400, request);
   }
 });

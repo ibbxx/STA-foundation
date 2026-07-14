@@ -31,10 +31,10 @@ function getEnabledRegistrationTypes(formConfig: unknown): Record<RegistrationTy
 
 Deno.serve(async (request) => {
   if (request.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+    return new Response('ok', { headers: corsHeaders(request) });
   }
   if (request.method !== 'POST') {
-    return jsonResponse({ error: 'Method not allowed.' }, 405);
+    return jsonResponse({ error: 'Method not allowed.' }, 405, request);
   }
 
   const uploadedPaths: string[] = [];
@@ -52,7 +52,7 @@ Deno.serve(async (request) => {
 
     const isHuman = await verifyTurnstile(token);
     if (!isHuman) {
-      return jsonResponse({ error: 'Verifikasi keamanan gagal atau kedaluwarsa.' }, 403);
+      return jsonResponse({ error: 'Verifikasi keamanan gagal atau kedaluwarsa.' }, 403, request);
     }
 
     const supabase = createClient(
@@ -71,7 +71,7 @@ Deno.serve(async (request) => {
 
     if (programError) {
       console.error('Database query error during program verification:', programError);
-      return jsonResponse({ error: `Gagal memverifikasi status program: ${programError.message}` }, 400);
+      return jsonResponse({ error: `Gagal memverifikasi status program: ${programError.message}` }, 400, request);
     }
 
     const now = new Date();
@@ -81,18 +81,18 @@ Deno.serve(async (request) => {
 
     if (!isOpen) {
       console.log('[submit-volunteer-registration] Program registration is closed.');
-      return jsonResponse({ error: 'Pendaftaran program sedang ditutup.' }, 400);
+      return jsonResponse({ error: 'Pendaftaran program sedang ditutup.' }, 400, request);
     }
 
     const requestedRegistrationType = payload.registration_type ?? 'reguler';
     if (requestedRegistrationType !== 'reguler' && requestedRegistrationType !== 'beasiswa') {
-      return jsonResponse({ error: 'Jalur pendaftaran tidak valid.' }, 400);
+      return jsonResponse({ error: 'Jalur pendaftaran tidak valid.' }, 400, request);
     }
     const registrationType = requestedRegistrationType as RegistrationType;
     const enabledRegistrationTypes = getEnabledRegistrationTypes(program.form_config);
     if (!enabledRegistrationTypes[registrationType]) {
       console.log('[submit-volunteer-registration] Registration type is disabled:', registrationType);
-      return jsonResponse({ error: 'Jalur pendaftaran yang dipilih sedang tidak tersedia.' }, 400);
+      return jsonResponse({ error: 'Jalur pendaftaran yang dipilih sedang tidak tersedia.' }, 400, request);
     }
 
     const uploadPrivateFile = async (prefix: string, file: File) => {
@@ -152,7 +152,7 @@ Deno.serve(async (request) => {
 
     if (insertError) throw insertError;
 
-    return jsonResponse({ id: inserted.id }, 201);
+    return jsonResponse({ id: inserted.id }, 201, request);
   } catch (error) {
     if (uploadedPaths.length > 0) {
       const cleanupClient = createClient(
@@ -167,6 +167,6 @@ Deno.serve(async (request) => {
       : (error && typeof error === 'object' && 'message' in error) 
         ? String((error as any).message) 
         : 'Pendaftaran gagal dikirim.';
-    return jsonResponse({ error: errorMessage }, 400);
+    return jsonResponse({ error: errorMessage }, 400, request);
   }
 });

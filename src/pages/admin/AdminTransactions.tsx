@@ -1,9 +1,9 @@
-import { AlertCircle, CheckCircle, Clock, Download, Eye, RefreshCw, Search, XCircle } from 'lucide-react';
+import { AlertCircle, CheckCircle, Clock, Download, Eye, Plus, RefreshCw, Save, Search, Settings, Trash2, Upload, XCircle } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import AdminModal from '../../components/admin/AdminModal';
 import { downloadCsv } from '../../lib/admin-export';
 import { formatAdminDate } from '../../lib/admin-helpers';
-import { fetchTransactionRows, updateDonationStatus } from '../../lib/admin-repository';
+import { fetchSiteContentRows, fetchTransactionRows, updateDonationStatus, upsertSiteContent } from '../../lib/admin-repository';
 import {
   buildTransactionSummary,
   buildTransactionViews,
@@ -11,7 +11,14 @@ import {
   type TransactionView,
 } from '../../lib/admin-view-models';
 import { logError } from '../../lib/error-logger';
-import { CampaignRow, DonationRow } from '../../lib/supabase';
+import {
+  DEFAULT_PAYMENT_SETTINGS,
+  PAYMENT_SETTINGS_KEY,
+  normalizePaymentSettings,
+  type PaymentSettings,
+} from '../../lib/payment-settings';
+import { parseSiteContentValue, CampaignRow, DonationRow, supabase, type Json } from '../../lib/supabase';
+import { uploadAdminImage } from '../../lib/supabase/storage';
 import { cn, formatCurrency } from '../../lib/utils';
 
 export default function AdminTransactions() {
@@ -20,8 +27,13 @@ export default function AdminTransactions() {
   const [statusFilter, setStatusFilter] = useState<'all' | DonationRow['payment_status']>('all');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [selectedTransaction, setSelectedTransaction] = useState<TransactionView | null>(null);
   const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [paymentSettings, setPaymentSettings] = useState<PaymentSettings>(DEFAULT_PAYMENT_SETTINGS);
+  const [savingPaymentSettings, setSavingPaymentSettings] = useState(false);
+  const [uploadingQris, setUploadingQris] = useState(false);
+  const [openingProof, setOpeningProof] = useState(false);
 
   async function loadTransactions() {
     setLoading(true);
@@ -49,7 +61,21 @@ export default function AdminTransactions() {
 
   useEffect(() => {
     loadTransactions();
+    loadPaymentSettings();
   }, []);
+
+  async function loadPaymentSettings() {
+    const { data, error: settingsError } = await fetchSiteContentRows();
+    if (settingsError) {
+      logError('AdminTransactions.loadPaymentSettings', settingsError);
+      setError(settingsError.message);
+      return;
+    }
+
+    const row = (data ?? []).find((entry) => entry.key === PAYMENT_SETTINGS_KEY);
+    const parsed = parseSiteContentValue<PaymentSettings>(row?.value);
+    setPaymentSettings(normalizePaymentSettings(parsed));
+  }
 
   const filteredTransactions = useMemo(
     () => filterTransactions(transactions, searchQuery, statusFilter),
@@ -69,6 +95,7 @@ export default function AdminTransactions() {
       amount: transaction.amount,
       payment_status: transaction.payment_status,
       payment_method: transaction.payment_method ?? '',
+      payment_proof_path: transaction.payment_proof_path ?? '',
       message: transaction.message ?? '',
       created_at: transaction.created_at,
     })));
@@ -95,6 +122,99 @@ export default function AdminTransactions() {
     await loadTransactions();
   }
 
+  async function savePaymentSettings() {
+    setSavingPaymentSettings(true);
+    setError(null);
+    setNotice(null);
+
+    const sanitized = normalizePaymentSettings(paymentSettings);
+    const { error: saveError } = await upsertSiteContent([{
+      key: PAYMENT_SETTINGS_KEY,
+      value: sanitized as unknown as Json,
+    }]);
+
+    if (saveError) {
+      logError('AdminTransactions.savePaymentSettings', saveError);
+      setError(saveError.message);
+      setSavingPaymentSettings(false);
+      return;
+    }
+
+    setPaymentSettings(sanitized);
+    setNotice('Pengaturan pembayaran berhasil disimpan.');
+    setSavingPaymentSettings(false);
+  }
+
+  async function handleQrisUpload(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setUploadingQris(true);
+      const url = await uploadAdminImage(file, 'general');
+      setPaymentSettings((current) => ({ ...current, qris_image_url: url }));
+    } catch (uploadError) {
+      logError('AdminTransactions.handleQrisUpload', uploadError);
+      setError(uploadError instanceof Error ? uploadError.message : 'Gagal mengunggah QRIS.');
+    } finally {
+      setUploadingQris(false);
+      event.target.value = '';
+    }
+  }
+
+  function updateBankAccount(index: number, field: 'bank_name' | 'account_number' | 'account_name', value: string) {
+    setPaymentSettings((current) => ({
+      ...current,
+      bank_accounts: current.bank_accounts.map((account, accountIndex) => (
+        accountIndex === index ? { ...account, [field]: value } : account
+      )),
+    }));
+  }
+
+  function addBankAccount() {
+    setPaymentSettings((current) => ({
+      ...current,
+      bank_accounts: [
+        ...current.bank_accounts,
+        {
+          id: `bank_${Date.now()}`,
+          bank_name: '',
+          account_number: '',
+          account_name: '',
+        },
+      ],
+    }));
+  }
+
+  function removeBankAccount(index: number) {
+    setPaymentSettings((current) => ({
+      ...current,
+      bank_accounts: current.bank_accounts.filter((_, accountIndex) => accountIndex !== index),
+    }));
+  }
+
+  async function openPaymentProof() {
+    if (!selectedTransaction?.payment_proof_path) return;
+
+    setOpeningProof(true);
+    setError(null);
+    const { data, error: signedUrlError } = await supabase.storage
+      .from('donation-proofs')
+      .createSignedUrl(selectedTransaction.payment_proof_path, 60 * 10);
+
+    if (signedUrlError || !data?.signedUrl) {
+      logError('AdminTransactions.openPaymentProof', signedUrlError, {
+        donationId: selectedTransaction.id,
+      });
+      setError(signedUrlError?.message ?? 'Gagal membuka bukti pembayaran.');
+      setOpeningProof(false);
+      return;
+    }
+
+    window.open(data.signedUrl, '_blank', 'noopener,noreferrer');
+    setOpeningProof(false);
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -119,6 +239,157 @@ export default function AdminTransactions() {
             Ekspor CSV
           </button>
         </div>
+      </div>
+
+      {notice && (
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+          {notice}
+        </div>
+      )}
+
+      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <div className="flex items-center gap-2">
+              <Settings size={18} className="text-slate-500" />
+              <h2 className="text-base font-bold text-slate-900">Pengaturan Pembayaran</h2>
+            </div>
+            <p className="mt-1 text-sm text-slate-500">
+              Toggle manual donation mengatur apakah QRIS/transfer tampil di halaman publik.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => void savePaymentSettings()}
+            disabled={savingPaymentSettings || uploadingQris}
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-950 disabled:opacity-50"
+          >
+            <Save size={16} />
+            {savingPaymentSettings ? 'Menyimpan...' : 'Simpan Pengaturan'}
+          </button>
+        </div>
+
+        <div className="grid gap-4 lg:grid-cols-2">
+          <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <input
+              type="checkbox"
+              checked={paymentSettings.manual_enabled}
+              onChange={(event) => setPaymentSettings((current) => ({ ...current, manual_enabled: event.target.checked }))}
+              className="mt-1 h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+            />
+            <div>
+              <p className="text-sm font-bold text-slate-900">Aktifkan Donasi Manual</p>
+              <p className="mt-1 text-xs leading-relaxed text-slate-500">
+                Jika dimatikan, QRIS, transfer bank, dan upload bukti tidak tampil di halaman publik.
+              </p>
+            </div>
+          </label>
+
+          <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <input
+              type="checkbox"
+              checked={paymentSettings.gateway_enabled}
+              onChange={(event) => setPaymentSettings((current) => ({ ...current, gateway_enabled: event.target.checked }))}
+              className="mt-1 h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+            />
+            <div>
+              <p className="text-sm font-bold text-slate-900">Aktifkan Payment Gateway</p>
+              <p className="mt-1 text-xs leading-relaxed text-slate-500">
+                Disiapkan untuk fase integrasi pihak ketiga setelah dokumen provider siap.
+              </p>
+            </div>
+          </label>
+        </div>
+
+        <div className="mt-5 grid gap-5 lg:grid-cols-2">
+          <div className="space-y-3 rounded-xl border border-slate-200 p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-bold text-slate-900">QRIS Manual</p>
+                <p className="mt-1 text-xs text-slate-500">Gambar ini tampil ke donatur saat memilih QRIS.</p>
+              </div>
+              <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">
+                <Upload size={14} />
+                {uploadingQris ? 'Upload...' : 'Upload'}
+                <input type="file" accept="image/*" className="hidden" onChange={handleQrisUpload} disabled={uploadingQris} />
+              </label>
+            </div>
+            {paymentSettings.qris_image_url ? (
+              <img src={paymentSettings.qris_image_url} alt="QRIS Donasi" className="h-44 w-full rounded-xl border border-slate-100 object-contain bg-slate-50 p-2" />
+            ) : (
+              <div className="flex h-44 items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50 text-sm text-slate-400">
+                QRIS belum diunggah
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-3 rounded-xl border border-slate-200 p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-bold text-slate-900">Rekening Transfer</p>
+                <p className="mt-1 text-xs text-slate-500">Minimal satu rekening lengkap agar opsi transfer tampil publik.</p>
+              </div>
+              <button
+                type="button"
+                onClick={addBankAccount}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+              >
+                <Plus size={14} />
+                Tambah
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              {paymentSettings.bank_accounts.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-400">
+                  Belum ada rekening transfer
+                </div>
+              ) : paymentSettings.bank_accounts.map((account, index) => (
+                <div key={account.id} className="rounded-xl border border-slate-100 bg-slate-50 p-3">
+                  <div className="grid gap-2 sm:grid-cols-3">
+                    <input
+                      value={account.bank_name}
+                      onChange={(event) => updateBankAccount(index, 'bank_name', event.target.value)}
+                      placeholder="Bank"
+                      className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs"
+                    />
+                    <input
+                      value={account.account_number}
+                      onChange={(event) => updateBankAccount(index, 'account_number', event.target.value)}
+                      placeholder="Nomor rekening"
+                      className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs"
+                    />
+                    <div className="flex gap-2">
+                      <input
+                        value={account.account_name}
+                        onChange={(event) => updateBankAccount(index, 'account_name', event.target.value)}
+                        placeholder="Atas nama"
+                        className="min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removeBankAccount(index)}
+                        className="rounded-lg border border-rose-100 bg-white p-2 text-rose-600 hover:bg-rose-50"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <label className="mt-5 block">
+          <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Instruksi Manual</span>
+          <textarea
+            value={paymentSettings.manual_instructions}
+            onChange={(event) => setPaymentSettings((current) => ({ ...current, manual_instructions: event.target.value }))}
+            rows={2}
+            className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:border-zinc-900 focus:outline-none focus:ring-1 focus:ring-zinc-900"
+          />
+        </label>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -221,6 +492,9 @@ export default function AdminTransactions() {
                     <td className="px-6 py-4">
                       <p className="text-sm font-semibold text-zinc-900">{formatCurrency(transaction.amount)}</p>
                       <p className="text-xs text-slate-500 mt-1">{transaction.payment_method ?? '-'}</p>
+                      {transaction.payment_proof_path ? (
+                        <p className="mt-1 text-[11px] font-semibold text-emerald-600">Bukti tersedia</p>
+                      ) : null}
                     </td>
                     <td className="px-6 py-4 text-center">
                       <span
@@ -304,6 +578,7 @@ export default function AdminTransactions() {
               ['Nominal', formatCurrency(selectedTransaction.amount)],
               ['Status', selectedTransaction.payment_status],
               ['Metode Bayar', selectedTransaction.payment_method ?? '-'],
+              ['Bukti Bayar', selectedTransaction.payment_proof_path ? 'Tersedia' : '-'],
               ['Waktu', formatAdminDate(selectedTransaction.created_at, true)],
               ['Pesan', selectedTransaction.message ?? '-'],
             ].map(([label, value]) => (
@@ -312,6 +587,17 @@ export default function AdminTransactions() {
                 <p className="mt-1 text-sm font-medium text-slate-700 break-words">{value}</p>
               </div>
             ))}
+            {selectedTransaction.payment_proof_path ? (
+              <button
+                type="button"
+                onClick={() => void openPaymentProof()}
+                disabled={openingProof}
+                className="sm:col-span-2 inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700 hover:bg-emerald-100 disabled:opacity-50"
+              >
+                <Eye size={16} />
+                {openingProof ? 'Membuka...' : 'Lihat Bukti Pembayaran'}
+              </button>
+            ) : null}
           </div>
         )}
       </AdminModal>
