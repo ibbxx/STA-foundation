@@ -1,9 +1,10 @@
 import { AlertCircle, CheckCircle, Clock, Download, Eye, Plus, RefreshCw, Save, Search, Settings, Trash2, Upload, XCircle } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import AdminModal from '../../components/admin/AdminModal';
+import { useConfirmDialog } from '../../components/admin/ConfirmDialog';
 import { downloadCsv } from '../../lib/admin-export';
 import { formatAdminDate } from '../../lib/admin-helpers';
-import { fetchSiteContentRows, fetchTransactionRows, updateDonationStatus, upsertSiteContent } from '../../lib/admin-repository';
+import { deleteDonation, fetchSiteContentRows, fetchTransactionRows, updateDonationStatus, upsertSiteContent } from '../../lib/admin-repository';
 import {
   buildTransactionSummary,
   buildTransactionViews,
@@ -22,6 +23,7 @@ import { cleanupUploadedFiles, deleteFilesFromStorage, storageCleanupNotice, upl
 import { cn, formatCurrency } from '../../lib/utils';
 
 export default function AdminTransactions() {
+  const { confirm, ConfirmDialogElement } = useConfirmDialog();
   const [transactions, setTransactions] = useState<TransactionView[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | DonationRow['payment_status']>('all');
@@ -34,6 +36,7 @@ export default function AdminTransactions() {
   const [savingPaymentSettings, setSavingPaymentSettings] = useState(false);
   const [uploadingQris, setUploadingQris] = useState(false);
   const [openingProof, setOpeningProof] = useState(false);
+  const [deletingTransactionId, setDeletingTransactionId] = useState<string | null>(null);
   const qrisSessionUploads = useRef<string[]>([]);
   const persistedPaymentSettings = useRef<PaymentSettings>(DEFAULT_PAYMENT_SETTINGS);
 
@@ -123,6 +126,49 @@ export default function AdminTransactions() {
 
     setSelectedTransaction(null);
     setUpdatingStatus(false);
+    await loadTransactions();
+  }
+
+  async function handleDeleteTransaction(transaction: TransactionView) {
+    const donorName = transaction.is_anonymous ? 'Anonim' : transaction.donor_name ?? 'Tanpa nama';
+    const confirmed = await confirm({
+      title: 'Hapus Transaksi',
+      message: `Hapus transaksi ${transaction.id.slice(0, 12)} milik ${donorName}? Data donasi ini akan hilang permanen dan total campaign akan dihitung ulang oleh database.`,
+      confirmText: 'Hapus',
+      variant: 'danger',
+    });
+    if (!confirmed) return;
+
+    setDeletingTransactionId(transaction.id);
+    setError(null);
+    setNotice(null);
+
+    const { error: deleteError } = await deleteDonation(transaction.id);
+    if (deleteError) {
+      logError('AdminTransactions.handleDeleteTransaction', deleteError, {
+        donationId: transaction.id,
+      });
+      setError(deleteError.message);
+      setDeletingTransactionId(null);
+      return;
+    }
+
+    let cleanupResult = null;
+    if (transaction.payment_proof_path) {
+      cleanupResult = await deleteFilesFromStorage([transaction.payment_proof_path], { bucket: 'donation-proofs' });
+      if (cleanupResult.failed > 0) {
+        logError('AdminTransactions.handleDeleteTransactionProofCleanup', new Error('Gagal membersihkan bukti pembayaran.'), {
+          donationId: transaction.id,
+          cleanupResult,
+        });
+      }
+    }
+
+    if (selectedTransaction?.id === transaction.id) {
+      setSelectedTransaction(null);
+    }
+    setNotice(storageCleanupNotice('Transaksi berhasil dihapus.', cleanupResult));
+    setDeletingTransactionId(null);
     await loadTransactions();
   }
 
@@ -543,6 +589,15 @@ export default function AdminTransactions() {
                         >
                           <Eye size={16} />
                         </button>
+                        <button
+                          type="button"
+                          onClick={() => void handleDeleteTransaction(transaction)}
+                          disabled={deletingTransactionId === transaction.id}
+                          className="p-2 text-slate-400 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-colors disabled:opacity-50"
+                          title="Hapus Transaksi"
+                        >
+                          <Trash2 size={16} />
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -561,6 +616,16 @@ export default function AdminTransactions() {
         widthClassName="max-w-2xl"
         footer={(
           <div className="flex w-full flex-wrap justify-end gap-2">
+            <button
+              type="button"
+              disabled={updatingStatus || openingProof || deletingTransactionId === selectedTransaction?.id}
+              onClick={() => {
+                if (selectedTransaction) void handleDeleteTransaction(selectedTransaction);
+              }}
+              className="mr-auto px-4 py-2 text-sm font-medium text-rose-700 bg-rose-50 border border-rose-200 rounded-xl hover:bg-rose-100 transition-colors disabled:opacity-50"
+            >
+              {deletingTransactionId === selectedTransaction?.id ? 'Menghapus...' : 'Hapus Transaksi'}
+            </button>
             {selectedTransaction?.payment_status !== 'failed' ? (
               <button
                 type="button"
@@ -625,6 +690,7 @@ export default function AdminTransactions() {
           </div>
         )}
       </AdminModal>
+      {ConfirmDialogElement}
     </div>
   );
 }

@@ -190,6 +190,13 @@ export function updateDonationStatus(
     .eq('id', donationId);
 }
 
+export function deleteDonation(donationId: string) {
+  return supabase
+    .from('donations')
+    .delete()
+    .eq('id', donationId);
+}
+
 // ── School Reports ──
 
 export function fetchSchoolReportRows() {
