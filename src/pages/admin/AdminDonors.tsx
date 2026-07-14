@@ -1,11 +1,13 @@
-import { AlertCircle, Download, Eye, Mail, MessageCircle, RefreshCw, Search } from 'lucide-react';
+import { AlertCircle, Download, ExternalLink, Eye, Mail, MessageCircle, RefreshCw, Search } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import AdminModal from '../../components/admin/AdminModal';
 import { downloadCsv } from '../../lib/admin-export';
 import { formatAdminDate, getInitials } from '../../lib/admin-helpers';
-import { fetchDonorDonationRows } from '../../lib/admin-repository';
-import { deriveDonors, filterDonors, type DonorSummary } from '../../lib/admin-view-models';
+import { fetchTransactionRows, updateDonationStatus } from '../../lib/admin-repository';
+import { buildCampaignTitleMap, deriveDonors, filterDonors, type DonorSummary } from '../../lib/admin-view-models';
 import { logError } from '../../lib/error-logger';
+import { supabase } from '../../lib/supabase';
+import type { DonationRow } from '../../lib/supabase/types';
 import { cn, formatCurrency } from '../../lib/utils';
 
 export default function AdminDonors() {
@@ -14,12 +16,15 @@ export default function AdminDonors() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedDonor, setSelectedDonor] = useState<DonorSummary | null>(null);
+  const [openingProofId, setOpeningProofId] = useState<string | null>(null);
+  const [updatingTransactionId, setUpdatingTransactionId] = useState<string | null>(null);
 
-  async function loadDonors() {
+  async function loadDonors(selectedDonorIdToKeep?: string) {
     setLoading(true);
     setError(null);
 
-    const { data, error: fetchError } = await fetchDonorDonationRows();
+    const [donationsResult, campaignsResult] = await fetchTransactionRows();
+    const fetchError = donationsResult.error ?? campaignsResult.error;
 
     if (fetchError) {
       logError('AdminDonors.loadDonors', fetchError);
@@ -29,7 +34,12 @@ export default function AdminDonors() {
       return;
     }
 
-    setDonors(deriveDonors(data ?? []));
+    const campaignMap = buildCampaignTitleMap(campaignsResult.data ?? []);
+    const nextDonors = deriveDonors(donationsResult.data ?? [], campaignMap);
+    setDonors(nextDonors);
+    if (selectedDonorIdToKeep) {
+      setSelectedDonor(nextDonors.find((donor) => donor.id === selectedDonorIdToKeep) ?? null);
+    }
     setLoading(false);
   }
 
@@ -53,6 +63,51 @@ export default function AdminDonors() {
       last_donation_at: donor.last_donation_at,
       status: donor.status,
     })));
+  }
+
+  async function openPaymentProof(transactionId: string, proofPath: string | null) {
+    if (!proofPath) return;
+
+    setOpeningProofId(transactionId);
+    setError(null);
+
+    const { data, error: signedUrlError } = await supabase.storage
+      .from('donation-proofs')
+      .createSignedUrl(proofPath, 60 * 10);
+
+    setOpeningProofId(null);
+
+    if (signedUrlError || !data?.signedUrl) {
+      const message = signedUrlError?.message ?? 'Gagal membuka bukti pembayaran.';
+      logError('AdminDonors.openPaymentProof', signedUrlError ?? new Error(message), { transactionId });
+      setError(message);
+      return;
+    }
+
+    window.open(data.signedUrl, '_blank', 'noopener,noreferrer');
+  }
+
+  async function handleTransactionStatusUpdate(
+    transactionId: string,
+    paymentStatus: DonationRow['payment_status'],
+  ) {
+    setUpdatingTransactionId(transactionId);
+    setError(null);
+
+    const { error: updateError } = await updateDonationStatus(transactionId, paymentStatus);
+    if (updateError) {
+      logError('AdminDonors.handleTransactionStatusUpdate', updateError, {
+        transactionId,
+        paymentStatus,
+      });
+      setError(updateError.message);
+      setUpdatingTransactionId(null);
+      return;
+    }
+
+    const selectedDonorId = selectedDonor?.id;
+    await loadDonors(selectedDonorId);
+    setUpdatingTransactionId(null);
   }
 
   return (
@@ -191,6 +246,7 @@ export default function AdminDonors() {
         onClose={() => setSelectedDonor(null)}
         title="Detail Donatur"
         description="Informasi lengkap histori donasi donatur."
+        widthClassName="max-w-5xl"
         footer={(
           <button
             type="button"
@@ -202,23 +258,155 @@ export default function AdminDonors() {
         )}
       >
         {selectedDonor && (
-          <div className="grid gap-4 sm:grid-cols-2">
-            {[
-              ['Nama', selectedDonor.name],
-              ['Email', selectedDonor.email ?? '-'],
-              ['Telepon', selectedDonor.phone ?? '-'],
-              ['Status', selectedDonor.status],
-              ['Total Donasi', formatCurrency(selectedDonor.total_donated)],
-              ['Jumlah Transaksi', `${selectedDonor.transaction_count} transaksi`],
-              ['Donasi Pertama', formatAdminDate(selectedDonor.first_donation_at, true)],
-              ['Donasi Terakhir', formatAdminDate(selectedDonor.last_donation_at, true)],
-              ['ID Donor', selectedDonor.id],
-            ].map(([label, value]) => (
-              <div key={label} className="p-3 bg-slate-50 border border-slate-100 rounded-xl">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">{label}</p>
-                <p className="mt-1 text-sm font-medium text-slate-700 break-words">{value}</p>
+          <div className="space-y-6">
+            {/* Profil Summary Header Card */}
+            <div className="p-6 bg-white border border-slate-200 rounded-2xl shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 shrink-0 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-100 flex items-center justify-center font-bold text-lg">
+                  {getInitials(selectedDonor.name)}
+                </div>
+                <div>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <h2 className="text-lg font-bold text-slate-900 leading-tight">{selectedDonor.name}</h2>
+                    <span
+                      className={cn(
+                        'px-2.5 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wider',
+                        selectedDonor.status === 'identified'
+                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/50'
+                          : 'bg-slate-50 text-slate-600 border border-slate-200',
+                      )}
+                    >
+                      {selectedDonor.status}
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-x-6 gap-y-1.5 mt-2 text-xs text-slate-500">
+                    <span className="flex items-center gap-1.5">
+                      <Mail size={14} className="text-slate-400" />
+                      {selectedDonor.email ?? '-'}
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                      <MessageCircle size={14} className="text-slate-400" />
+                      {selectedDonor.phone ?? '-'}
+                    </span>
+                  </div>
+                </div>
               </div>
-            ))}
+            </div>
+
+            {/* Statistik Kontribusi Grid */}
+            <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+              {[
+                ['Total Donasi', formatCurrency(selectedDonor.total_donated), 'text-emerald-700 bg-emerald-50/20 border-emerald-100/50'],
+                ['Jumlah Transaksi', `${selectedDonor.transaction_count} transaksi`, 'bg-slate-50/50'],
+                ['Donasi Pertama', formatAdminDate(selectedDonor.first_donation_at, true), 'bg-slate-50/50'],
+                ['Donasi Terakhir', formatAdminDate(selectedDonor.last_donation_at, true), 'bg-slate-50/50'],
+              ].map(([label, value, extraClass = '']) => (
+                <div key={label} className={cn('p-4 border border-slate-100 rounded-2xl flex flex-col justify-between', extraClass)}>
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">{label}</p>
+                  <p className="mt-2 text-base font-black text-slate-900 break-words">{value}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* Metadata Footer */}
+            <div className="p-4 bg-slate-50/50 border border-slate-100 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-slate-400">
+              <span className="font-medium">ID Donor / ID Pengguna</span>
+              <span className="font-mono select-all text-slate-600 break-all">{selectedDonor.id}</span>
+            </div>
+
+            <div>
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <h3 className="text-sm font-bold text-slate-900">Riwayat Transaksi</h3>
+                <span className="text-xs font-medium text-slate-500">
+                  {selectedDonor.transactions.length} transaksi
+                </span>
+              </div>
+              <div className="space-y-3">
+                {selectedDonor.transactions.map((transaction) => (
+                  <div key={transaction.id} className="rounded-xl border border-slate-200 bg-white p-4">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="min-w-0">
+                        <p className="text-sm font-bold text-slate-900">{transaction.campaign_title}</p>
+                        <p className="mt-1 text-xs font-mono text-slate-400 break-all">{transaction.id}</p>
+                        <p className="mt-2 text-xs text-slate-500">
+                          {formatAdminDate(transaction.created_at, true)}
+                        </p>
+                      </div>
+                      <div className="sm:text-right">
+                        <p className="text-base font-black text-zinc-950">{formatCurrency(transaction.amount)}</p>
+                        <span
+                          className={cn(
+                            'mt-2 inline-flex rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider',
+                            transaction.payment_status === 'success'
+                              ? 'bg-emerald-100 text-emerald-700'
+                              : transaction.payment_status === 'pending'
+                                ? 'bg-amber-100 text-amber-700'
+                                : 'bg-rose-100 text-rose-700',
+                          )}
+                        >
+                          {transaction.payment_status}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                      {[
+                        ['Metode Bayar', transaction.payment_method ?? '-'],
+                        ['Anonim', transaction.is_anonymous ? 'Ya' : 'Tidak'],
+                        ['Bukti Bayar', transaction.payment_proof_path ? 'Tersedia' : '-'],
+                        ['Campaign ID', transaction.campaign_id],
+                      ].map(([label, value]) => (
+                        <div key={`${transaction.id}-${label}`} className="rounded-lg bg-slate-50 p-3">
+                          <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">{label}</p>
+                          <p className="mt-1 text-xs font-semibold text-slate-700 break-words">{value}</p>
+                        </div>
+                      ))}
+                    </div>
+
+                    {transaction.message ? (
+                      <div className="mt-3 rounded-lg bg-slate-50 p-3">
+                        <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Pesan</p>
+                        <p className="mt-1 text-sm text-slate-700">{transaction.message}</p>
+                      </div>
+                    ) : null}
+
+                    {transaction.payment_proof_path ? (
+                      <button
+                        type="button"
+                        onClick={() => openPaymentProof(transaction.id, transaction.payment_proof_path)}
+                        disabled={openingProofId === transaction.id}
+                        className="mt-3 inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        <ExternalLink size={14} />
+                        {openingProofId === transaction.id ? 'Membuka...' : 'Lihat Bukti Pembayaran'}
+                      </button>
+                    ) : null}
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {transaction.payment_status !== 'success' ? (
+                        <button
+                          type="button"
+                          onClick={() => void handleTransactionStatusUpdate(transaction.id, 'success')}
+                          disabled={updatingTransactionId === transaction.id}
+                          className="inline-flex items-center rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {updatingTransactionId === transaction.id ? 'Menyimpan...' : 'Konfirmasi Pembayaran'}
+                        </button>
+                      ) : null}
+                      {transaction.payment_status !== 'failed' ? (
+                        <button
+                          type="button"
+                          onClick={() => void handleTransactionStatusUpdate(transaction.id, 'failed')}
+                          disabled={updatingTransactionId === transaction.id}
+                          className="inline-flex items-center rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700 transition-colors hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          Tandai Gagal
+                        </button>
+                      ) : null}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         )}
       </AdminModal>

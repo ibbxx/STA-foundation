@@ -376,8 +376,8 @@ export default function CampaignDetail() {
             </div>
 
             {/* Tabs and Content Section - Compact */}
-            <div className="rounded-sm border border-gray-100 bg-white overflow-hidden">
-              <div className="border-b border-gray-100 px-4 sm:px-6 bg-white sticky top-16 sm:top-20 z-10">
+            <div className="rounded-sm border border-gray-100 bg-white">
+              <div className="border-b border-gray-100 px-4 sm:px-6 bg-white sticky top-16 sm:top-20 z-10 rounded-t-sm">
                 <div className="flex gap-4 overflow-x-auto no-scrollbar">
                   {(['deskripsi', 'update', 'donatur'] as const).map((tab) => (
                     <button
@@ -397,7 +397,7 @@ export default function CampaignDetail() {
                 </div>
               </div>
 
-              <div className="p-4 sm:p-6 min-h-[300px]">
+              <div className="p-4 sm:p-6 min-h-[300px] rounded-b-sm">
                 {activeTab === 'deskripsi' ? (
                   <div
                     className="prose prose-sm prose-emerald max-w-none text-gray-700 leading-relaxed font-light"

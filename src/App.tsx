@@ -10,7 +10,7 @@ import { useSeo } from './lib/seo';
 /* ── Public Pages ── */
 const Home = lazy(() => import('./pages/public/Home'));
 const Campaigns = lazy(() => import('./pages/public/Campaigns'));
-const CampaignDetail = lazy(() => import('./pages/public/CampaignDetail'));
+import CampaignDetail from './pages/public/CampaignDetail';
 const ProgramDetail = lazy(() => import('./pages/public/ProgramDetail'));
 const Donate = lazy(() => import('./pages/public/Donate'));
 const PaymentSuccess = lazy(() => import('./pages/public/PaymentSuccess'));

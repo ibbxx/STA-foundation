@@ -17,8 +17,9 @@ export type TransactionView = DonationRow & {
   campaign_title: string;
 };
 
-
-
+export type DonorTransaction = DonationRow & {
+  campaign_title: string;
+};
 
 export type DonorSummary = {
   id: string;
@@ -30,6 +31,7 @@ export type DonorSummary = {
   first_donation_at: string;
   last_donation_at: string;
   status: 'identified' | 'anonymous';
+  transactions: DonorTransaction[];
 };
 
 export type ReportStatus = SchoolReportRow['status'];
@@ -156,7 +158,10 @@ export function buildRecentTransactions(
     }));
 }
 
-export function deriveDonors(donations: DonationRow[]) {
+export function deriveDonors(
+  donations: DonationRow[],
+  campaignMap = new Map<string, string>(),
+) {
   const grouped = new Map<string, DonorSummary>();
 
   donations.forEach((donation) => {
@@ -166,6 +171,10 @@ export function deriveDonors(donations: DonationRow[]) {
 
     const existing = grouped.get(key);
     const donatedAmount = donation.payment_status === 'success' ? donation.amount : 0;
+    const transaction: DonorTransaction = {
+      ...donation,
+      campaign_title: campaignMap.get(donation.campaign_id) ?? 'Campaign tidak ditemukan',
+    };
 
     if (!existing) {
       grouped.set(key, {
@@ -178,12 +187,14 @@ export function deriveDonors(donations: DonationRow[]) {
         first_donation_at: donation.created_at,
         last_donation_at: donation.created_at,
         status: donation.is_anonymous ? 'anonymous' : 'identified',
+        transactions: [transaction],
       });
       return;
     }
 
     existing.total_donated += donatedAmount;
     existing.transaction_count += 1;
+    existing.transactions.push(transaction);
     if (!existing.phone && !donation.is_anonymous) {
       existing.phone = donation.donor_phone;
     }
@@ -197,9 +208,16 @@ export function deriveDonors(donations: DonationRow[]) {
     }
   });
 
-  return Array.from(grouped.values()).sort(
-    (left, right) => new Date(right.last_donation_at).getTime() - new Date(left.last_donation_at).getTime(),
-  );
+  return Array.from(grouped.values())
+    .map((donor) => ({
+      ...donor,
+      transactions: donor.transactions.sort(
+        (left, right) => new Date(right.created_at).getTime() - new Date(left.created_at).getTime(),
+      ),
+    }))
+    .sort(
+      (left, right) => new Date(right.last_donation_at).getTime() - new Date(left.last_donation_at).getTime(),
+    );
 }
 
 export function filterDonors(donors: DonorSummary[], searchQuery: string) {
