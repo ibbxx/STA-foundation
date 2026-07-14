@@ -1,6 +1,7 @@
 import { cn } from '../../../lib/utils';
 
 export type CampaignTemporalStatus = 'Upcoming' | 'Ongoing' | 'Ended';
+type CampaignDisplayStatus = CampaignTemporalStatus | 'Draft';
 
 export function getCampaignTemporalStatus(startDate?: string | null, endDate?: string | null): CampaignTemporalStatus {
   const today = new Date();
@@ -28,9 +29,11 @@ type CampaignStatusBadgeProps = {
 
 export default function CampaignStatusBadge({ startDate, endDate, className, slug, dbStatus }: CampaignStatusBadgeProps) {
   const temporalStatus = getCampaignTemporalStatus(startDate, endDate);
-  const status = dbStatus === 'upcoming'
+  const status: CampaignDisplayStatus = dbStatus === 'draft'
+    ? 'Draft'
+    : dbStatus === 'upcoming'
     ? 'Upcoming'
-    : dbStatus === 'completed' || dbStatus === 'draft'
+    : dbStatus === 'completed'
       ? 'Ended'
       : temporalStatus;
 
@@ -38,10 +41,11 @@ export default function CampaignStatusBadge({ startDate, endDate, className, slu
     <span
       className={cn(
         'inline-flex items-center rounded-md px-2.5 py-1 text-xs font-medium border transition-colors',
+        status === 'Draft' && 'border-zinc-200 bg-zinc-50 text-zinc-500',
         status === 'Upcoming' && 'border-zinc-200 bg-zinc-50 text-zinc-500',
         status === 'Ongoing' && 'border-zinc-900 bg-zinc-100 text-zinc-900',
         status === 'Ended' && 'border-zinc-200 bg-white text-zinc-400',
-        slug && 'hover:bg-zinc-200/50 cursor-pointer',
+        slug && status !== 'Draft' && 'hover:bg-zinc-200/50 cursor-pointer',
         className,
       )}
     >
@@ -49,7 +53,7 @@ export default function CampaignStatusBadge({ startDate, endDate, className, slu
     </span>
   );
 
-  if (slug) {
+  if (slug && status !== 'Draft') {
     return (
       <a
         href={`/campaigns/${slug}`}

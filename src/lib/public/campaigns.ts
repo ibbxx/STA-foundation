@@ -157,6 +157,9 @@ export async function fetchPublicCampaignDetail(slug: string) {
   }
 
   const safeCampaignRow = campaignRow as CampaignRow;
+  if (safeCampaignRow.status === 'draft') {
+    return null;
+  }
 
   const [{ data: categoryRows, error: categoriesError }, { data: updateRows, error: updatesError }, { data: recentDonationsPayload, error: recentDonationsError }] = await Promise.all([
     supabase.from('categories').select('*').order('name', { ascending: true }),

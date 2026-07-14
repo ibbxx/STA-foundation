@@ -118,6 +118,7 @@ export default function AdminCampaigns() {
     () => campaigns.find((campaign) => campaign.id === selectedCampaignId) ?? null,
     [campaigns, selectedCampaignId],
   );
+  const isNewCampaign = !selectedCampaign;
 
   const categoryMap = useMemo(
     () => new Map(categories.map((category) => [category.id, category])),
@@ -347,6 +348,7 @@ export default function AdminCampaigns() {
 
       const slug = values.slug.trim();
 
+      const nextStatus = selectedCampaign ? values.status : 'draft';
       const payload: CampaignInsert = {
         slug,
         title: values.title.trim(),
@@ -359,7 +361,7 @@ export default function AdminCampaigns() {
         target_amount: values.target_amount,
         image_url: imageUrls[0] ?? null,
         category: categoryName,
-        status: values.status,
+        status: nextStatus,
         collaborators: updatedCollaborators,
         current_amount: selectedCampaign?.current_amount ?? 0,
       };
@@ -414,7 +416,12 @@ export default function AdminCampaigns() {
         }
       }
 
-      setNotice(storageCleanupNotice(selectedCampaign ? 'Campaign berhasil diperbarui.' : 'Campaign berhasil dibuat.', cleanupResult));
+      const successMessage = selectedCampaign
+        ? nextStatus === 'active'
+          ? 'Campaign berhasil dipublikasikan/diperbarui.'
+          : 'Campaign berhasil diperbarui.'
+        : 'Draft campaign berhasil disimpan.';
+      setNotice(storageCleanupNotice(successMessage, cleanupResult));
       await loadCampaignManager(nextId);
       setIsModalOpen(false);
     } catch (unexpectedError) {
@@ -754,15 +761,24 @@ export default function AdminCampaigns() {
             <div className="flex items-center gap-1.5 mr-2">
               {selectedCampaign ? (
                 <>
-                  <a
-                    href={`/campaigns/${selectedCampaign.slug}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    title="Preview Campaign"
-                    className="rounded-md p-2 text-zinc-400 transition-all hover:bg-zinc-100 hover:text-zinc-900"
-                  >
-                    <ExternalLink size={18} />
-                  </a>
+                  {selectedCampaign.status === 'draft' ? (
+                    <span
+                      title="Draft belum tayang publik"
+                      className="rounded-md p-2 text-zinc-300"
+                    >
+                      <ExternalLink size={18} />
+                    </span>
+                  ) : (
+                    <a
+                      href={`/campaigns/${selectedCampaign.slug}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      title="Preview Campaign"
+                      className="rounded-md p-2 text-zinc-400 transition-all hover:bg-zinc-100 hover:text-zinc-900"
+                    >
+                      <ExternalLink size={18} />
+                    </a>
+                  )}
                   <button
                     type="button"
                     onClick={handleDeleteCampaign}
@@ -777,7 +793,13 @@ export default function AdminCampaigns() {
                 type="submit"
                 form="campaign-edit-form"
                 disabled={campaignForm.formState.isSubmitting}
-                title="Save Campaign"
+                onClick={() => {
+                  if (isNewCampaign) {
+                    campaignForm.setValue('status', 'draft');
+                  }
+                }}
+                title={isNewCampaign ? 'Simpan draft' : 'Simpan perubahan status'}
+                aria-label={isNewCampaign ? 'Simpan draft' : 'Simpan perubahan status'}
                 className="rounded-md p-2 text-emerald-600 transition-all hover:bg-emerald-50 hover:text-emerald-700 disabled:opacity-50"
               >
                 {campaignForm.formState.isSubmitting ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
@@ -892,15 +914,26 @@ export default function AdminCampaigns() {
                     <div className="grid gap-6 lg:grid-cols-2 pt-4 border-t border-gray-50">
                       <div className="space-y-2">
                         <label className="text-sm font-medium text-gray-700">Status Publikasi</label>
-                        <select
-                          {...campaignForm.register('status')}
-                          className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 outline-none transition-colors focus:border-gray-300"
-                        >
-                          <option value="draft">Draft (Sembunyikan)</option>
-                          <option value="upcoming">Upcoming (Akan Datang)</option>
-                          <option value="active">Active (Tayang)</option>
-                          <option value="completed">Completed (Selesai)</option>
-                        </select>
+                        {selectedCampaign ? (
+                          <select
+                            {...campaignForm.register('status')}
+                            className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 outline-none transition-colors focus:border-gray-300"
+                          >
+                            <option value="draft">Draft (Sembunyikan)</option>
+                            <option value="upcoming">Upcoming (Akan Datang)</option>
+                            <option value="active">Active (Tayang)</option>
+                            <option value="completed">Completed (Selesai)</option>
+                          </select>
+                        ) : (
+                          <div className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm text-gray-500">
+                            Draft (belum tayang publik)
+                          </div>
+                        )}
+                        <p className="text-xs text-gray-400">
+                          {selectedCampaign
+                            ? 'Ubah status di sini untuk publish atau menyembunyikan campaign.'
+                            : 'Campaign baru selalu tersimpan sebagai draft. Publish tersedia setelah draft tersimpan.'}
+                        </p>
                       </div>
                       <div className="flex items-center h-full pt-8">
                         <label className="flex items-center gap-2 cursor-pointer">
