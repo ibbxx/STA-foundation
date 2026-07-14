@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ImagePlus, Loader2, Save, CheckCircle2, AlertCircle } from 'lucide-react';
 import { fetchSiteContentRows, upsertSiteContent } from '../../lib/admin-repository';
-import { uploadAdminImage } from '../../lib/supabase-storage';
+import { cleanupUploadedFiles, deleteFilesFromStorage, storageCleanupNotice, uploadAdminImage } from '../../lib/supabase-storage';
 import { logError } from '../../lib/error-logger';
 import { parseSiteContentValue } from '../../lib/supabase/types';
 
@@ -19,6 +19,8 @@ export default function AdminOtherPagesHero() {
   const [uploadingKey, setUploadingKey] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const sessionUploads = useRef<string[]>([]);
+  const persistedData = useRef<Record<string, string>>({});
 
   useEffect(() => {
     async function loadData() {
@@ -34,6 +36,7 @@ export default function AdminOtherPagesHero() {
             }
           });
           setData(mapped);
+          persistedData.current = mapped;
         }
       } catch (err) {
         logError('AdminOtherPagesHero.load', err);
@@ -49,15 +52,9 @@ export default function AdminOtherPagesHero() {
     setError(null);
     setNotice(null);
     try {
-      const oldUrl = data[key];
       const url = await uploadAdminImage(file, 'hero');
+      sessionUploads.current.push(url);
       setData(prev => ({ ...prev, [key]: url }));
-
-      if (oldUrl) {
-        import('../../lib/supabase-storage').then((m) => {
-          m.deleteFilesFromStorage([oldUrl]).catch(err => logError('AdminOtherPagesHero.deleteOldStorage', err));
-        });
-      }
     } catch (err) {
       logError('AdminOtherPagesHero.upload', err);
       setError('Gagal mengunggah gambar.');
@@ -78,9 +75,28 @@ export default function AdminOtherPagesHero() {
       
       const { error: upsertError } = await upsertSiteContent(payloads);
       if (upsertError) throw upsertError;
-      
-      setNotice('Hero halaman berhasil disimpan.');
+
+      const oldUrls = Object.values(persistedData.current).filter(Boolean);
+      const newUrls = Object.values(data).filter(Boolean);
+      const removedUrls = oldUrls.filter((url) => !newUrls.includes(url));
+      const orphanUploads = sessionUploads.current.filter((url) => !newUrls.includes(url));
+      const cleanupTargets = [...removedUrls, ...orphanUploads];
+      const cleanupResult = cleanupTargets.length > 0 ? await deleteFilesFromStorage(cleanupTargets) : null;
+      if (cleanupResult?.failed) {
+        logError('AdminOtherPagesHero.cleanupAfterSave', new Error('Sebagian file hero halaman gagal dihapus.'), cleanupResult);
+      }
+      sessionUploads.current = [];
+      persistedData.current = data;
+      setNotice(storageCleanupNotice('Hero halaman berhasil disimpan.', cleanupResult));
     } catch (err) {
+      if (sessionUploads.current.length > 0) {
+        const cleanupResult = await cleanupUploadedFiles(sessionUploads.current);
+        if (cleanupResult.failed > 0) {
+          logError('AdminOtherPagesHero.cleanupFreshUploadsAfterSaveFailure', new Error('Gagal membersihkan upload hero halaman baru.'), cleanupResult);
+        }
+        sessionUploads.current = [];
+        setData(persistedData.current);
+      }
       logError('AdminOtherPagesHero.save', err);
       setError('Gagal menyimpan perubahan.');
     } finally {

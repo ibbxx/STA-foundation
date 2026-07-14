@@ -48,7 +48,13 @@ import { logError } from '../../lib/error-logger';
 import type { ImagePreviewItem } from '../../lib/image-preview';
 import { revokeQueuedItems } from '../../lib/image-preview';
 import { useImagePreviewList } from '../../hooks/useImagePreviewList';
-import { deleteFilesFromStorage, getCampaignAssetsBucketName, uploadFileToStorage } from '../../lib/supabase-storage';
+import {
+  cleanupUploadedFiles,
+  deleteFilesFromStorage,
+  getCampaignAssetsBucketName,
+  storageCleanupNotice,
+  uploadFileToStorage,
+} from '../../lib/supabase-storage';
 import {
   CampaignInsert,
   CampaignRow,
@@ -295,6 +301,7 @@ export default function AdminCampaigns() {
       const queuedItems = campaignImages.filter((item) => item.kind === 'queued');
 
       let freshUploads: string[] = [];
+      const newUploads: string[] = [];
       if (queuedItems.length > 0) {
         try {
           freshUploads = await Promise.all(
@@ -305,6 +312,7 @@ export default function AdminCampaigns() {
                 folder: 'campaigns',
               })),
           );
+          newUploads.push(...freshUploads);
         } catch (uploadError) {
           logError('AdminCampaigns.uploadCampaignImages', uploadError, {
             queuedCount: queuedItems.length,
@@ -326,6 +334,7 @@ export default function AdminCampaigns() {
               bucket: getCampaignAssetsBucketName(),
               folder: 'partners',
             });
+            newUploads.push(logoUrl);
             updatedCollaborators[i].avatar = logoUrl;
           } catch (err) {
             logError('AdminCampaigns.uploadPartnerLogo', err, { collaboratorIndex: i });
@@ -358,6 +367,12 @@ export default function AdminCampaigns() {
       const { data, error: submitError } = await saveCampaign(payload, selectedCampaign?.id);
 
       if (submitError) {
+        if (newUploads.length > 0) {
+          const cleanupResult = await cleanupUploadedFiles(newUploads);
+          if (cleanupResult.failed > 0) {
+            logError('AdminCampaigns.cleanupFreshUploadsAfterSaveFailure', new Error('Gagal membersihkan upload baru.'), cleanupResult);
+          }
+        }
         logError('AdminCampaigns.submitCampaign', submitError, {
           mode: selectedCampaign ? 'edit' : 'create',
           campaignId: selectedCampaign?.id,
@@ -380,7 +395,7 @@ export default function AdminCampaigns() {
 
       const savedCampaign = data as CampaignRow | null;
       const nextId = savedCampaign?.id ?? selectedCampaign?.id ?? null;
-      setNotice(selectedCampaign ? 'Campaign berhasil diperbarui.' : 'Campaign berhasil dibuat.');
+      let cleanupResult = null;
 
       const oldCollabAvatars = ((selectedCampaign?.collaborators as any[]) ?? [])
         .map((c) => c.avatar)
@@ -393,11 +408,13 @@ export default function AdminCampaigns() {
       const allRemovedUrls = [...campaignRemovedUrls, ...removedCollabAvatars];
 
       if (allRemovedUrls.length > 0) {
-        deleteFilesFromStorage(allRemovedUrls).catch((err) => {
-          logError('AdminCampaigns.cleanupRemovedImages', err);
-        });
+        cleanupResult = await deleteFilesFromStorage(allRemovedUrls);
+        if (cleanupResult.failed > 0) {
+          logError('AdminCampaigns.cleanupRemovedImages', new Error('Sebagian file campaign gagal dihapus.'), cleanupResult);
+        }
       }
 
+      setNotice(storageCleanupNotice(selectedCampaign ? 'Campaign berhasil diperbarui.' : 'Campaign berhasil dibuat.', cleanupResult));
       await loadCampaignManager(nextId);
       setIsModalOpen(false);
     } catch (unexpectedError) {
@@ -448,6 +465,12 @@ export default function AdminCampaigns() {
     const { error: submitError } = await insertCampaignUpdate(payload);
 
     if (submitError) {
+      if (uploadedUrls.length > 0) {
+        const cleanupResult = await cleanupUploadedFiles(uploadedUrls);
+        if (cleanupResult.failed > 0) {
+          logError('AdminCampaigns.cleanupUpdateUploadsAfterSaveFailure', new Error('Gagal membersihkan upload timeline baru.'), cleanupResult);
+        }
+      }
       logError('AdminCampaigns.handleUpdateSubmit', submitError, {
         campaignId: selectedCampaignId,
       });
@@ -486,12 +509,17 @@ export default function AdminCampaigns() {
     if (images && images.length > 0) urlsToDelete.push(...images);
 
     if (urlsToDelete.length > 0) {
-      deleteFilesFromStorage(urlsToDelete).catch((err) => {
-        logError('AdminCampaigns.handleDeleteUpdateStorage', err, { urlsToDelete });
-      });
+      const cleanupResult = await deleteFilesFromStorage(urlsToDelete);
+      if (cleanupResult.failed > 0) {
+        logError('AdminCampaigns.handleDeleteUpdateStorage', new Error('Sebagian file update gagal dihapus.'), {
+          urlsToDelete,
+          cleanupResult,
+        });
+      }
+      setNotice(storageCleanupNotice('Update timeline berhasil dihapus.', cleanupResult));
+    } else {
+      setNotice('Update timeline berhasil dihapus.');
     }
-
-    setNotice('Update timeline berhasil dihapus.');
     await loadCampaignUpdates(selectedCampaignId);
   }
 
@@ -543,9 +571,13 @@ export default function AdminCampaigns() {
       });
     }
 
-    const updateImageUrls = (updateRows ?? [])
-      .map((row) => (row as { image_url: string | null }).image_url)
-      .filter((url): url is string => Boolean(url));
+    const updateImageUrls = (updateRows ?? []).flatMap((row) => {
+      const updateRow = row as { image_url: string | null; images: string[] | null };
+      return [
+        ...(updateRow.image_url ? [updateRow.image_url] : []),
+        ...(Array.isArray(updateRow.images) ? updateRow.images : []),
+      ];
+    });
 
     const collaboratorAvatars = ((selectedCampaign.collaborators as any[]) ?? [])
       .map((collab) => collab.avatar)
@@ -564,24 +596,19 @@ export default function AdminCampaigns() {
       return;
     }
 
-    // Bersihkan file dari storage (best-effort, tidak block UI jika gagal)
+    let cleanupResult = null;
     if (allImageUrls.length > 0) {
-      const result = await deleteFilesFromStorage(allImageUrls);
-      if (result.failed > 0) {
+      cleanupResult = await deleteFilesFromStorage(allImageUrls);
+      if (cleanupResult.failed > 0) {
         logError('AdminCampaigns.storageCleanupAfterDelete', new Error('Sebagian file storage gagal dihapus.'), {
           campaignId: selectedCampaign.id,
-          deleted: result.deleted,
-          failed: result.failed,
+          deleted: cleanupResult.deleted,
+          failed: cleanupResult.failed,
         });
       }
-      logError('AdminCampaigns.storageCleanupResult', new Error('Storage cleanup completed'), {
-          campaignId: selectedCampaign.id,
-          deleted: result.deleted,
-          failed: result.failed,
-        });
     }
 
-    setNotice('Campaign beserta file gambarnya berhasil dihapus.');
+    setNotice(storageCleanupNotice('Campaign berhasil dihapus.', cleanupResult));
     setIsModalOpen(false);
     handleNewCampaign();
     await loadCampaignManager();

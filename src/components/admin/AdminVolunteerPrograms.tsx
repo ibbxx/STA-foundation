@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useForm, Controller, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -11,7 +11,7 @@ import {
   saveVolunteerProgram,
   deleteVolunteerProgram,
 } from '../../lib/admin/repository';
-import { uploadAdminImage } from '../../lib/supabase/storage';
+import { cleanupUploadedFiles, deleteFilesFromStorage, storageCleanupNotice, uploadAdminImage } from '../../lib/supabase/storage';
 import type { VolunteerProgramRow } from '../../lib/supabase/types';
 import type { VolunteerTimelineItem } from '../../lib/eduxplore';
 import {
@@ -243,6 +243,7 @@ export default function AdminVolunteerPrograms() {
   const [editingProgram, setEditingProgram] = useState<VolunteerProgramRow | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [activeFormTab, setActiveFormTab] = useState<'reguler' | 'beasiswa'>('reguler');
+  const sessionUploads = useRef<string[]>([]);
 
   const {
     register,
@@ -357,7 +358,15 @@ export default function AdminVolunteerPrograms() {
     setMode('edit');
   }
 
-  function closeModal() {
+  async function closeModal(saved = false) {
+    const pendingUploads = [...sessionUploads.current];
+    sessionUploads.current = [];
+    if (!saved && pendingUploads.length > 0) {
+      const cleanupResult = await cleanupUploadedFiles(pendingUploads);
+      if (cleanupResult.failed > 0) {
+        logError('AdminVolunteerPrograms.closeModal.cleanupUploads', new Error('Gagal membersihkan upload program relawan yang dibatalkan.'), cleanupResult);
+      }
+    }
     setMode(null);
     setEditingProgram(null);
     reset(defaultValues);
@@ -368,14 +377,9 @@ export default function AdminVolunteerPrograms() {
     if (!file) return;
     try {
       setUploadingImage(true);
-      const oldUrl = watch('image_url');
       const url = await uploadAdminImage(file, 'programs');
+      sessionUploads.current.push(url);
       setValue('image_url', url, { shouldDirty: true });
-      if (oldUrl) {
-        import('../../lib/supabase/storage').then((m) => {
-          m.deleteFilesFromStorage([oldUrl]).catch(err => logError('AdminVolunteerPrograms.deleteOldStorage', err));
-        });
-      }
     } catch (err) {
       logError('AdminVolunteerPrograms.handleUploadImage', err);
       setError('Gagal mengunggah gambar banner.');
@@ -453,10 +457,27 @@ export default function AdminVolunteerPrograms() {
       const { error: saveError } = await saveVolunteerProgram(payload, editingProgram?.id);
       if (saveError) throw saveError;
 
-      setNotice(mode === 'edit' ? 'Program berhasil diperbarui.' : 'Program berhasil ditambahkan.');
-      closeModal();
+      const cleanupTargets = [
+        ...sessionUploads.current.filter((url) => url !== values.image_url),
+        ...(editingProgram?.image_url && editingProgram.image_url !== values.image_url ? [editingProgram.image_url] : []),
+      ];
+      const cleanupResult = cleanupTargets.length > 0 ? await deleteFilesFromStorage(cleanupTargets) : null;
+      if (cleanupResult?.failed) {
+        logError('AdminVolunteerPrograms.cleanupAfterSave', new Error('Sebagian file program relawan gagal dihapus.'), cleanupResult);
+      }
+      sessionUploads.current = [];
+      setNotice(storageCleanupNotice(mode === 'edit' ? 'Program berhasil diperbarui.' : 'Program berhasil ditambahkan.', cleanupResult));
+      await closeModal(true);
       loadData();
     } catch (err) {
+      if (sessionUploads.current.length > 0) {
+        const cleanupResult = await cleanupUploadedFiles(sessionUploads.current);
+        if (cleanupResult.failed > 0) {
+          logError('AdminVolunteerPrograms.cleanupFreshUploadsAfterSaveFailure', new Error('Gagal membersihkan upload program relawan baru.'), cleanupResult);
+        }
+        sessionUploads.current = [];
+        setValue('image_url', editingProgram?.image_url ?? '', { shouldDirty: true });
+      }
       logError('AdminVolunteerPrograms.onSubmit', err);
       const message = err instanceof Error ? err.message : 'Terjadi kesalahan saat menyimpan data.';
       setError(message);
@@ -478,12 +499,14 @@ export default function AdminVolunteerPrograms() {
     if (delError) {
       setError(delError.message);
     } else {
+      let cleanupResult = null;
       if (program.image_url) {
-        import('../../lib/supabase/storage').then((m) => {
-          m.deleteFilesFromStorage([program.image_url]).catch(err => logError('AdminVolunteerPrograms.deleteStorage', err));
-        });
+        cleanupResult = await deleteFilesFromStorage([program.image_url]);
+        if (cleanupResult.failed > 0) {
+          logError('AdminVolunteerPrograms.deleteStorage', new Error('Sebagian file program relawan gagal dihapus.'), cleanupResult);
+        }
       }
-      setNotice('Program berhasil dihapus.');
+      setNotice(storageCleanupNotice('Program berhasil dihapus.', cleanupResult));
       loadData();
     }
   }
@@ -633,12 +656,12 @@ export default function AdminVolunteerPrograms() {
 
       <AdminModal
         open={mode !== null}
-        onClose={closeModal}
+        onClose={() => void closeModal()}
         title={mode === 'edit' ? 'Edit Program Relawan' : 'Tambah Program Relawan'}
         widthClassName="max-w-3xl"
         footer={(
           <>
-            <button type="button" onClick={closeModal} className="px-4 py-2 text-sm text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50">Batal</button>
+            <button type="button" onClick={() => void closeModal()} className="px-4 py-2 text-sm text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50">Batal</button>
             <button type="submit" form="volunteer-form" disabled={isSubmitting || uploadingImage} className="px-4 py-2 text-sm text-white bg-zinc-900 rounded-xl hover:bg-zinc-800 disabled:opacity-50">
               {isSubmitting || uploadingImage ? 'Menyimpan...' : 'Simpan Program'}
             </button>

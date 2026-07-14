@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useForm, SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { 
@@ -23,7 +23,7 @@ import {
 import { adminMapLocationSchema, type AdminMapLocationValues } from '../../lib/admin/schemas';
 import { fetchSiteContentRows, upsertSiteContent } from '../../lib/admin/repository';
 import { parseSiteContentValue } from '../../lib/supabase/types';
-import { uploadAdminImage } from '../../lib/supabase/storage';
+import { cleanupUploadedFiles, deleteFilesFromStorage, storageCleanupNotice, uploadAdminImage } from '../../lib/supabase/storage';
 import { logError } from '../../lib/error-logger';
 import AdminModal from '../../components/admin/AdminModal';
 import RichTextEditor from '../../components/admin/campaigns/RichTextEditor';
@@ -50,6 +50,7 @@ export default function AdminImpactMap() {
   const [uploadingGallery, setUploadingGallery] = useState(false);
   const [activeTab, setActiveTab] = useState<'map' | 'list'>('map');
   const [searchQuery, setSearchQuery] = useState('');
+  const sessionUploads = useRef<string[]>([]);
 
   const {
     register,
@@ -205,12 +206,9 @@ export default function AdminImpactMap() {
       setUploadingImage(true);
       // Kompres gambar sebelum upload
       const compressed = await compressImage(file);
-      const oldUrl = watch('imageUrl');
       const url = await uploadAdminImage(compressed, 'general');
+      sessionUploads.current.push(url);
       setValue('imageUrl', url, { shouldDirty: true, shouldValidate: true });
-      if (oldUrl) {
-        import('../../lib/supabase/storage').then(m => m.deleteFilesFromStorage([oldUrl]).catch(err => logError('AdminImpactMap.deleteOldImage', err)));
-      }
     } catch (err) {
       logError('AdminImpactMap.handleUploadImage', err);
       setError('Gagal mengunggah gambar.');
@@ -241,6 +239,7 @@ export default function AdminImpactMap() {
       // Upload ke Supabase
       const uploadPromises = compressedFiles.map(file => uploadAdminImage(file, 'general'));
       const urls = await Promise.all(uploadPromises);
+      sessionUploads.current.push(...urls);
       
       setValue('images', [...galleryImages, ...urls], { shouldDirty: true, shouldValidate: true });
     } catch (err) {
@@ -253,8 +252,20 @@ export default function AdminImpactMap() {
 
   const removeGalleryImage = (urlToRemove: string) => {
     setValue('images', galleryImages.filter(url => url !== urlToRemove), { shouldDirty: true });
-    import('../../lib/supabase/storage').then(m => m.deleteFilesFromStorage([urlToRemove]).catch(err => logError('AdminImpactMap.deleteGalleryImage', err)));
   };
+
+  async function closeEditor() {
+    const pendingUploads = [...sessionUploads.current];
+    sessionUploads.current = [];
+    if (pendingUploads.length > 0) {
+      const cleanupResult = await cleanupUploadedFiles(pendingUploads);
+      if (cleanupResult.failed > 0) {
+        logError('AdminImpactMap.closeEditor.cleanupUploads', new Error('Gagal membersihkan upload peta dampak yang dibatalkan.'), cleanupResult);
+      }
+    }
+    setMode(null);
+    setEditingLocation(null);
+  }
 
   const onSubmit: SubmitHandler<AdminMapLocationValues> = async (values) => {
     setSaving(true);
@@ -267,14 +278,11 @@ export default function AdminImpactMap() {
         id: values.id || `loc-${Date.now()}`,
       } as EventMapLocation;
       
+      let removedUrls: string[] = [];
       if (mode === 'edit' && editingLocation) {
-        // Hapus gambar yang tidak digunakan lagi dari storage
         const oldUrls = [editingLocation.imageUrl, ...(editingLocation.images || [])].filter(Boolean);
         const newUrls = [newLoc.imageUrl, ...(newLoc.images || [])].filter(Boolean);
-        const removedUrls = oldUrls.filter(url => !newUrls.includes(url));
-        if (removedUrls.length > 0) {
-          import('../../lib/supabase/storage').then(m => m.deleteFilesFromStorage(removedUrls).catch(err => logError('AdminImpactMap.deleteOldStorage', err)));
-        }
+        removedUrls = oldUrls.filter(url => !newUrls.includes(url));
         nextLocations = nextLocations.map(l => l.id === editingLocation.id ? newLoc : l);
       } else {
         nextLocations.push(newLoc);
@@ -285,11 +293,28 @@ export default function AdminImpactMap() {
         value: { locations: nextLocations }
       }]);
       if (upsertError) throw upsertError;
+      const newUrls = [newLoc.imageUrl, ...(newLoc.images || [])].filter(Boolean);
+      const orphanUploads = sessionUploads.current.filter((url) => !newUrls.includes(url));
+      const cleanupTargets = [...removedUrls, ...orphanUploads];
+      const cleanupResult = cleanupTargets.length > 0 ? await deleteFilesFromStorage(cleanupTargets) : null;
+      if (cleanupResult?.failed) {
+        logError('AdminImpactMap.cleanupAfterSave', new Error('Sebagian file peta dampak gagal dihapus.'), cleanupResult);
+      }
+      sessionUploads.current = [];
       setLocations(nextLocations);
-      setNotice(mode === 'edit' ? 'Lokasi diperbarui.' : 'Lokasi ditambahkan.');
+      setNotice(storageCleanupNotice(mode === 'edit' ? 'Lokasi diperbarui.' : 'Lokasi ditambahkan.', cleanupResult));
       setMode(null);
       setEditingLocation(null);
     } catch (err) {
+      if (sessionUploads.current.length > 0) {
+        const cleanupResult = await cleanupUploadedFiles(sessionUploads.current);
+        if (cleanupResult.failed > 0) {
+          logError('AdminImpactMap.cleanupFreshUploadsAfterSaveFailure', new Error('Gagal membersihkan upload peta dampak baru.'), cleanupResult);
+        }
+        sessionUploads.current = [];
+        setValue('imageUrl', editingLocation?.imageUrl ?? '', { shouldDirty: true });
+        setValue('images', editingLocation?.images ?? [], { shouldDirty: true });
+      }
       const message = err instanceof Error ? err.message : 'Gagal menyimpan.';
       setError(message);
     } finally {
@@ -314,16 +339,19 @@ export default function AdminImpactMap() {
       }]);
       if (upsertError) throw upsertError;
 
-      // Bersihkan file gambar dari storage
+      let cleanupResult = null;
       if (loc) {
         const urlsToDelete = [loc.imageUrl, ...(loc.images || [])].filter(Boolean);
         if (urlsToDelete.length > 0) {
-          import('../../lib/supabase/storage').then(m => m.deleteFilesFromStorage(urlsToDelete).catch(err => logError('AdminImpactMap.deleteStorage', err)));
+          cleanupResult = await deleteFilesFromStorage(urlsToDelete);
+          if (cleanupResult.failed > 0) {
+            logError('AdminImpactMap.deleteStorage', new Error('Sebagian file lokasi gagal dihapus.'), cleanupResult);
+          }
         }
       }
 
       setLocations(nextLocations);
-      setNotice('Lokasi dihapus.');
+      setNotice(storageCleanupNotice('Lokasi dihapus.', cleanupResult));
     } catch (err) {
       setError('Gagal menghapus.');
     } finally {
@@ -513,12 +541,12 @@ export default function AdminImpactMap() {
 
       <AdminModal
         open={mode !== null}
-        onClose={() => setMode(null)}
+        onClose={() => void closeEditor()}
         title={mode === 'create' ? 'Tambah Lokasi Baru' : 'Edit Lokasi'}
         widthClassName="max-w-2xl"
         footer={(
           <div className="flex w-full items-center justify-end gap-6">
-            <button onClick={() => setMode(null)} className="text-xs font-bold uppercase tracking-widest text-slate-400 hover:text-slate-600">Batal</button>
+            <button onClick={() => void closeEditor()} className="text-xs font-bold uppercase tracking-widest text-slate-400 hover:text-slate-600">Batal</button>
             <button
               onClick={handleSubmit(onSubmit)}
               disabled={saving || uploadingImage}

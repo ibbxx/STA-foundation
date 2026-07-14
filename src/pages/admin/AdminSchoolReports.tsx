@@ -10,7 +10,7 @@ import {
   type ReportStatus,
 } from '../../lib/admin-view-models';
 import { logError } from '../../lib/error-logger';
-import { deleteFilesFromStorage } from '../../lib/supabase-storage';
+import { deleteFilesFromStorage, storageCleanupNotice } from '../../lib/supabase-storage';
 import { SchoolReportRow } from '../../lib/supabase';
 import { cn } from '../../lib/utils';
 import { useConfirmDialog } from '../../components/admin/ConfirmDialog';
@@ -115,6 +115,9 @@ export default function AdminSchoolReports() {
   async function deleteReports(reportsToDelete: SchoolReportRow[]) {
     const deletedIds: string[] = [];
     const failedNames: string[] = [];
+    let cleanupFailed = 0;
+    let cleanupDeleted = 0;
+    let cleanupSkipped = 0;
 
     setError(null);
     setNotice(null);
@@ -148,6 +151,9 @@ export default function AdminSchoolReports() {
             failed: result.failed,
           });
         }
+        cleanupDeleted += result.deleted;
+        cleanupFailed += result.failed;
+        cleanupSkipped += result.skipped;
       }
     }
 
@@ -162,11 +168,13 @@ export default function AdminSchoolReports() {
     }
 
     if (deletedIds.length > 0 && failedNames.length === 0) {
-      setNotice(
+      const cleanupResult = { deleted: cleanupDeleted, failed: cleanupFailed, skipped: cleanupSkipped, failures: [] };
+      setNotice(storageCleanupNotice(
         reportsToDelete.length === 1
           ? `Laporan "${reportsToDelete[0].school_name}" berhasil dihapus.`
-          : `${deletedIds.length} laporan berhasil dihapus.`
-      );
+          : `${deletedIds.length} laporan berhasil dihapus.`,
+        cleanupResult,
+      ));
     }
 
     if (deletedIds.length > 0 && failedNames.length > 0) {

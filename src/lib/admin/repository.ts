@@ -16,6 +16,7 @@ import type {
 } from '../supabase/types';
 import { supabase } from '../supabase/types';
 import { logError } from '../error-logger';
+import { deleteFilesFromStorage } from '../supabase/storage';
 import {
   normalizeSafeUrl,
   normalizeGuidebookUrl,
@@ -314,9 +315,9 @@ export function fetchCampaignDonationProbe(campaignId: string) {
 export function fetchCampaignUpdateImageRows(campaignId: string) {
   return supabase
     .from('campaign_updates')
-    .select('image_url')
+    .select('image_url, images')
     .eq('campaign_id', campaignId)
-    .not('image_url', 'is', null);
+    .or('image_url.not.is.null,images.not.is.null');
 }
 
 export function deleteCampaign(campaignId: string) {
@@ -451,18 +452,6 @@ export function fetchVolunteerRegistrationsByProgram(programId: string) {
     .order('created_at', { ascending: false });
 }
 
-function extractVolunteerStoragePath(value: string | null) {
-  if (!value) return null;
-  if (!value.startsWith('http')) return value;
-
-  const marker = '/volunteer-assets/';
-  const markerIndex = value.indexOf(marker);
-  if (markerIndex === -1) return null;
-
-  return decodeURIComponent(value.slice(markerIndex + marker.length).split('?')[0]);
-}
-
-
 export async function fetchAllVolunteerRegistrations() {
   // Signed URLs are now generated lazily in AdminEduxplore when a row is selected,
   // so we no longer pre-generate them here (which caused N×3 Storage API calls
@@ -491,35 +480,29 @@ export async function deleteVolunteerRegistrations(ids: string[]) {
     .select('bukti_dp_url, bukti_follow_url, foto_id_url')
     .in('id', ids);
 
-  // 2. Kumpulkan path file dari storage
+  const filePaths: string[] = [];
   if (!fetchError && records && records.length > 0) {
-    const filePaths: string[] = [];
-
     records.forEach((record) => {
-      const dp = extractVolunteerStoragePath(record.bukti_dp_url ?? null);
-      const follow = extractVolunteerStoragePath(record.bukti_follow_url ?? null);
-      const idCard = extractVolunteerStoragePath(record.foto_id_url ?? null);
-
-      if (dp) filePaths.push(dp);
-      if (follow) filePaths.push(follow);
-      if (idCard) filePaths.push(idCard);
+      if (record.bukti_dp_url) filePaths.push(record.bukti_dp_url);
+      if (record.bukti_follow_url) filePaths.push(record.bukti_follow_url);
+      if (record.foto_id_url) filePaths.push(record.foto_id_url);
     });
-
-    // 3. Hapus file dari Supabase Storage jika ada
-    if (filePaths.length > 0) {
-      const { error: storageError } = await supabase.storage
-        .from('volunteer-assets')
-        .remove(filePaths);
-
-      if (storageError) {
-        logError('repository.deleteVolunteerRegistrations.storage', storageError, { filePaths });
-      }
-    }
   }
 
-  // 4. Hapus baris data dari database
-  return supabase
+  const deleteResult = await supabase
     .from('volunteer_registrations')
     .delete()
     .in('id', ids);
+
+  if (!deleteResult.error && filePaths.length > 0) {
+    const cleanupResult = await deleteFilesFromStorage(filePaths, { bucket: 'volunteer-assets' });
+    if (cleanupResult.failed > 0) {
+      logError('repository.deleteVolunteerRegistrations.storage', new Error('Sebagian file pendaftaran relawan gagal dihapus.'), {
+        filePaths,
+        cleanupResult,
+      });
+    }
+  }
+
+  return deleteResult;
 }

@@ -1,5 +1,5 @@
 import { AlertCircle, CheckCircle, Clock, Download, Eye, Plus, RefreshCw, Save, Search, Settings, Trash2, Upload, XCircle } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import AdminModal from '../../components/admin/AdminModal';
 import { downloadCsv } from '../../lib/admin-export';
 import { formatAdminDate } from '../../lib/admin-helpers';
@@ -18,7 +18,7 @@ import {
   type PaymentSettings,
 } from '../../lib/payment-settings';
 import { parseSiteContentValue, CampaignRow, DonationRow, supabase, type Json } from '../../lib/supabase';
-import { uploadAdminImage } from '../../lib/supabase/storage';
+import { cleanupUploadedFiles, deleteFilesFromStorage, storageCleanupNotice, uploadAdminImage } from '../../lib/supabase/storage';
 import { cn, formatCurrency } from '../../lib/utils';
 
 export default function AdminTransactions() {
@@ -34,6 +34,8 @@ export default function AdminTransactions() {
   const [savingPaymentSettings, setSavingPaymentSettings] = useState(false);
   const [uploadingQris, setUploadingQris] = useState(false);
   const [openingProof, setOpeningProof] = useState(false);
+  const qrisSessionUploads = useRef<string[]>([]);
+  const persistedPaymentSettings = useRef<PaymentSettings>(DEFAULT_PAYMENT_SETTINGS);
 
   async function loadTransactions() {
     setLoading(true);
@@ -74,7 +76,9 @@ export default function AdminTransactions() {
 
     const row = (data ?? []).find((entry) => entry.key === PAYMENT_SETTINGS_KEY);
     const parsed = parseSiteContentValue<PaymentSettings>(row?.value);
-    setPaymentSettings(normalizePaymentSettings(parsed));
+    const normalized = normalizePaymentSettings(parsed);
+    setPaymentSettings(normalized);
+    persistedPaymentSettings.current = normalized;
   }
 
   const filteredTransactions = useMemo(
@@ -134,6 +138,14 @@ export default function AdminTransactions() {
     }]);
 
     if (saveError) {
+      if (qrisSessionUploads.current.length > 0) {
+        const cleanupResult = await cleanupUploadedFiles(qrisSessionUploads.current);
+        if (cleanupResult.failed > 0) {
+          logError('AdminTransactions.savePaymentSettings.cleanupFreshUploads', new Error('Gagal membersihkan upload QRIS baru setelah save gagal.'), cleanupResult);
+        }
+        qrisSessionUploads.current = [];
+        setPaymentSettings(persistedPaymentSettings.current);
+      }
       logError('AdminTransactions.savePaymentSettings', saveError);
       setError(saveError.message);
       setSavingPaymentSettings(false);
@@ -141,7 +153,18 @@ export default function AdminTransactions() {
     }
 
     setPaymentSettings(sanitized);
-    setNotice('Pengaturan pembayaran berhasil disimpan.');
+    const oldQrisUrl = persistedPaymentSettings.current.qris_image_url;
+    const cleanupTargets = [
+      ...qrisSessionUploads.current.filter((url) => url !== sanitized.qris_image_url),
+      ...(oldQrisUrl && oldQrisUrl !== sanitized.qris_image_url ? [oldQrisUrl] : []),
+    ];
+    const cleanupResult = cleanupTargets.length > 0 ? await deleteFilesFromStorage(cleanupTargets) : null;
+    if (cleanupResult?.failed) {
+      logError('AdminTransactions.savePaymentSettings.cleanupOldQris', new Error('Sebagian file QRIS lama gagal dihapus.'), cleanupResult);
+    }
+    qrisSessionUploads.current = [];
+    persistedPaymentSettings.current = sanitized;
+    setNotice(storageCleanupNotice('Pengaturan pembayaran berhasil disimpan.', cleanupResult));
     setSavingPaymentSettings(false);
   }
 
@@ -152,6 +175,7 @@ export default function AdminTransactions() {
     try {
       setUploadingQris(true);
       const url = await uploadAdminImage(file, 'general');
+      qrisSessionUploads.current.push(url);
       setPaymentSettings((current) => ({ ...current, qris_image_url: url }));
     } catch (uploadError) {
       logError('AdminTransactions.handleQrisUpload', uploadError);

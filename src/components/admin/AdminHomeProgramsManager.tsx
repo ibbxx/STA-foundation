@@ -14,7 +14,7 @@ import {
   saveHomeProgramsContent,
   type HomeProgramSlide,
 } from '../../lib/admin/home-programs';
-import { uploadAdminImage } from '../../lib/supabase/storage';
+import { cleanupUploadedFiles, deleteFilesFromStorage, storageCleanupNotice, uploadAdminImage } from '../../lib/supabase/storage';
 import { logError } from '../../lib/error-logger';
 import { useConfirmDialog } from './ConfirmDialog';
 import { slugify } from '../../lib/admin/campaign-utils';
@@ -186,6 +186,8 @@ export default function AdminHomeProgramsManager() {
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [uploadingId, setUploadingId] = useState<string | null>(null);
+  const sessionUploads = useRef<string[]>([]);
+  const pendingCleanup = useRef<string[]>([]);
 
   const loadPrograms = useCallback(async () => {
     setLoading(true);
@@ -242,11 +244,7 @@ export default function AdminHomeProgramsManager() {
     const slide = slides.find((s) => s.id === id);
     if (slide) {
       const urlsToDelete = [slide.imageUrl, slide.heroImageUrl].filter(Boolean) as string[];
-      if (urlsToDelete.length > 0) {
-        import('../../lib/supabase/storage').then((m) => {
-          m.deleteFilesFromStorage(urlsToDelete).catch(err => logError('AdminHomeProgramsManager.deleteStorage', err));
-        });
-      }
+      pendingCleanup.current.push(...urlsToDelete);
     }
 
     setSlides((prev) => prev.filter((s) => s.id !== id));
@@ -260,12 +258,11 @@ export default function AdminHomeProgramsManager() {
       const oldUrl = slide?.[targetField] as string | undefined;
 
       const url = await uploadAdminImage(file, 'programs');
+      sessionUploads.current.push(url);
       updateSlide(slideId, targetField, url);
 
       if (oldUrl) {
-        import('../../lib/supabase/storage').then((m) => {
-          m.deleteFilesFromStorage([oldUrl]).catch(err => logError('AdminHomeProgramsManager.deleteOldStorage', err));
-        });
+        pendingCleanup.current.push(oldUrl);
       }
     } catch (err) {
       logError('AdminHomeProgramsManager.upload', err);
@@ -289,8 +286,26 @@ export default function AdminHomeProgramsManager() {
     try {
       const { error: saveErr } = await saveHomeProgramsContent({ slides });
       if (saveErr) throw saveErr;
-      setNotice('Program Beranda berhasil disimpan!');
+      const activeUrls = slides.flatMap((slide) => [slide.imageUrl, slide.heroImageUrl]).filter(Boolean) as string[];
+      const orphanUploads = sessionUploads.current.filter((url) => !activeUrls.includes(url));
+      const cleanupTargets = [...pendingCleanup.current, ...orphanUploads];
+      const cleanupResult = cleanupTargets.length > 0 ? await deleteFilesFromStorage(cleanupTargets) : null;
+      if (cleanupResult?.failed) {
+        logError('AdminHomeProgramsManager.cleanupAfterSave', new Error('Sebagian file program beranda gagal dihapus.'), cleanupResult);
+      }
+      sessionUploads.current = [];
+      pendingCleanup.current = [];
+      setNotice(storageCleanupNotice('Program Beranda berhasil disimpan!', cleanupResult));
     } catch (err) {
+      if (sessionUploads.current.length > 0) {
+        const cleanupResult = await cleanupUploadedFiles(sessionUploads.current);
+        if (cleanupResult.failed > 0) {
+          logError('AdminHomeProgramsManager.cleanupFreshUploadsAfterSaveFailure', new Error('Gagal membersihkan upload program beranda baru.'), cleanupResult);
+        }
+        sessionUploads.current = [];
+      }
+      pendingCleanup.current = [];
+      await loadPrograms();
       logError('AdminHomeProgramsManager.save', err);
       setError('Gagal menyimpan. Coba lagi.');
     } finally {

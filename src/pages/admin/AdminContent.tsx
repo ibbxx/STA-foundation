@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { AlertCircle, CheckCircle2, Edit2, Layers3, Plus, RefreshCw, Save, Search, Settings, Sparkles, Trash2 } from 'lucide-react';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import AdminModal from '../../components/admin/AdminModal';
 import AdminHeroManager from '../../components/admin/AdminHeroManager';
@@ -16,7 +16,7 @@ import {
   filterPrograms,
   toProgramPayload,
 } from '../../lib/admin-view-models';
-import { uploadAdminImage } from '../../lib/supabase/storage';
+import { cleanupUploadedFiles, deleteFilesFromStorage, storageCleanupNotice, uploadAdminImage } from '../../lib/supabase/storage';
 import { getProgramIcon } from '../../lib/program-icons';
 import { logError } from '../../lib/error-logger';
 import { ProgramRow, parseSiteContentValue } from '../../lib/supabase/types';
@@ -49,18 +49,18 @@ export default function AdminContent() {
   const [ctaModalOpen, setCtaModalOpen] = useState(false);
   const [ctaData, setCtaData] = useState<CtaData>({ ...DEFAULT_CTA_DATA });
   const [savingCta, setSavingCta] = useState(false);
+  const programSessionUploads = useRef<string[]>([]);
+  const ctaSessionUploads = useRef<string[]>([]);
+  const persistedCtaData = useRef<CtaData>({ ...DEFAULT_CTA_DATA });
 
   const handleUploadImage = async (e: React.ChangeEvent<HTMLInputElement>, fieldName: 'hero_image_url' | 'home_slider_image') => {
     const file = e.target.files?.[0];
     if (!file) return;
     try {
       setUploadingImage(true);
-      const oldUrl = watch(fieldName);
       const url = await uploadAdminImage(file, 'programs');
+      programSessionUploads.current.push(url);
       setValue(fieldName, url, { shouldDirty: true, shouldValidate: true });
-      if (oldUrl) {
-        import('../../lib/supabase/storage').then(m => m.deleteFilesFromStorage([oldUrl]));
-      }
     } catch (err) {
       setError('Gagal mengunggah gambar. Pastikan ukuran file tidak terlalu besar.');
     } finally {
@@ -73,12 +73,9 @@ export default function AdminContent() {
     if (!file) return;
     try {
       setUploadingImage(true);
-      const oldUrl = ctaData.imageUrl;
       const url = await uploadAdminImage(file, 'general');
+      ctaSessionUploads.current.push(url);
       setCtaData(prev => ({ ...prev, imageUrl: url }));
-      if (oldUrl) {
-        import('../../lib/supabase/storage').then(m => m.deleteFilesFromStorage([oldUrl]));
-      }
     } catch (err) {
       setError('Gagal mengunggah gambar.');
     } finally {
@@ -94,6 +91,7 @@ export default function AdminContent() {
       const urls = [];
       for (const f of files) {
         const url = await uploadAdminImage(f as File, 'programs');
+        programSessionUploads.current.push(url);
         urls.push(url);
       }
       const existing = watch('gallery_images') || '';
@@ -176,6 +174,15 @@ export default function AdminContent() {
           secondaryButtonLink: parsed.secondaryButtonLink || DEFAULT_CTA_DATA.secondaryButtonLink,
           imageUrl: parsed.imageUrl || DEFAULT_CTA_DATA.imageUrl,
         });
+        persistedCtaData.current = {
+          title: parsed.title || DEFAULT_CTA_DATA.title,
+          description: parsed.description || DEFAULT_CTA_DATA.description,
+          primaryButtonText: parsed.primaryButtonText || DEFAULT_CTA_DATA.primaryButtonText,
+          primaryButtonLink: parsed.primaryButtonLink || DEFAULT_CTA_DATA.primaryButtonLink,
+          secondaryButtonText: parsed.secondaryButtonText || DEFAULT_CTA_DATA.secondaryButtonText,
+          secondaryButtonLink: parsed.secondaryButtonLink || DEFAULT_CTA_DATA.secondaryButtonLink,
+          imageUrl: parsed.imageUrl || DEFAULT_CTA_DATA.imageUrl,
+        };
       } else {
         logError('AdminContent.loadCtaData', new Error('Gagal parse CTA data'), { value: ctaRow.value });
       }
@@ -215,8 +222,16 @@ export default function AdminContent() {
 
   const summary = useMemo(() => buildProgramSummary(programs), [programs]);
 
-  function closeModal(force = false) {
+  async function closeModal(force = false) {
     if (isSubmitting && !force) return;
+    const pendingUploads = [...programSessionUploads.current];
+    programSessionUploads.current = [];
+    if (pendingUploads.length > 0 && !force) {
+      const cleanupResult = await cleanupUploadedFiles(pendingUploads);
+      if (cleanupResult.failed > 0) {
+        logError('AdminContent.closeModal.cleanupUploads', new Error('Gagal membersihkan upload program yang dibatalkan.'), cleanupResult);
+      }
+    }
     setMode(null);
     setEditingProgram(null);
     reset(defaultProgramValues);
@@ -238,16 +253,22 @@ export default function AdminContent() {
     setNotice(null);
     setError(null);
 
+    let removedUrls: string[] = [];
     if (mode === 'edit' && editingProgram) {
       const detail = parseProgramContent(editingProgram.content);
-      const oldGallery = detail.gallery_images;
+      const oldUrls = [detail.hero_image_url, detail.home_slider_image, ...detail.gallery_images].filter(Boolean);
       const newGallery = values.gallery_images ? values.gallery_images.split('\n').map(s => s.trim()).filter(Boolean) : [];
-      const removedUrls = oldGallery.filter(url => !newGallery.includes(url));
-      if (removedUrls.length > 0) {
-        import('../../lib/supabase/storage').then(m => m.deleteFilesFromStorage(removedUrls).catch(err => logError('AdminContent.deleteRemovedGallery', err)));
-      }
+      const newUrls = [values.hero_image_url, values.home_slider_image, ...newGallery].filter(Boolean);
+      removedUrls = oldUrls.filter(url => !newUrls.includes(url));
     }
 
+    const sessionUploads = [...programSessionUploads.current];
+    const restoreProgramMediaAfterFailedSave = () => {
+      const detail = editingProgram ? parseProgramContent(editingProgram.content) : null;
+      setValue('hero_image_url', detail?.hero_image_url ?? '', { shouldDirty: true });
+      setValue('home_slider_image', detail?.home_slider_image ?? '', { shouldDirty: true });
+      setValue('gallery_images', detail?.gallery_images.join('\n') ?? '', { shouldDirty: true });
+    };
     try {
       const payload = toProgramPayload(values);
       const query = mode === 'edit' && editingProgram
@@ -257,6 +278,14 @@ export default function AdminContent() {
       const { error: submitError } = await query;
 
       if (submitError) {
+        if (sessionUploads.length > 0) {
+          const cleanupResult = await cleanupUploadedFiles(sessionUploads);
+          if (cleanupResult.failed > 0) {
+            logError('AdminContent.submitProgram.cleanupFreshUploads', new Error('Gagal membersihkan upload program baru setelah save gagal.'), cleanupResult);
+          }
+          programSessionUploads.current = [];
+          restoreProgramMediaAfterFailedSave();
+        }
         logError('AdminContent.submitProgram', submitError, {
           mode,
           programId: editingProgram?.id,
@@ -265,6 +294,14 @@ export default function AdminContent() {
         return;
       }
     } catch (err) {
+      if (sessionUploads.length > 0) {
+        const cleanupResult = await cleanupUploadedFiles(sessionUploads);
+        if (cleanupResult.failed > 0) {
+          logError('AdminContent.submitProgram.security.cleanupFreshUploads', new Error('Gagal membersihkan upload program baru setelah validasi gagal.'), cleanupResult);
+        }
+        programSessionUploads.current = [];
+        restoreProgramMediaAfterFailedSave();
+      }
       logError('AdminContent.submitProgram.security', err, {
         mode,
         programId: editingProgram?.id,
@@ -273,8 +310,19 @@ export default function AdminContent() {
       return;
     }
 
-    closeModal(true);
-    setNotice(mode === 'edit' ? 'Program berhasil diperbarui.' : 'Program baru berhasil ditambahkan.');
+    const orphanUploads = sessionUploads.filter((url) => ![
+      values.hero_image_url,
+      values.home_slider_image,
+      ...(values.gallery_images ? values.gallery_images.split('\n').map(s => s.trim()).filter(Boolean) : []),
+    ].includes(url));
+    const cleanupTargets = [...removedUrls, ...orphanUploads];
+    const cleanupResult = cleanupTargets.length > 0 ? await deleteFilesFromStorage(cleanupTargets) : null;
+    if (cleanupResult?.failed) {
+      logError('AdminContent.submitProgram.cleanupOldMedia', new Error('Sebagian file program gagal dihapus.'), cleanupResult);
+    }
+    programSessionUploads.current = [];
+    await closeModal(true);
+    setNotice(storageCleanupNotice(mode === 'edit' ? 'Program berhasil diperbarui.' : 'Program baru berhasil ditambahkan.', cleanupResult));
     await loadPrograms();
   }
 
@@ -307,12 +355,16 @@ export default function AdminContent() {
       return;
     }
 
+    let cleanupResult = null;
     if (urlsToDelete.length > 0) {
-      import('../../lib/supabase/storage').then(m => m.deleteFilesFromStorage(urlsToDelete).catch(err => logError('AdminContent.deleteStorage', err)));
+      cleanupResult = await deleteFilesFromStorage(urlsToDelete);
+      if (cleanupResult.failed > 0) {
+        logError('AdminContent.deleteStorage', new Error('Sebagian file program gagal dihapus.'), cleanupResult);
+      }
     }
 
     setDeletingId(null);
-    setNotice(`Program "${program.title}" berhasil dihapus.`);
+    setNotice(storageCleanupNotice(`Program "${program.title}" berhasil dihapus.`, cleanupResult));
     await loadPrograms();
   }
 
@@ -350,14 +402,45 @@ export default function AdminContent() {
       const { error } = await upsertSiteContent([payload]);
       if (error) throw error;
       
-      setNotice('Konten CTA berhasil diperbarui.');
+      const oldUrl = persistedCtaData.current.imageUrl;
+      const cleanupTargets = [
+        ...ctaSessionUploads.current.filter((url) => url !== ctaData.imageUrl),
+        ...(oldUrl && oldUrl !== ctaData.imageUrl ? [oldUrl] : []),
+      ];
+      const cleanupResult = cleanupTargets.length > 0 ? await deleteFilesFromStorage(cleanupTargets) : null;
+      if (cleanupResult?.failed) {
+        logError('AdminContent.saveCtaData.cleanupOldMedia', new Error('Sebagian file CTA gagal dihapus.'), cleanupResult);
+      }
+      ctaSessionUploads.current = [];
+      persistedCtaData.current = ctaData;
+      setNotice(storageCleanupNotice('Konten CTA berhasil diperbarui.', cleanupResult));
       setCtaModalOpen(false);
     } catch (err) {
+      if (ctaSessionUploads.current.length > 0) {
+        const cleanupResult = await cleanupUploadedFiles(ctaSessionUploads.current);
+        if (cleanupResult.failed > 0) {
+          logError('AdminContent.saveCtaData.cleanupFreshUploads', new Error('Gagal membersihkan upload CTA baru setelah save gagal.'), cleanupResult);
+        }
+        ctaSessionUploads.current = [];
+      }
       const message = err instanceof Error ? err.message : 'Gagal menyimpan CTA.';
       setError(message);
     } finally {
       setSavingCta(false);
     }
+  }
+
+  async function closeCtaModal() {
+    const pendingUploads = [...ctaSessionUploads.current];
+    ctaSessionUploads.current = [];
+    if (pendingUploads.length > 0) {
+      const cleanupResult = await cleanupUploadedFiles(pendingUploads);
+      if (cleanupResult.failed > 0) {
+        logError('AdminContent.closeCtaModal.cleanupUploads', new Error('Gagal membersihkan upload CTA yang dibatalkan.'), cleanupResult);
+      }
+      setCtaData(persistedCtaData.current);
+    }
+    setCtaModalOpen(false);
   }
 
   const selectedIcon = watch('icon_name');
@@ -936,14 +1019,14 @@ export default function AdminContent() {
       {/* MODAL CTA */}
       <AdminModal
         open={ctaModalOpen}
-        onClose={() => setCtaModalOpen(false)}
+        onClose={() => void closeCtaModal()}
         title="Pengaturan CTA Beranda"
         description="Atur teks dan tombol pada bagian ajakan bertindak (Call to Action) di bagian bawah halaman Beranda."
         widthClassName="max-w-xl"
         footer={(
           <>
             <button
-              onClick={() => setCtaModalOpen(false)}
+              onClick={() => void closeCtaModal()}
               className="px-4 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors"
             >
               Batal

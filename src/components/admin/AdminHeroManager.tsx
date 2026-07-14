@@ -14,7 +14,7 @@ import {
   saveHeroContent,
   type HeroSlide,
 } from '../../lib/admin-hero';
-import { uploadAdminImage } from '../../lib/supabase/storage';
+import { cleanupUploadedFiles, deleteFilesFromStorage, storageCleanupNotice, uploadAdminImage } from '../../lib/supabase/storage';
 import { logError } from '../../lib/error-logger';
 import { useConfirmDialog } from './ConfirmDialog';
 
@@ -180,6 +180,8 @@ export default function AdminHeroManager() {
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [uploadingId, setUploadingId] = useState<string | null>(null);
+  const sessionUploads = useRef<string[]>([]);
+  const pendingCleanup = useRef<string[]>([]);
 
   const loadHero = useCallback(async () => {
     setLoading(true);
@@ -219,12 +221,9 @@ export default function AdminHeroManager() {
     });
     if (!ok) return;
     
-    // Delete from storage
     const slide = slides.find((s) => s.id === id);
     if (slide && slide.imageUrl) {
-      import('../../lib/supabase/storage').then((m) => {
-        m.deleteFilesFromStorage([slide.imageUrl]).catch(err => logError('AdminHeroManager.deleteStorage', err));
-      });
+      pendingCleanup.current.push(slide.imageUrl);
     }
 
     setSlides((prev) => prev.filter((s) => s.id !== id));
@@ -238,13 +237,11 @@ export default function AdminHeroManager() {
       const oldUrl = slide?.imageUrl;
 
       const url = await uploadAdminImage(file, 'hero');
+      sessionUploads.current.push(url);
       updateSlide(slideId, 'imageUrl', url);
 
-      // Delete old image from storage
       if (oldUrl) {
-        import('../../lib/supabase/storage').then((m) => {
-          m.deleteFilesFromStorage([oldUrl]).catch(err => logError('AdminHeroManager.deleteOldStorage', err));
-        });
+        pendingCleanup.current.push(oldUrl);
       }
     } catch (err) {
       logError('AdminHeroManager.upload', err);
@@ -269,8 +266,26 @@ export default function AdminHeroManager() {
     try {
       const { error: saveErr } = await saveHeroContent({ slides });
       if (saveErr) throw saveErr;
-      setNotice('Hero berhasil disimpan! Perubahan langsung tampil di Beranda.');
+      const activeUrls = slides.flatMap((slide) => [slide.imageUrl, slide.videoUrl]).filter(Boolean) as string[];
+      const orphanUploads = sessionUploads.current.filter((url) => !activeUrls.includes(url));
+      const cleanupTargets = [...pendingCleanup.current, ...orphanUploads];
+      const cleanupResult = cleanupTargets.length > 0 ? await deleteFilesFromStorage(cleanupTargets) : null;
+      if (cleanupResult?.failed) {
+        logError('AdminHeroManager.cleanupAfterSave', new Error('Sebagian file hero gagal dihapus.'), cleanupResult);
+      }
+      sessionUploads.current = [];
+      pendingCleanup.current = [];
+      setNotice(storageCleanupNotice('Hero berhasil disimpan! Perubahan langsung tampil di Beranda.', cleanupResult));
     } catch (err) {
+      if (sessionUploads.current.length > 0) {
+        const cleanupResult = await cleanupUploadedFiles(sessionUploads.current);
+        if (cleanupResult.failed > 0) {
+          logError('AdminHeroManager.cleanupFreshUploadsAfterSaveFailure', new Error('Gagal membersihkan upload hero baru.'), cleanupResult);
+        }
+        sessionUploads.current = [];
+      }
+      pendingCleanup.current = [];
+      await loadHero();
       logError('AdminHeroManager.save', err);
       setError('Gagal menyimpan. Coba lagi.');
     } finally {

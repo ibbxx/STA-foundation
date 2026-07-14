@@ -7,6 +7,24 @@
 -- dan memecah policy ALL admin menjadi policy INSERT, UPDATE, DELETE terpisah.
 -- ============================================================
 
+-- Compatibility for databases where the later private.is_admin migration was
+-- applied manually without recording the preceding migration history.
+CREATE OR REPLACE FUNCTION public.is_admin()
+RETURNS boolean
+LANGUAGE sql
+SECURITY DEFINER
+STABLE
+SET search_path = pg_catalog, public
+AS $$
+  SELECT EXISTS (
+    SELECT 1
+    FROM public.admin_users
+    WHERE user_id = auth.uid()
+  );
+$$;
+
+GRANT EXECUTE ON FUNCTION public.is_admin() TO anon, authenticated, service_role;
+
 -- 1. Tabel public.campaign_updates
 DROP POLICY IF EXISTS "campaign_updates_public_select" ON public.campaign_updates;
 DROP POLICY IF EXISTS "campaign_updates_admin_all" ON public.campaign_updates;

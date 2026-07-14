@@ -4,7 +4,7 @@ Gunakan urutan ini agar database, Edge Functions, dan frontend tetap sinkron.
 
 1. Jalankan schema kanonik:
 
-   Jalankan isi file `supabase/migrations/20260616_consolidated_schema.sql`
+   Jalankan isi file `supabase/migrations/20260616000000_consolidated_schema.sql`
    di Supabase SQL Editor atau lewat alur migration yang biasa kamu pakai.
 
 2. Set secret untuk Edge Functions publik:
