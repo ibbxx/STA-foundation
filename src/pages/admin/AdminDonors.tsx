@@ -1,23 +1,29 @@
-import { AlertCircle, Download, ExternalLink, Eye, Mail, MessageCircle, RefreshCw, Search } from 'lucide-react';
+import { AlertCircle, Download, ExternalLink, Eye, Mail, MessageCircle, RefreshCw, Search, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import AdminModal from '../../components/admin/AdminModal';
+import { useConfirmDialog } from '../../components/admin/ConfirmDialog';
 import { downloadCsv } from '../../lib/admin-export';
 import { formatAdminDate, getInitials } from '../../lib/admin-helpers';
-import { fetchTransactionRows, updateDonationStatus } from '../../lib/admin-repository';
+import { deleteDonation, fetchTransactionRows, updateDonationStatus } from '../../lib/admin-repository';
 import { buildCampaignTitleMap, deriveDonors, filterDonors, type DonorSummary } from '../../lib/admin-view-models';
 import { logError } from '../../lib/error-logger';
 import { supabase } from '../../lib/supabase';
 import type { DonationRow } from '../../lib/supabase/types';
+import { deleteFilesFromStorage, storageCleanupNotice } from '../../lib/supabase/storage';
 import { cn, formatCurrency } from '../../lib/utils';
 
 export default function AdminDonors() {
+  const { confirm, ConfirmDialogElement } = useConfirmDialog();
   const [searchQuery, setSearchQuery] = useState('');
   const [donors, setDonors] = useState<DonorSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [selectedDonor, setSelectedDonor] = useState<DonorSummary | null>(null);
   const [openingProofId, setOpeningProofId] = useState<string | null>(null);
   const [updatingTransactionId, setUpdatingTransactionId] = useState<string | null>(null);
+  const [deletingDonorId, setDeletingDonorId] = useState<string | null>(null);
+  const [deletingTransactionId, setDeletingTransactionId] = useState<string | null>(null);
 
   async function loadDonors(selectedDonorIdToKeep?: string) {
     setLoading(true);
@@ -110,6 +116,88 @@ export default function AdminDonors() {
     setUpdatingTransactionId(null);
   }
 
+  async function cleanupDonationProofs(transactions: DonationRow[], context: Record<string, unknown>) {
+    const proofPaths = transactions
+      .map((transaction) => transaction.payment_proof_path)
+      .filter((path): path is string => Boolean(path));
+
+    if (proofPaths.length === 0) return null;
+
+    const cleanupResult = await deleteFilesFromStorage(proofPaths, { bucket: 'donation-proofs' });
+    if (cleanupResult.failed > 0) {
+      logError('AdminDonors.cleanupDonationProofs', new Error('Gagal membersihkan sebagian bukti pembayaran.'), {
+        ...context,
+        cleanupResult,
+      });
+    }
+    return cleanupResult;
+  }
+
+  async function handleDeleteTransaction(transaction: DonationRow) {
+    const confirmed = await confirm({
+      title: 'Hapus Transaksi',
+      message: `Hapus transaksi ${transaction.id.slice(0, 12)}? Data donasi ini akan hilang permanen dan total campaign akan dihitung ulang oleh database.`,
+      confirmText: 'Hapus',
+      variant: 'danger',
+    });
+    if (!confirmed) return;
+
+    setDeletingTransactionId(transaction.id);
+    setError(null);
+    setNotice(null);
+
+    const { error: deleteError } = await deleteDonation(transaction.id);
+    if (deleteError) {
+      logError('AdminDonors.handleDeleteTransaction', deleteError, { transactionId: transaction.id });
+      setError(deleteError.message);
+      setDeletingTransactionId(null);
+      return;
+    }
+
+    const cleanupResult = await cleanupDonationProofs([transaction], { transactionId: transaction.id });
+    const selectedDonorId = selectedDonor?.id;
+    setNotice(storageCleanupNotice('Transaksi berhasil dihapus.', cleanupResult));
+    await loadDonors(selectedDonorId);
+    setDeletingTransactionId(null);
+  }
+
+  async function handleDeleteDonor(donor: DonorSummary) {
+    const confirmed = await confirm({
+      title: 'Hapus Donatur',
+      message: `Hapus donatur "${donor.name}" beserta ${donor.transaction_count} transaksi? Semua histori donasi donor ini akan hilang permanen.`,
+      confirmText: 'Hapus',
+      variant: 'danger',
+    });
+    if (!confirmed) return;
+
+    setDeletingDonorId(donor.id);
+    setError(null);
+    setNotice(null);
+
+    const deletedTransactions: DonationRow[] = [];
+    for (const transaction of donor.transactions) {
+      const { error: deleteError } = await deleteDonation(transaction.id);
+      if (deleteError) {
+        logError('AdminDonors.handleDeleteDonor', deleteError, {
+          donorId: donor.id,
+          transactionId: transaction.id,
+        });
+        setError(deleteError.message);
+        setDeletingDonorId(null);
+        return;
+      }
+      deletedTransactions.push(transaction);
+    }
+
+    const cleanupResult = await cleanupDonationProofs(deletedTransactions, { donorId: donor.id });
+    if (selectedDonor?.id === donor.id) {
+      setSelectedDonor(null);
+    }
+    setNotice(storageCleanupNotice('Donatur berhasil dihapus.', cleanupResult));
+    setDeletingDonorId(null);
+    await loadDonors();
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -143,6 +231,12 @@ export default function AdminDonors() {
             <p className="font-semibold">Gagal memuat data</p>
             <p className="mt-1">{error}</p>
           </div>
+        </div>
+      )}
+
+      {notice && (
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+          {notice}
         </div>
       )}
 
@@ -231,6 +325,15 @@ export default function AdminDonors() {
                         >
                           <Eye size={16} />
                         </button>
+                        <button
+                          type="button"
+                          onClick={() => void handleDeleteDonor(donor)}
+                          disabled={deletingDonorId === donor.id}
+                          className="p-2 text-slate-400 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-colors disabled:opacity-50"
+                          title="Hapus Donatur"
+                        >
+                          <Trash2 size={16} />
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -248,13 +351,25 @@ export default function AdminDonors() {
         description="Informasi lengkap histori donasi donatur."
         widthClassName="max-w-5xl"
         footer={(
-          <button
-            type="button"
-            onClick={() => setSelectedDonor(null)}
-            className="px-4 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors"
-          >
-            Tutup
-          </button>
+          <div className="flex w-full flex-wrap justify-end gap-2">
+            <button
+              type="button"
+              disabled={!selectedDonor || deletingDonorId === selectedDonor.id}
+              onClick={() => {
+                if (selectedDonor) void handleDeleteDonor(selectedDonor);
+              }}
+              className="mr-auto px-4 py-2 text-sm font-medium text-rose-700 bg-rose-50 border border-rose-200 rounded-xl hover:bg-rose-100 transition-colors disabled:opacity-50"
+            >
+              {deletingDonorId === selectedDonor?.id ? 'Menghapus...' : 'Hapus Donatur'}
+            </button>
+            <button
+              type="button"
+              onClick={() => setSelectedDonor(null)}
+              className="px-4 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors"
+            >
+              Tutup
+            </button>
+          </div>
         )}
       >
         {selectedDonor && (
@@ -402,6 +517,15 @@ export default function AdminDonors() {
                           Tandai Gagal
                         </button>
                       ) : null}
+                      <button
+                        type="button"
+                        onClick={() => void handleDeleteTransaction(transaction)}
+                        disabled={deletingTransactionId === transaction.id}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-rose-200 bg-white px-3 py-2 text-xs font-bold text-rose-700 transition-colors hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        <Trash2 size={14} />
+                        {deletingTransactionId === transaction.id ? 'Menghapus...' : 'Hapus Transaksi'}
+                      </button>
                     </div>
                   </div>
                 ))}
@@ -410,6 +534,7 @@ export default function AdminDonors() {
           </div>
         )}
       </AdminModal>
+      {ConfirmDialogElement}
     </div>
   );
 }

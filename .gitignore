@@ -10,3 +10,5 @@ coverage/
 # Local assets & tools
 tmp/
 tools/
+supabase/.temp/
+

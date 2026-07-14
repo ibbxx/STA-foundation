@@ -33,6 +33,42 @@ export interface Database {
         };
         Relationships: any[];
       };
+      audit_logs: {
+        Row: {
+          id: string;
+          user_id: string | null;
+          user_email: string | null;
+          action_type: 'INSERT' | 'UPDATE' | 'DELETE';
+          entity_type: string;
+          entity_id: string;
+          old_values: Json | null;
+          new_values: Json | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id?: string | null;
+          user_email?: string | null;
+          action_type: 'INSERT' | 'UPDATE' | 'DELETE';
+          entity_type: string;
+          entity_id: string;
+          old_values?: Json | null;
+          new_values?: Json | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string | null;
+          user_email?: string | null;
+          action_type?: 'INSERT' | 'UPDATE' | 'DELETE';
+          entity_type?: string;
+          entity_id?: string;
+          old_values?: Json | null;
+          new_values?: Json | null;
+          created_at?: string;
+        };
+        Relationships: any[];
+      };
       programs: {
         Row: {
           id: string;
@@ -579,6 +615,8 @@ export const supabase = createClient<Database>(
 export type ProgramRow = Database['public']['Tables']['programs']['Row'];
 export type ProgramInsert = Database['public']['Tables']['programs']['Insert'];
 export type ProgramUpdate = Database['public']['Tables']['programs']['Update'];
+
+export type AuditLogRow = Database['public']['Tables']['audit_logs']['Row'];
 
 export type CampaignRow = Database['public']['Tables']['campaigns']['Row'];
 export type CampaignInsert = Database['public']['Tables']['campaigns']['Insert'];

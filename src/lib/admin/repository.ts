@@ -163,6 +163,16 @@ export function fetchDashboardRows() {
   ]);
 }
 
+// ── Audit Logs ──
+
+export function fetchAuditLogRows(limit = 100) {
+  return supabase
+    .from('audit_logs')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(limit);
+}
+
 // ── Donors & Transactions ──
 
 export function fetchDonorDonationRows() {
