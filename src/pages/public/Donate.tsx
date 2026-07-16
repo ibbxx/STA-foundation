@@ -44,7 +44,7 @@ const donationSchema = z.object({
 
 type DonationFormValues = z.infer<typeof donationSchema>;
 
-const QUICK_AMOUNTS = [50000, 100000, 250000, 500000, 1000000];
+const QUICK_AMOUNTS = [20000, 40000, 75000, 100000, 300000, 500000, 1000000];
 
 const PAYMENT_METHOD_ICONS: Record<ManualPaymentMethod, typeof QrCode> = {
   qris: QrCode,
@@ -102,11 +102,13 @@ function DonateSkeleton() {
             <Skeleton className="h-8 w-8 rounded-lg" />
             <Skeleton className="h-5 w-40" />
           </div>
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
-            {[...Array(6)].map((_, i) => (
-              <Skeleton key={i} className="h-14 rounded-2xl" />
+          <ul className="grid grid-cols-2 gap-3 md:grid-cols-3">
+            {[...Array(7)].map((_, i) => (
+              <li key={i}>
+                <Skeleton className="h-14 rounded-2xl" />
+              </li>
             ))}
-          </div>
+          </ul>
           <div className="space-y-2">
             <Skeleton className="h-3 w-28" />
             <Skeleton className="h-12 w-full rounded-2xl" />
@@ -175,7 +177,7 @@ export default function Donate() {
   } = useForm<DonationFormValues>({
     resolver: zodResolver(donationSchema),
     defaultValues: {
-      amount: 50000,
+      amount: 20000,
       isAnonymous: false,
       paymentMethod: '',
       name: '',
@@ -402,23 +404,24 @@ export default function Donate() {
               <h2 className="text-lg font-bold text-gray-900">Pilih Nominal Donasi</h2>
             </div>
 
-            <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+            <ul className="grid grid-cols-2 gap-3 md:grid-cols-3">
               {QUICK_AMOUNTS.map((amount) => (
-                <button
-                  key={amount}
-                  type="button"
-                  onClick={() => setValue('amount', amount)}
-                  className={cn(
-                    'min-h-14 rounded-2xl border-2 px-3 py-4 text-sm font-bold transition-all',
-                    selectedAmount === amount
-                      ? 'border-emerald-500 bg-emerald-50 text-emerald-700 shadow-md'
-                      : 'border-gray-100 text-gray-600 hover:border-emerald-200',
-                  )}
-                >
-                  {formatCurrency(amount)}
-                </button>
+                <li key={amount}>
+                  <button
+                    type="button"
+                    onClick={() => setValue('amount', amount)}
+                    className={cn(
+                      'w-full min-h-14 rounded-2xl border-2 px-3 py-4 text-sm font-bold transition-all',
+                      selectedAmount === amount
+                        ? 'border-emerald-500 bg-emerald-50 text-emerald-700 shadow-md'
+                        : 'border-gray-100 text-gray-600 hover:border-emerald-200',
+                    )}
+                  >
+                    {formatCurrency(amount)}
+                  </button>
+                </li>
               ))}
-            </div>
+            </ul>
 
             <div className="space-y-2">
               <label className="text-xs font-bold uppercase tracking-wider text-gray-400">Nominal Lainnya</label>
