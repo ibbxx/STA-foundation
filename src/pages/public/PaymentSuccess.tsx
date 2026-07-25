@@ -1,17 +1,17 @@
 import { Link, Navigate, useLocation } from 'react-router-dom';
-import { Clock3, ArrowRight, Share2 } from 'lucide-react';
+import { CheckCircle2, ArrowRight, Share2, Heart } from 'lucide-react';
 import { formatCurrency } from '../../lib/utils';
 import { useSeo } from '../../lib/seo';
 
 /**
  * Komponen Halaman Sukses Pembayaran.
- * Ditampilkan setelah donatur berhasil menyelesaikan transaksi donasi.
- * Memberikan konfirmasi visual, rincian singkat transaksi, dan ajakan tindakan (CTA) lanjutan.
+ * Ditampilkan setelah donatur berhasil menyelesaikan donasi.
+ * Menampilkan pesan apresiasi yang hangat dan konfirmasi donasi.
  */
 export default function PaymentSuccess() {
   useSeo({
-    title: 'Donasi Tercatat',
-    description: 'Konfirmasi pencatatan donasi Sekolah Tanah Air.',
+    title: 'Terima Kasih atas Donasi Anda',
+    description: 'Terima kasih atas kebaikan dan dukungan Anda untuk Sekolah Tanah Air.',
     path: '/payment/success',
     robots: 'noindex,follow',
   });
@@ -21,6 +21,7 @@ export default function PaymentSuccess() {
     amount?: number;
     paymentMethod?: string;
     transactionId?: string | null;
+    finalAmount?: number;
   } | null;
 
   if (!paymentState?.transactionId || !paymentState.amount || !paymentState.paymentMethod) {
@@ -30,72 +31,82 @@ export default function PaymentSuccess() {
   async function handleShare() {
     const shareData = {
       title: 'Sekolah Tanah Air',
-      text: 'Saya baru mencatat niat donasi untuk campaign Sekolah Tanah Air.',
+      text: 'Saya baru saja berdonasi untuk membantu pendidikan anak-anak bersama Sekolah Tanah Air. Mari bantu wujudkan masa depan mereka!',
       url: window.location.origin,
     };
 
     if (navigator.share) {
-      await navigator.share(shareData);
-      return;
+      try {
+        await navigator.share(shareData);
+        return;
+      } catch {
+        // Fallback jika batal share
+      }
     }
 
-    await navigator.clipboard.writeText(shareData.url);
+    try {
+      await navigator.clipboard.writeText(shareData.url);
+    } catch {
+      // Ignore clipboard error
+    }
   }
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 pt-24 pb-12 sm:pt-32 sm:pb-20">
-      <div className="relative w-full max-w-xl overflow-hidden rounded-[2rem] border border-gray-100 bg-white p-6 text-center shadow-xl shadow-emerald-100 sm:rounded-[3rem] sm:p-10 md:p-16 md:shadow-2xl">
-        {/* Dekorasi Latar Belakang Geometris */}
-        <div className="absolute top-0 left-0 w-full h-2 bg-emerald-500" />
-        <div className="absolute -top-24 -right-24 w-64 h-64 bg-emerald-50 rounded-full blur-3xl -z-10" />
+      <div className="relative w-full max-w-xl overflow-hidden rounded-[2rem] border border-gray-100 bg-white p-6 text-center shadow-xl shadow-emerald-100 sm:rounded-[3rem] sm:p-10 md:p-14 md:shadow-2xl">
+        {/* Dekorasi Latar Belakang */}
+        <div className="absolute top-0 left-0 h-2 w-full bg-emerald-500" />
+        <div className="absolute -right-24 -top-24 -z-10 h-64 w-64 rounded-full bg-emerald-50 blur-3xl" />
 
-        <div className="space-y-8 relative z-10">
-          <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-emerald-100 animate-bounce sm:h-24 sm:w-24">
-            <Clock3 size={48} className="text-amber-600" />
+        <div className="relative z-10 space-y-8">
+          <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 sm:h-24 sm:w-24">
+            <CheckCircle2 size={48} className="text-emerald-600" />
           </div>
 
-          <div className="space-y-4">
-            <h1 className="text-3xl font-black text-gray-900 md:text-4xl">Donasi Tercatat</h1>
-            <p className="text-base leading-relaxed text-gray-500 sm:text-lg">
-              Data donasi Anda sudah tercatat dan masih menunggu konfirmasi pembayaran. Total campaign baru akan diperbarui setelah pembayaran diverifikasi.
+          <div className="space-y-3">
+            <h1 className="text-2xl font-black text-gray-900 sm:text-3xl md:text-4xl">
+              Terima Kasih atas Kebaikan Anda! <Heart className="inline-block h-7 w-7 text-emerald-600 fill-emerald-600 align-text-bottom" />
+            </h1>
+            <p className="text-base leading-relaxed text-gray-600 sm:text-lg">
+              Donasi Anda telah berhasil kami terima. Dukungan Anda sangat berarti untuk membantu masa depan pendidikan anak-anak bersama <strong>Sekolah Tanah Air</strong>.
             </p>
           </div>
 
-          <div className="space-y-4 rounded-[1.5rem] border border-emerald-100 bg-emerald-50 p-5 sm:rounded-3xl sm:p-6">
+          <div className="space-y-4 rounded-[1.5rem] border border-emerald-100 bg-emerald-50/70 p-5 sm:rounded-3xl sm:p-6">
             <div className="flex items-center justify-between gap-4 text-sm">
-              <span className="text-gray-500 font-bold uppercase tracking-wider">Jumlah Donasi</span>
-              <span className="text-emerald-700 font-black text-xl">{formatCurrency(paymentState.amount)}</span>
+              <span className="font-bold uppercase tracking-wider text-gray-500">Jumlah Donasi</span>
+              <span className="text-xl font-black text-emerald-700">{formatCurrency(paymentState.finalAmount || paymentState.amount)}</span>
             </div>
-            <div className="h-px bg-emerald-100 w-full" />
+            <div className="h-px w-full bg-emerald-100" />
             <div className="flex items-center justify-between gap-4 text-sm">
-              <span className="text-gray-500 font-bold uppercase tracking-wider">Metode</span>
-              <span className="text-gray-900 font-bold">{paymentState.paymentMethod}</span>
+              <span className="font-bold uppercase tracking-wider text-gray-500">Metode Pembayaran</span>
+              <span className="font-bold text-gray-900">{paymentState.paymentMethod}</span>
             </div>
             <div className="flex items-center justify-between gap-4 text-sm">
-              <span className="text-gray-500 font-bold uppercase tracking-wider">ID Transaksi</span>
-              <span className="break-all text-right text-gray-900 font-mono font-bold">{paymentState.transactionId}</span>
+              <span className="font-bold uppercase tracking-wider text-gray-500">ID Transaksi</span>
+              <span className="text-right font-mono font-bold text-gray-900 break-all">{paymentState.transactionId}</span>
             </div>
           </div>
 
-          <div className="space-y-4 pt-4">
+          <div className="space-y-3 pt-2">
             <Link
               to="/campaigns"
-              className="block w-full bg-emerald-600 text-white py-4 rounded-2xl text-lg font-bold hover:bg-emerald-700 transition-all shadow-xl shadow-emerald-200"
+              className="block w-full rounded-2xl bg-emerald-600 py-4 text-base font-bold text-white transition-all hover:bg-emerald-700 shadow-lg shadow-emerald-200"
             >
-              Lihat Campaign Lainnya
+              Lihat Program & Campaign Lainnya
             </Link>
             <button
               type="button"
               onClick={() => void handleShare()}
-              className="w-full flex items-center justify-center space-x-2 py-4 text-emerald-600 font-bold hover:bg-emerald-50 rounded-2xl transition-all"
+              className="flex w-full items-center justify-center space-x-2 rounded-2xl py-3.5 text-base font-bold text-emerald-600 transition-all hover:bg-emerald-50"
             >
-              <Share2 size={20} />
+              <Share2 size={18} />
               <span>Bagikan Kebaikan Ini</span>
             </button>
           </div>
 
-          <div className="pt-6">
-            <Link to="/" className="text-gray-400 font-bold text-sm hover:text-emerald-600 transition-colors flex items-center justify-center">
+          <div className="pt-2">
+            <Link to="/" className="flex items-center justify-center text-sm font-bold text-gray-400 transition-colors hover:text-emerald-600">
               Kembali ke Beranda
               <ArrowRight size={16} className="ml-1" />
             </Link>

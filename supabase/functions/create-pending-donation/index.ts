@@ -86,6 +86,19 @@ Deno.serve(async (request) => {
 
     const paymentSettings = normalizePaymentSettings(settingsRow?.value);
     const paymentMethod = String(payload.payment_method ?? '').trim();
+    const qrisRawString = typeof (settingsRow?.value as any)?.qris_raw_string === 'string'
+      ? (settingsRow?.value as any).qris_raw_string.trim()
+      : '';
+
+    // Jika QRIS Dinamis sudah dikonfigurasi (ada qris_raw_string), gunakan generate-qris-dynamic
+    if (paymentMethod === 'qris' && qrisRawString) {
+      return jsonResponse(
+        { error: 'Metode QRIS dinamis aktif. Silakan gunakan endpoint generate-qris-dynamic.' },
+        400,
+        request,
+      );
+    }
+
     const isManualPayment = MANUAL_PAYMENT_METHODS.includes(paymentMethod);
 
     if (isManualPayment && !paymentSettings.manual_enabled) {

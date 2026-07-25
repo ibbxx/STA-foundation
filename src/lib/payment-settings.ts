@@ -17,6 +17,7 @@ export interface PaymentSettings {
   gateway_enabled: boolean;
   active_gateway: string | null;
   qris_image_url: string;
+  qris_raw_string: string;
   bank_accounts: BankAccountSetting[];
   manual_instructions: string;
 }
@@ -26,6 +27,7 @@ export const DEFAULT_PAYMENT_SETTINGS: PaymentSettings = {
   gateway_enabled: false,
   active_gateway: null,
   qris_image_url: DEFAULT_QRIS_IMAGE_URL,
+  qris_raw_string: '',
   bank_accounts: [],
   manual_instructions: 'Unggah bukti pembayaran setelah transfer agar admin dapat memverifikasi donasi Anda.',
 };
@@ -85,6 +87,7 @@ export function normalizePaymentSettings(value: Json | PaymentSettings | null | 
       ? raw.active_gateway.trim()
       : null,
     qris_image_url: qrisImageUrl || DEFAULT_QRIS_IMAGE_URL,
+    qris_raw_string: typeof raw.qris_raw_string === 'string' ? raw.qris_raw_string.trim() : '',
     bank_accounts: normalizeBankAccounts(raw.bank_accounts),
     manual_instructions: typeof raw.manual_instructions === 'string' && raw.manual_instructions.trim()
       ? raw.manual_instructions.trim()
@@ -93,7 +96,7 @@ export function normalizePaymentSettings(value: Json | PaymentSettings | null | 
 }
 
 export function hasManualPaymentDetails(settings: PaymentSettings, method: ManualPaymentMethod): boolean {
-  if (method === 'qris') return Boolean(settings.qris_image_url.trim());
+  if (method === 'qris') return Boolean(settings.qris_image_url.trim()) || Boolean(settings.qris_raw_string.trim());
   return settings.bank_accounts.some((account) => (
     account.bank_name.trim()
     && account.account_number.trim()

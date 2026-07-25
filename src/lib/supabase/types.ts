@@ -179,6 +179,9 @@ export interface Database {
           message: string | null;
           is_anonymous: boolean;
           created_at: string;
+          unique_code: number;
+          final_amount: number | null;
+          unique_code_expires_at: string | null;
         };
         Insert: {
           id?: string;
@@ -193,6 +196,9 @@ export interface Database {
           message?: string | null;
           is_anonymous?: boolean;
           created_at?: string;
+          unique_code?: number;
+          final_amount?: number | null;
+          unique_code_expires_at?: string | null;
         };
         Update: {
           id?: string;
@@ -207,6 +213,9 @@ export interface Database {
           message?: string | null;
           is_anonymous?: boolean;
           created_at?: string;
+          unique_code?: number;
+          final_amount?: number | null;
+          unique_code_expires_at?: string | null;
         };
         Relationships: any[];
       };

@@ -1,4 +1,4 @@
-import imageCompression from 'browser-image-compression';
+import { compressImage } from '../image-compression';
 import { logError } from '../error-logger';
 import { supabase } from './types';
 
@@ -57,17 +57,7 @@ function validateFile(file: File, skipCompression: boolean): void {
   }
 }
 
-async function compressImage(file: File): Promise<File> {
-  // Kompres
-  const compressed = await imageCompression(file, {
-    maxSizeMB: COMPRESS_TARGET_MB,
-    maxWidthOrHeight: MAX_DIMENSION,
-    useWebWorker: true,
-    fileType: 'image/webp',
-  });
 
-  return compressed;
-}
 
 export async function uploadFileToStorage(file: File, options: UploadOptions = {}) {
   const bucket = options.bucket || defaultBucket;
@@ -78,7 +68,9 @@ export async function uploadFileToStorage(file: File, options: UploadOptions = {
   validateFile(file, skipCompression);
 
   // Kompres kecuali di-skip
-  const finalFile = skipCompression ? file : await compressImage(file);
+  const finalFile = skipCompression
+    ? file
+    : await compressImage(file, { maxSizeBytes: COMPRESS_TARGET_MB * 1024 * 1024, maxWidth: MAX_DIMENSION });
 
   const fileExtension = options.skipCompression
     ? (file.name.split('.').pop() || 'jpg')

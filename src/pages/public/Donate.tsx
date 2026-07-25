@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -13,6 +13,11 @@ import {
   Building2,
   Upload,
   X,
+  Clock,
+  RefreshCw,
+  Download,
+  Loader2,
+  ImageIcon,
 } from 'lucide-react';
 import { SecureTurnstile } from '../../components/shared/SecureTurnstile';
 import { getEdgeFunctionErrorMessage } from '../../lib/admin/repository';
@@ -31,6 +36,13 @@ import {
   type ManualPaymentMethod,
   type PaymentSettings,
 } from '../../lib/payment-settings';
+import {
+  type QrisDynamicData,
+  generateQrisDataUrl,
+  downloadQrisImage,
+  getRemainingSeconds,
+  formatCountdown,
+} from '../../lib/qris';
 
 const donationSchema = z.object({
   amount: z.number().min(10000, 'Minimal donasi Rp 10.000'),
@@ -51,37 +63,11 @@ const PAYMENT_METHOD_ICONS: Record<ManualPaymentMethod, typeof QrCode> = {
   bank_transfer: Building2,
 };
 
-async function compressPaymentProof(file: File): Promise<File> {
-  const normalized = await compressImage(file);
-  if (!normalized.type.startsWith('image/')) return normalized;
 
-  try {
-    const imageCompression = (await import('browser-image-compression')).default;
-    const compressed = await imageCompression(normalized, {
-      maxSizeMB: 0.4,
-      maxWidthOrHeight: 1600,
-      useWebWorker: true,
-      fileType: 'image/webp',
-    });
-
-    return new File(
-      [compressed],
-      normalized.name.replace(/\.[^.]+$/, '') + '.webp',
-      { type: 'image/webp', lastModified: Date.now() },
-    );
-  } catch (err) {
-    logError('Donate.compressPaymentProof', err, {
-      fileType: normalized.type,
-      fileSize: normalized.size,
-    });
-    return normalized;
-  }
-}
 
 function DonateSkeleton() {
   return (
     <div className="min-h-screen bg-gray-50 pb-40 md:pb-24 animate-pulse">
-      {/* Header Spacer */}
       <div className="border-b border-gray-100 bg-white pt-24 pb-8 sm:pt-32 sm:pb-10">
         <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
           <Skeleton className="h-4 w-36 mb-6" />
@@ -96,7 +82,6 @@ function DonateSkeleton() {
       </div>
 
       <div className="mx-auto mt-6 max-w-3xl px-4 sm:mt-10 sm:px-6 lg:px-8 space-y-6 sm:space-y-8">
-        {/* Nominal Section */}
         <div className="space-y-5 rounded-[1.5rem] border border-gray-100 bg-white p-5 shadow-lg sm:rounded-[2rem] sm:p-8">
           <div className="flex items-center space-x-3 mb-2">
             <Skeleton className="h-8 w-8 rounded-lg" />
@@ -115,7 +100,6 @@ function DonateSkeleton() {
           </div>
         </div>
 
-        {/* Form Info Section */}
         <div className="space-y-5 rounded-[1.5rem] border border-gray-100 bg-white p-5 shadow-lg sm:rounded-[2rem] sm:p-8">
           <div className="flex items-center space-x-3 mb-2">
             <Skeleton className="h-8 w-8 rounded-lg" />
@@ -156,6 +140,16 @@ export default function Donate() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const [paymentProof, setPaymentProof] = useState<File | null>(null);
+
+  // --- QRIS Dynamic state ---
+  const [qrisData, setQrisData] = useState<QrisDynamicData | null>(null);
+  const [qrisImageUrl, setQrisImageUrl] = useState<string>('');
+  const [qrisLoading, setQrisLoading] = useState(false);
+  const [qrisCountdown, setQrisCountdown] = useState(0);
+  const [qrisProof, setQrisProof] = useState<File | null>(null);
+  const [qrisSubmitting, setQrisSubmitting] = useState(false);
+  const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
   const seoDescription = campaign
     ? truncateText(stripHtmlToText(campaign.full_description) || `Donasi untuk campaign ${campaign.title} bersama Sekolah Tanah Air.`)
     : 'Form donasi campaign Sekolah Tanah Air.';
@@ -173,6 +167,7 @@ export default function Donate() {
     handleSubmit,
     setValue,
     watch,
+    getValues,
     formState: { errors },
   } = useForm<DonationFormValues>({
     resolver: zodResolver(donationSchema),
@@ -193,6 +188,8 @@ export default function Donate() {
   const selectedManualMethod = visibleManualPaymentMethods.find((method) => method.id === selectedPayment);
   const manualPaymentUnavailable = !paymentSettings.manual_enabled || visibleManualPaymentMethods.length === 0;
   const formId = 'donation-form';
+  const hasQrisRawString = Boolean(paymentSettings.qris_raw_string.trim());
+  const isQrisDynamic = selectedPayment === 'qris' && hasQrisRawString;
 
   useEffect(() => {
     let ignore = false;
@@ -265,8 +262,120 @@ export default function Donate() {
     if (selectedPayment && !visibleManualPaymentMethods.some((method) => method.id === selectedPayment)) {
       setValue('paymentMethod', '');
       setPaymentProof(null);
+      resetQrisState();
     }
   }, [selectedPayment, setValue, visibleManualPaymentMethods]);
+
+  useEffect(() => {
+    return () => {
+      if (countdownRef.current) {
+        clearInterval(countdownRef.current);
+      }
+    };
+  }, []);
+
+  const resetQrisState = useCallback(() => {
+    setQrisData(null);
+    setQrisImageUrl('');
+    setQrisLoading(false);
+    setQrisCountdown(0);
+    if (countdownRef.current) {
+      clearInterval(countdownRef.current);
+      countdownRef.current = null;
+    }
+  }, []);
+
+  function startCountdown(expiresAt: string) {
+    if (countdownRef.current) {
+      clearInterval(countdownRef.current);
+    }
+
+    setQrisCountdown(getRemainingSeconds(expiresAt));
+
+    countdownRef.current = setInterval(() => {
+      const remaining = getRemainingSeconds(expiresAt);
+      setQrisCountdown(remaining);
+      if (remaining <= 0 && countdownRef.current) {
+        clearInterval(countdownRef.current);
+        countdownRef.current = null;
+      }
+    }, 1000);
+  }
+
+  async function handleGenerateQris() {
+    if (!campaign || !turnstileToken) {
+      setPageError(!turnstileToken ? 'Mohon selesaikan verifikasi keamanan.' : 'Campaign tidak ditemukan.');
+      return;
+    }
+
+    const values = getValues();
+
+    if (!values.name || values.name.trim().length < 2) {
+      setPageError('Nama minimal 2 karakter.');
+      return;
+    }
+    if (!values.email || !values.email.includes('@')) {
+      setPageError('Email tidak valid.');
+      return;
+    }
+    if (!values.whatsapp || values.whatsapp.trim().length < 10) {
+      setPageError('Nomor WhatsApp tidak valid.');
+      return;
+    }
+    if (!values.amount || values.amount < 10000) {
+      setPageError('Minimal donasi Rp 10.000.');
+      return;
+    }
+
+    setQrisLoading(true);
+    setPageError(null);
+    resetQrisState();
+
+    try {
+      const payload = {
+        turnstile_token: turnstileToken,
+        campaign_id: campaign.id,
+        amount: values.amount,
+        donor_name: values.name.trim(),
+        donor_email: values.email.trim(),
+        donor_phone: values.whatsapp.trim(),
+        message: values.message?.trim() || '',
+        is_anonymous: values.isAnonymous,
+      };
+
+      const { data, error } = await supabase.functions.invoke<QrisDynamicData>('generate-qris-dynamic', {
+        body: payload,
+      });
+
+      if (error) {
+        logError('Donate.generateQris', error, { campaignId: campaign.id });
+        setPageError(await getEdgeFunctionErrorMessage(error, 'Gagal membuat kode QRIS.'));
+        setQrisLoading(false);
+        return;
+      }
+
+      if (!data?.qris_string) {
+        setPageError('Gagal membuat kode QRIS. Silakan coba lagi.');
+        setQrisLoading(false);
+        return;
+      }
+
+      setQrisData(data);
+      const dataUrl = await generateQrisDataUrl(data.qris_string);
+      setQrisImageUrl(dataUrl);
+      startCountdown(data.expires_at);
+
+      // Auto scroll ke atas agar QR Code langsung terlihat
+      requestAnimationFrame(() => {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      });
+    } catch (err) {
+      logError('Donate.generateQris.catch', err);
+      setPageError(err instanceof Error ? err.message : 'Gagal membuat kode QRIS.');
+    } finally {
+      setQrisLoading(false);
+    }
+  }
 
   const handleProofChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0] ?? null;
@@ -295,6 +404,11 @@ export default function Donate() {
       return;
     }
 
+    if (isQrisDynamic) {
+      await handleGenerateQris();
+      return;
+    }
+
     setIsSubmitting(true);
     setPageError(null);
 
@@ -310,7 +424,7 @@ export default function Donate() {
       return;
     }
 
-    const processedProof = await compressPaymentProof(paymentProof);
+    const processedProof = await compressImage(paymentProof, { maxSizeBytes: 300 * 1024 });
     const payload = {
       turnstile_token: turnstileToken,
       campaign_id: campaign.id,
@@ -350,6 +464,66 @@ export default function Donate() {
     });
   };
 
+  const handleQrisProofChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] ?? null;
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      setPageError('Bukti pembayaran harus berupa gambar.');
+      event.target.value = '';
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      setPageError('Ukuran gambar maksimal 10MB.');
+      event.target.value = '';
+      return;
+    }
+
+    setQrisProof(file);
+    setPageError(null);
+  };
+
+  async function handleQrisPaid() {
+    if (!qrisData) return;
+
+    setQrisSubmitting(true);
+    setPageError(null);
+
+    try {
+      // Jika ada bukti, kompresi secara senyap lalu upload ke Supabase Storage
+      if (qrisProof) {
+        const processedProof = await compressImage(qrisProof, { maxSizeBytes: 300 * 1024 });
+        const proofPath = `qris/${qrisData.donation_id}/${processedProof.name}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('donation-proofs')
+          .upload(proofPath, processedProof, { upsert: true });
+
+        if (!uploadError) {
+          // Update record donasi dengan path bukti pembayaran
+          await supabase
+            .from('donations')
+            .update({ payment_proof_path: proofPath })
+            .eq('id', qrisData.donation_id);
+        }
+      }
+    } catch (err) {
+      logError('Donate.handleQrisPaid.uploadProof', err);
+      // Lanjutkan ke halaman sukses meskipun upload gagal
+    }
+
+    setQrisSubmitting(false);
+    navigate('/payment/success', {
+      state: {
+        amount: selectedAmount,
+        paymentMethod: 'QRIS',
+        transactionId: qrisData.donation_id,
+        finalAmount: qrisData.final_amount,
+      },
+    });
+  }
+
   if (loadingCampaign || loadingPaymentSettings) {
     return <DonateSkeleton />;
   }
@@ -360,6 +534,166 @@ export default function Donate() {
         <div className="mx-auto max-w-3xl rounded-[2rem] border border-gray-200 bg-white px-6 py-16 text-center shadow-sm">
           <h1 className="text-2xl font-bold text-gray-900">Campaign tidak ditemukan</h1>
           <p className="mt-3 text-sm text-gray-500">{pageError ?? 'Campaign yang Anda cari belum tersedia.'}</p>
+        </div>
+      </div>
+    );
+  }
+
+  // --- Tampilan Kode QRIS Setelah Diklik ---
+  if (qrisData && qrisImageUrl) {
+    const isExpired = qrisCountdown <= 0;
+
+    return (
+      <div className="min-h-screen bg-gray-50 pb-40 md:pb-24">
+        <div className="border-b border-gray-100 bg-white pt-24 pb-8 sm:pt-32 sm:pb-10">
+          <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
+            <button
+              onClick={() => resetQrisState()}
+              className="mb-6 flex items-center text-sm font-bold text-gray-500 transition-colors hover:text-emerald-600"
+            >
+              <ArrowLeft size={18} className="mr-2" />
+              Kembali ke Form
+            </button>
+            <div className="flex items-start space-x-4 sm:items-center">
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-emerald-100 sm:h-16 sm:w-16">
+                <QrCode className="h-8 w-8 text-emerald-600" />
+              </div>
+              <div className="min-w-0">
+                <h1 className="text-2xl font-black text-gray-900 sm:text-[2rem]">Scan Kode QRIS</h1>
+                <p className="mt-1 text-sm font-medium text-gray-500">{campaign.title}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="mx-auto mt-6 max-w-3xl px-4 sm:mt-10 sm:px-6 lg:px-8 space-y-6">
+          {pageError ? (
+            <div className="rounded-[1.5rem] border border-gray-200 bg-white px-5 py-4 text-sm text-red-600 shadow-sm">
+              {pageError}
+            </div>
+          ) : null}
+
+          <div className="rounded-[1.5rem] border border-gray-100 bg-white p-5 shadow-lg shadow-emerald-100/30 sm:rounded-[2rem] sm:p-8">
+            <div className="flex flex-col items-center">
+              <div className={cn(
+                'relative mx-auto overflow-hidden rounded-2xl border-2 bg-white p-3 shadow-sm transition-opacity',
+                isExpired ? 'border-gray-200 opacity-40' : 'border-emerald-100',
+              )}>
+                <img
+                  src={qrisImageUrl}
+                  alt="Kode QRIS Donasi"
+                  className="w-64 h-64 sm:w-72 sm:h-72"
+                />
+                {isExpired ? (
+                  <div className="absolute inset-0 flex items-center justify-center bg-white/80">
+                    <p className="text-sm font-bold text-red-600">Kode Kadaluwarsa</p>
+                  </div>
+                ) : null}
+              </div>
+
+              <div className={cn(
+                'mt-4 flex items-center gap-2 rounded-full px-4 py-2 text-sm font-bold',
+                isExpired
+                  ? 'bg-red-50 text-red-600'
+                  : qrisCountdown < 300
+                    ? 'bg-amber-50 text-amber-700'
+                    : 'bg-emerald-50 text-emerald-700',
+              )}>
+                <Clock size={16} />
+                {isExpired
+                  ? 'Kode QRIS sudah kadaluwarsa'
+                  : `Masa berlaku: ${formatCountdown(qrisCountdown)}`}
+              </div>
+            </div>
+
+            <div className="mt-6 rounded-2xl border border-emerald-100 bg-emerald-50/70 p-5">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-bold text-gray-900">Total Pembayaran</span>
+                <span className="text-xl font-black text-emerald-700">{formatCurrency(qrisData.final_amount)}</span>
+              </div>
+            </div>
+
+            {/* Tombol Unduh QR Code */}
+            <div className="mt-4 flex justify-center">
+              <button
+                type="button"
+                onClick={() => downloadQrisImage(qrisImageUrl)}
+                disabled={isExpired}
+                className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-bold text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-40"
+              >
+                <Download size={16} />
+                Simpan Gambar QR
+              </button>
+            </div>
+
+            <div className="mt-4 rounded-2xl border border-gray-100 bg-gray-50 px-4 py-4 text-sm text-gray-600">
+              Buka aplikasi e-wallet (DANA, GoPay, OVO, ShopeePay) atau mobile banking Anda, pilih <strong>Scan QRIS</strong>, dan arahkan ke kode di atas.
+            </div>
+
+            {/* Upload Bukti Donasi */}
+            {!isExpired ? (
+              <div className="mt-4 space-y-3">
+                {qrisProof ? (
+                  <div className="flex items-center gap-3 rounded-2xl border border-emerald-100 bg-emerald-50 p-4">
+                    <ImageIcon size={18} className="shrink-0 text-emerald-600" />
+                    <span className="min-w-0 flex-1 truncate text-sm font-bold text-emerald-800">{qrisProof.name}</span>
+                    <button
+                      type="button"
+                      onClick={() => setQrisProof(null)}
+                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-emerald-700 hover:bg-emerald-100"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                ) : (
+                  <label className="flex cursor-pointer items-center gap-3 rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50 p-4 transition-colors hover:border-emerald-300 hover:bg-emerald-50">
+                    <Upload size={18} className="text-gray-400" />
+                    <span className="text-sm font-bold text-gray-600">Unggah screenshot bukti pembayaran</span>
+                    <input type="file" accept="image/*" className="hidden" onChange={handleQrisProofChange} />
+                  </label>
+                )}
+              </div>
+            ) : null}
+
+            <div className="mt-6 space-y-3">
+              {isExpired ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    resetQrisState();
+                    void handleGenerateQris();
+                  }}
+                  className="flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-5 py-4 text-sm font-bold text-white transition-colors hover:bg-emerald-700"
+                >
+                  <RefreshCw size={18} />
+                  Muat Ulang Kode QRIS
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  disabled={qrisSubmitting}
+                  onClick={() => void handleQrisPaid()}
+                  className="flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-5 py-4 text-sm font-bold text-white transition-colors hover:bg-emerald-700 shadow-lg shadow-emerald-200 disabled:opacity-60"
+                >
+                  {qrisSubmitting ? (
+                    <>
+                      <Loader2 size={18} className="animate-spin" />
+                      Memproses...
+                    </>
+                  ) : (
+                    'Saya Sudah Membayar'
+                  )}
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => resetQrisState()}
+                className="w-full rounded-2xl border border-gray-200 bg-white px-5 py-3 text-sm font-bold text-gray-600 transition-colors hover:bg-gray-50"
+              >
+                Kembali
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -527,6 +861,7 @@ export default function Donate() {
                         onClick={() => {
                           setValue('paymentMethod', method.id, { shouldDirty: true, shouldValidate: true });
                           setPaymentProof(null);
+                          resetQrisState();
                         }}
                         className={cn(
                           'w-full rounded-2xl border-2 p-4 text-left transition-all sm:p-5',
@@ -555,7 +890,9 @@ export default function Donate() {
                                 {method.name}
                               </span>
                               <span className="mt-1 block text-xs font-medium leading-relaxed text-gray-400">
-                                {method.description}
+                                {method.id === 'qris'
+                                  ? 'Bayar melalui aplikasi e-wallet (DANA, GoPay, OVO, ShopeePay) atau mobile banking.'
+                                  : method.description}
                               </span>
                             </div>
                           </div>
@@ -570,9 +907,10 @@ export default function Donate() {
                   })}
                 </div>
 
-                {selectedPayment === 'qris' && paymentSettings.qris_image_url ? (
+                {/* QRIS Statis gambar — hanya untuk legacy jika raw string belum dikonfigurasi */}
+                {selectedPayment === 'qris' && !hasQrisRawString && paymentSettings.qris_image_url ? (
                   <div className="rounded-2xl border border-emerald-100 bg-emerald-50/70 p-5">
-                    <p className="mb-4 text-xs font-bold uppercase tracking-wider text-emerald-700">Scan QRIS</p>
+                    <p className="mb-4 text-xs font-bold uppercase tracking-wider text-emerald-700">Scan Kode QRIS</p>
                     <a href={paymentSettings.qris_image_url} target="_blank" rel="noopener noreferrer" className="mx-auto block max-w-xs overflow-hidden rounded-2xl border border-emerald-100 bg-white p-3 shadow-sm">
                       <img src={paymentSettings.qris_image_url} alt="QRIS Donasi Sekolah Tanah Air" className="w-full rounded-xl" />
                     </a>
@@ -592,7 +930,8 @@ export default function Donate() {
                   </div>
                 ) : null}
 
-                {selectedManualMethod ? (
+                {/* Upload bukti — hanya jika BUKAN QRIS dinamis */}
+                {selectedManualMethod && !isQrisDynamic ? (
                   <div className="space-y-3">
                     <div className="rounded-2xl border border-gray-100 bg-gray-50 px-4 py-4 text-sm text-gray-600">
                       {paymentSettings.manual_instructions}
@@ -648,10 +987,15 @@ export default function Donate() {
           <button
             form={formId}
             type="submit"
-            disabled={isSubmitting || manualPaymentUnavailable}
-            className="inline-flex min-h-12 min-w-[160px] items-center justify-center rounded-2xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+            disabled={isSubmitting || qrisLoading || manualPaymentUnavailable}
+            className="inline-flex min-h-12 min-w-[160px] items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {isSubmitting ? 'Saving...' : manualPaymentUnavailable ? 'Belum Tersedia' : `Donasi ${formatCurrency(selectedAmount || 0)}`}
+            {isSubmitting || qrisLoading ? (
+              <>
+                <Loader2 size={18} className="animate-spin" />
+                Memproses...
+              </>
+            ) : manualPaymentUnavailable ? 'Belum Tersedia' : `Donasi ${formatCurrency(selectedAmount || 0)}`}
           </button>
         </div>
       </div>
