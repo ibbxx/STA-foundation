@@ -433,10 +433,24 @@ export default function AdminEduxplore() {
         datePart,
       ].filter(Boolean);
 
+      const filterSummaryParts = [
+        selectedProgramType !== 'all' ? `Program: ${selectedProgramType}` : null,
+        selectedType !== 'all' ? `Tipe: ${selectedType}` : null,
+        selectedStatus !== 'all' ? `Status: ${STATUS_EXPORT_LABELS[selectedStatus]}` : null,
+        searchQuery.trim() ? `Pencarian: "${searchQuery.trim()}"` : null,
+      ].filter(Boolean);
+
+      const filterInfoStr = filterSummaryParts.length > 0 ? filterSummaryParts.join(' | ') : 'Semua Pendaftar Relawan';
+
       await downloadXlsx(
         `${filenameParts.join('-')}.xlsx`,
         'Pendaftar Volunteer',
         exportData,
+        {
+          title: 'DATA PENDAFTAR RELAWAN - SEKOLAH TANAH AIR',
+          subtitle: 'Sekolah Tanah Air - Portal Administrator Eduxplore',
+          filterInfo: filterInfoStr,
+        },
       );
     } catch (err) {
       logError('AdminEduxplore.exportExcel', err);

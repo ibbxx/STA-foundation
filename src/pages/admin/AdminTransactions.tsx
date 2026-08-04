@@ -1,9 +1,9 @@
-import { AlertCircle, CheckCircle, Clock, Download, Eye, Plus, QrCode, RefreshCw, Save, Search, Settings, Trash2, Upload, XCircle } from 'lucide-react';
+import { AlertCircle, CheckCircle, Clock, Eye, FileSpreadsheet, Loader2, Plus, QrCode, RefreshCw, Save, Search, Settings, Trash2, Upload, XCircle } from 'lucide-react';
 import { validateQrisRawString } from '../../lib/qris';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import AdminModal from '../../components/admin/AdminModal';
 import { useConfirmDialog } from '../../components/admin/ConfirmDialog';
-import { downloadCsv } from '../../lib/admin-export';
+import { downloadXlsx } from '../../lib/admin-export';
 import { formatAdminDate } from '../../lib/admin-helpers';
 import { deleteDonation, fetchSiteContentRows, fetchTransactionRows, updateDonationStatus, upsertSiteContent } from '../../lib/admin-repository';
 import {
@@ -29,6 +29,7 @@ export default function AdminTransactions() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | DonationRow['payment_status']>('all');
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [selectedTransaction, setSelectedTransaction] = useState<TransactionView | null>(null);
@@ -92,21 +93,53 @@ export default function AdminTransactions() {
 
   const summary = useMemo(() => buildTransactionSummary(transactions), [transactions]);
 
-  function exportTransactions() {
-    if (filteredTransactions.length === 0) return;
+  async function exportTransactions() {
+    if (filteredTransactions.length === 0 || exporting) return;
 
-    downloadCsv('sta-transactions.csv', filteredTransactions.map((transaction) => ({
-      id: transaction.id,
-      campaign_title: transaction.campaign_title,
-      donor_name: transaction.is_anonymous ? 'Anonim' : (transaction.donor_name ?? ''),
-      donor_email: transaction.is_anonymous ? '' : (transaction.donor_email ?? ''),
-      amount: transaction.amount,
-      payment_status: transaction.payment_status,
-      payment_method: transaction.payment_method ?? '',
-      payment_proof_path: transaction.payment_proof_path ?? '',
-      message: transaction.message ?? '',
-      created_at: transaction.created_at,
-    })));
+    setExporting(true);
+    try {
+      const exportRows = filteredTransactions.map((transaction) => ({
+        id: transaction.id,
+        campaign_title: transaction.campaign_title,
+        donor_name: transaction.is_anonymous ? 'Anonim' : (transaction.donor_name ?? '-'),
+        donor_email: transaction.is_anonymous ? '-' : (transaction.donor_email ?? '-'),
+        amount: transaction.amount,
+        payment_status: transaction.payment_status.toUpperCase(),
+        payment_method: transaction.payment_method ?? '-',
+        payment_proof_path: transaction.payment_proof_path ?? '-',
+        message: transaction.message ?? '-',
+        created_at: formatAdminDate(transaction.created_at, true),
+      }));
+
+      const filterInfoStr = statusFilter !== 'all' ? `Status: ${statusFilter.toUpperCase()}` : 'Semua Status';
+
+      await downloadXlsx(
+        `sta-transactions-${new Date().toISOString().slice(0, 10)}.xlsx`,
+        'Riwayat Transaksi',
+        exportRows,
+        {
+          title: 'LAPORAN RIWAYAT TRANSAKSI DONASI',
+          subtitle: 'Sekolah Tanah Air - Portal Administrator',
+          filterInfo: filterInfoStr,
+          columnLabels: {
+            id: 'ID Transaksi',
+            campaign_title: 'Judul Campaign',
+            donor_name: 'Nama Donatur',
+            donor_email: 'Email Donatur',
+            amount: 'Nominal Donasi (Rp)',
+            payment_status: 'Status Pembayaran',
+            payment_method: 'Metode Pembayaran',
+            payment_proof_path: 'Path Bukti Transfer',
+            message: 'Pesan Donatur',
+            created_at: 'Waktu Transaksi',
+          },
+        },
+      );
+    } catch (err) {
+      logError('AdminTransactions.exportTransactions', err);
+    } finally {
+      setExporting(false);
+    }
   }
 
   async function handleStatusUpdate(paymentStatus: DonationRow['payment_status']) {
@@ -302,12 +335,12 @@ export default function AdminTransactions() {
             Refresh
           </button>
           <button
-            onClick={exportTransactions}
-            disabled={filteredTransactions.length === 0}
-            className="flex items-center gap-2 px-4 py-2 bg-zinc-900 text-white rounded-xl text-sm font-medium shadow-sm hover:bg-zinc-950 transition-colors disabled:opacity-50"
+            onClick={() => void exportTransactions()}
+            disabled={filteredTransactions.length === 0 || exporting}
+            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-xl text-sm font-semibold shadow-sm hover:bg-emerald-500 transition-colors disabled:opacity-40"
           >
-            <Download size={16} />
-            Ekspor CSV
+            {exporting ? <Loader2 size={16} className="animate-spin" /> : <FileSpreadsheet size={16} />}
+            {exporting ? 'Mengekspor...' : 'Export Excel'}
           </button>
         </div>
       </div>

@@ -681,7 +681,7 @@ export default function Donate() {
                       Memproses...
                     </>
                   ) : (
-                    'Saya Sudah Membayar'
+                    'Konfirmasi Pembayaran'
                   )}
                 </button>
               )}

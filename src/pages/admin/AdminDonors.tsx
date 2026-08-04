@@ -1,8 +1,8 @@
-import { AlertCircle, Download, ExternalLink, Eye, Mail, MessageCircle, RefreshCw, Search, Trash2 } from 'lucide-react';
+import { AlertCircle, ExternalLink, Eye, FileSpreadsheet, Loader2, Mail, MessageCircle, RefreshCw, Search, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import AdminModal from '../../components/admin/AdminModal';
 import { useConfirmDialog } from '../../components/admin/ConfirmDialog';
-import { downloadCsv } from '../../lib/admin-export';
+import { downloadXlsx } from '../../lib/admin-export';
 import { formatAdminDate, getInitials } from '../../lib/admin-helpers';
 import { deleteDonation, fetchTransactionRows, updateDonationStatus } from '../../lib/admin-repository';
 import { buildCampaignTitleMap, deriveDonors, filterDonors, type DonorSummary } from '../../lib/admin-view-models';
@@ -17,6 +17,7 @@ export default function AdminDonors() {
   const [searchQuery, setSearchQuery] = useState('');
   const [donors, setDonors] = useState<DonorSummary[]>([]);
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [selectedDonor, setSelectedDonor] = useState<DonorSummary | null>(null);
@@ -55,20 +56,51 @@ export default function AdminDonors() {
 
   const filteredDonors = useMemo(() => filterDonors(donors, searchQuery), [donors, searchQuery]);
 
-  function exportDonors() {
-    if (filteredDonors.length === 0) return;
+  async function exportDonors() {
+    if (filteredDonors.length === 0 || exporting) return;
 
-    downloadCsv('sta-donors.csv', filteredDonors.map((donor) => ({
-      donor_id: donor.id,
-      name: donor.name,
-      email: donor.email ?? '',
-      phone: donor.phone ?? '',
-      total_donated: donor.total_donated,
-      transaction_count: donor.transaction_count,
-      first_donation_at: donor.first_donation_at,
-      last_donation_at: donor.last_donation_at,
-      status: donor.status,
-    })));
+    setExporting(true);
+    try {
+      const exportRows = filteredDonors.map((donor) => ({
+        donor_id: donor.id,
+        name: donor.name,
+        email: donor.email ?? '-',
+        phone: donor.phone ?? '-',
+        total_donated: donor.total_donated,
+        transaction_count: donor.transaction_count,
+        first_donation_at: formatAdminDate(donor.first_donation_at, true),
+        last_donation_at: formatAdminDate(donor.last_donation_at, true),
+        status: donor.status.toUpperCase(),
+      }));
+
+      const filterInfoStr = searchQuery.trim() ? `Pencarian: "${searchQuery.trim()}"` : 'Semua Donatur';
+
+      await downloadXlsx(
+        `sta-donors-${new Date().toISOString().slice(0, 10)}.xlsx`,
+        'Database Donatur',
+        exportRows,
+        {
+          title: 'DATABASE DONATUR - SEKOLAH TANAH AIR',
+          subtitle: 'Sekolah Tanah Air - Portal Administrator',
+          filterInfo: filterInfoStr,
+          columnLabels: {
+            donor_id: 'ID Donatur',
+            name: 'Nama Donatur',
+            email: 'Email',
+            phone: 'No. WhatsApp / HP',
+            total_donated: 'Total Donasi (Rp)',
+            transaction_count: 'Jumlah Transaksi',
+            first_donation_at: 'Donasi Pertama',
+            last_donation_at: 'Donasi Terakhir',
+            status: 'Status Profile',
+          },
+        },
+      );
+    } catch (err) {
+      logError('AdminDonors.exportDonors', err);
+    } finally {
+      setExporting(false);
+    }
   }
 
   async function openPaymentProof(transactionId: string, proofPath: string | null) {
@@ -214,12 +246,12 @@ export default function AdminDonors() {
             Refresh
           </button>
           <button
-            onClick={exportDonors}
-            disabled={filteredDonors.length === 0}
-            className="flex items-center gap-2 px-4 py-2 bg-zinc-900 text-white rounded-xl text-sm font-medium shadow-sm hover:bg-zinc-950 transition-colors disabled:opacity-50"
+            onClick={() => void exportDonors()}
+            disabled={filteredDonors.length === 0 || exporting}
+            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-xl text-sm font-semibold shadow-sm hover:bg-emerald-500 transition-colors disabled:opacity-40"
           >
-            <Download size={16} />
-            Ekspor CSV
+            {exporting ? <Loader2 size={16} className="animate-spin" /> : <FileSpreadsheet size={16} />}
+            {exporting ? 'Mengekspor...' : 'Export Excel'}
           </button>
         </div>
       </div>
