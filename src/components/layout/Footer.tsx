@@ -36,6 +36,7 @@ export default function Footer() {
             <ul className="space-y-3 text-[13px]">
               <li><Link to="/tentang-kami" className="hover:text-emerald-400 transition-colors">Tentang Kami</Link></li>
               <li><Link to="/events" className="hover:text-emerald-400 transition-colors">Event & Aksi</Link></li>
+              <li><Link to="/leaderboard" className="hover:text-emerald-400 transition-colors">Leaderboard Donatur</Link></li>
               <li><Link to="/kontak" className="hover:text-emerald-400 transition-colors">Kontak</Link></li>
               <li><Link to="/faq" className="hover:text-emerald-400 transition-colors">FAQ</Link></li>
             </ul>

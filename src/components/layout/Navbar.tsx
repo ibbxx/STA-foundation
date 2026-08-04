@@ -107,19 +107,19 @@ export default function Navbar() {
 
           {/* Core CTA */}
           <div className="hidden md:flex items-center gap-6">
-            {/* HIDDEN FOR PRESENTATION MODE */}
             <Link
               to="/leaderboard"
-              aria-label="Leaderboard"
-              title="Leaderboard"
+              aria-label="Leaderboard Donatur"
+              title="Leaderboard Donatur"
               className={cn(
-                "flex items-center justify-center text-sm font-medium transition-all duration-300 py-1 border-b border-transparent",
+                "flex items-center gap-1.5 text-sm font-medium transition-all duration-300 py-1 border-b border-transparent",
                 location.pathname === "/leaderboard"
                   ? "text-yellow-500 border-yellow-500"
                   : cn(textColorMenu, hoverColorMenu)
               )}
             >
-              <Trophy size={16} />
+              <Trophy size={16} className="text-yellow-500 shrink-0" />
+              <span>Leaderboard</span>
             </Link>
             <Link
               to="/campaigns"
@@ -167,8 +167,15 @@ export default function Navbar() {
                   {item.label}
                 </Link>
               ))}
+              <Link
+                to="/leaderboard"
+                className="flex items-center gap-2 rounded-2xl px-4 py-3 text-base font-medium text-gray-900/90 transition-colors hover:bg-yellow-50 hover:text-yellow-600"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                <Trophy size={18} className="text-yellow-500 shrink-0" />
+                <span>Leaderboard Donatur</span>
+              </Link>
             </div>
-            {/* HIDDEN FOR PRESENTATION MODE */}
             <Link
               to="/campaigns"
               onClick={() => setMobileMenuOpen(false)}
