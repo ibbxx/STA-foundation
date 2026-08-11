@@ -43,7 +43,7 @@ export default function AdminLogin() {
 
       // Tampilkan pesan ramah dalam Bahasa Indonesia
       const friendlyMessages: Record<string, string> = {
-        'User is banned': 'Akses akun Anda sedang dinonaktifkan. Silakan hubungi administrator untuk informasi lebih lanjut.',
+        'User is banned': 'Email atau password salah. Silakan coba lagi.',
         'Invalid login credentials': 'Email atau password salah. Silakan coba lagi.',
         'Email not confirmed': 'Email belum diverifikasi. Silakan cek kotak masuk Anda.',
         'Too many requests': 'Terlalu banyak percobaan login. Silakan tunggu beberapa saat.',
