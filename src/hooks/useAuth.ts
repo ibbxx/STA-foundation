@@ -109,19 +109,6 @@ export function useAuthProvider(): AuthContextValue {
   const checkAdmin = useCallback(async (userId: string, signal: { ignore: boolean }) => {
     setAdminLoading(true);
 
-    // 1. Verifikasi status user langsung ke server Supabase Auth (Cek status BAN real-time)
-    const { data: userData, error: userError } = await supabase.auth.getUser();
-
-    if (userError || !userData?.user) {
-      logError('useAuth.sessionExpiredOrUnauthorized', userError);
-      await supabase.auth.signOut().catch((e) => logError('useAuth.signOutError', e));
-      if (!signal.ignore) {
-        setIsAdmin(false);
-        setAdminLoading(false);
-      }
-      return;
-    }
-
     // Retry sederhana: coba 2x jika gagal
     for (let attempt = 0; attempt < 2; attempt++) {
       if (signal.ignore) return;
