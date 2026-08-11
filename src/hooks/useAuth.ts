@@ -165,6 +165,39 @@ export function useAuthProvider(): AuthContextValue {
       signal.ignore = true;
     };
   }, [session, verifiedUserId, checkAdmin]);
+  // ── Validasi sesi saat admin kembali ke tab (kick banned admin) ──
+  // Tidak menggunakan polling berkala agar tidak membebani database.
+  // Hanya cek ke server saat tab browser kembali aktif (visibilitychange).
+  useEffect(() => {
+    if (!session) return;
+
+    let lastCheck = 0;
+    const COOLDOWN_MS = 10_000; // Minimal jeda 10 detik antar pengecekan
+
+    const validateOnFocus = async () => {
+      if (document.visibilityState !== 'visible') return;
+
+      const now = Date.now();
+      if (now - lastCheck < COOLDOWN_MS) return;
+      lastCheck = now;
+
+      const { error } = await supabase.auth.getUser();
+      if (error) {
+        // Sesi tidak valid (di-ban/dihapus) → paksa logout
+        await supabase.auth.signOut().catch((e) =>
+          logError('useAuth.kickBannedAdmin', e),
+        );
+      }
+    };
+
+    document.addEventListener('visibilitychange', validateOnFocus);
+    window.addEventListener('focus', validateOnFocus);
+
+    return () => {
+      document.removeEventListener('visibilitychange', validateOnFocus);
+      window.removeEventListener('focus', validateOnFocus);
+    };
+  }, [session]);
 
   // ── Return memoized value ───────────────────────────────────────
   return useMemo(() => ({
