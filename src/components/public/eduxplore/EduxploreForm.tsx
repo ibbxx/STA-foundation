@@ -23,6 +23,12 @@ import {
 import { compressImage } from '../../../lib/image-compression';
 import { logError } from '../../../lib/error-logger';
 import { safeNormalizeGuidebookUrl } from '../../../lib/sanitize';
+import { parseSiteContentValue, supabase } from '../../../lib/supabase';
+import {
+  PAYMENT_SETTINGS_KEY,
+  normalizePaymentSettings,
+  type PaymentSettings,
+} from '../../../lib/payment-settings';
 
 interface Props {
   programId: string;
@@ -147,6 +153,35 @@ function VolunteerFormInner({ registrationType, programId, programTitle, activeF
   const [isSuccess, setIsSuccess] = useState(false);
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [qrisImageUrl, setQrisImageUrl] = useState<string>('/images/qris-payment.jpeg');
+
+  useEffect(() => {
+    let ignore = false;
+    async function loadQrisImage() {
+      try {
+        const { data, error } = await supabase
+          .from('site_content')
+          .select('value')
+          .eq('key', PAYMENT_SETTINGS_KEY)
+          .maybeSingle();
+
+        if (error) throw error;
+        if (ignore) return;
+
+        const parsed = parseSiteContentValue<PaymentSettings>(data?.value);
+        const normalized = normalizePaymentSettings(parsed);
+        if (normalized.qris_image_url) {
+          setQrisImageUrl(normalized.qris_image_url);
+        }
+      } catch (err) {
+        logError('EduxploreForm.loadQrisImage', err);
+      }
+    }
+    loadQrisImage();
+    return () => {
+      ignore = true;
+    };
+  }, []);
 
   const {
     register,
@@ -367,14 +402,14 @@ function VolunteerFormInner({ registrationType, programId, programTitle, activeF
                       </div>
                       <div className="flex justify-center">
                         <a
-                          href="/images/qris-payment.jpeg"
+                          href={qrisImageUrl}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="bg-white p-3 rounded-2xl shadow-sm border border-emerald-100 hover:shadow-md hover:border-emerald-300 transition-all group block cursor-pointer"
                         >
                           <div className="relative overflow-hidden rounded-xl">
                             <img
-                              src="/images/qris-payment.jpeg"
+                              src={qrisImageUrl}
                               alt="QRIS Pembayaran Eduxplore"
                               className="max-w-[200px] sm:max-w-[240px] w-full rounded-xl group-hover:scale-105 transition-transform duration-300"
                             />
