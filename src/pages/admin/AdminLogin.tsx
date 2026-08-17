@@ -33,13 +33,15 @@ export default function AdminLogin() {
   async function onSubmit(values: AdminLoginValues) {
     setAuthError(null);
 
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data: authData, error } = await supabase.auth.signInWithPassword({
       email: values.email,
       password: values.password,
     });
 
-    if (error) {
-      logError('AdminLogin.signInWithPassword', error, { email: values.email });
+    if (error || !authData.user) {
+      if (error) {
+        logError('AdminLogin.signInWithPassword', error, { email: values.email });
+      }
 
       // Tampilkan pesan ramah dalam Bahasa Indonesia
       const friendlyMessages: Record<string, string> = {
@@ -49,13 +51,14 @@ export default function AdminLogin() {
         'Too many requests': 'Terlalu banyak percobaan login. Silakan tunggu beberapa saat.',
       };
 
-      setAuthError(friendlyMessages[error.message] || 'Terjadi kesalahan saat login. Silakan coba lagi nanti.');
+      setAuthError(friendlyMessages[error?.message || ''] || 'Terjadi kesalahan saat login. Silakan coba lagi nanti.');
       return;
     }
 
     const { data: adminData, error: adminError } = await supabase
       .from('admin_users')
       .select('user_id')
+      .eq('user_id', authData.user.id)
       .maybeSingle();
     if (adminError || !adminData) {
       if (adminError) {
