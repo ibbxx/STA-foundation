@@ -190,13 +190,13 @@ export default function JourneyDetail() {
             className="lg:col-span-2 space-y-8"
           >
             <div className="prose prose-emerald max-w-none">
-              <p className="text-base sm:text-xl text-gray-700 leading-relaxed font-serif italic border-l-4 border-emerald-500 pl-4 sm:pl-6 py-2">
+              <p className="text-base sm:text-xl text-gray-700 leading-relaxed font-serif italic border-l-4 border-emerald-500 pl-4 sm:pl-6 py-2 text-justify">
                 "{journey.description}"
               </p>
               
-              <div className="mt-12 space-y-6 text-gray-600 leading-relaxed text-base sm:text-lg">
+              <div className="mt-12 space-y-6 text-gray-600 leading-relaxed text-base sm:text-lg text-justify">
                 {journey.fullContent && journey.fullContent.split('\n').filter(p => p.trim()).map((para, idx) => (
-                  <p key={idx}>{para}</p>
+                  <p key={idx} className="text-justify">{para}</p>
                 ))}
               </div>
             </div>
