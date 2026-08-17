@@ -267,7 +267,9 @@ export default function AdminTransactions() {
       }));
 
       if (autoDetectedRawString) {
-        setNotice('Gambar QRIS berhasil diunggah dan QRIS Raw String terdeteksi otomatis!');
+        setNotice('✓ Gambar QRIS berhasil diunggah dan QRIS Raw String terdeteksi otomatis!');
+      } else {
+        setNotice('Gambar QRIS berhasil diunggah. Jika QR code pada gambar tidak terdeteksi otomatis, Anda dapat mengisikan QRIS Raw String secara manual.');
       }
     } catch (uploadError) {
       logError('AdminTransactions.handleQrisUpload', uploadError);
