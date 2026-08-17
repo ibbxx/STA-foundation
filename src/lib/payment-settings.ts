@@ -27,7 +27,7 @@ export const DEFAULT_PAYMENT_SETTINGS: PaymentSettings = {
   gateway_enabled: false,
   active_gateway: null,
   qris_image_url: DEFAULT_QRIS_IMAGE_URL,
-  qris_raw_string: '',
+  qris_raw_string: '00020101021126610014COM.GO-JEK.WWW01189360091437086082890210G7086082890303UMI51440014ID.CO.QRIS.WWW0215ID10265694324160303UMI5204839853033605802ID5925Komunitas Tanah Air, C TI6007TANGSEL61051541262070703A016304C606',
   bank_accounts: [],
   manual_instructions: 'Unggah bukti pembayaran setelah transfer agar admin dapat memverifikasi donasi Anda.',
 };

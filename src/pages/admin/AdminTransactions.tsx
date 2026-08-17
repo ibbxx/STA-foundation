@@ -1,5 +1,6 @@
 import { AlertCircle, CheckCircle, Clock, Eye, FileSpreadsheet, Loader2, Plus, QrCode, RefreshCw, Save, Search, Settings, Trash2, Upload, XCircle } from 'lucide-react';
 import { validateQrisRawString } from '../../lib/qris';
+import { decodeQrisFromImageFile } from '../../lib/qris-decoder';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import AdminModal from '../../components/admin/AdminModal';
 import { useConfirmDialog } from '../../components/admin/ConfirmDialog';
@@ -256,7 +257,18 @@ export default function AdminTransactions() {
       setUploadingQris(true);
       const url = await uploadAdminImage(file, 'general');
       qrisSessionUploads.current.push(url);
-      setPaymentSettings((current) => ({ ...current, qris_image_url: url }));
+
+      const autoDetectedRawString = await decodeQrisFromImageFile(file);
+
+      setPaymentSettings((current) => ({
+        ...current,
+        qris_image_url: url,
+        ...(autoDetectedRawString ? { qris_raw_string: autoDetectedRawString } : {}),
+      }));
+
+      if (autoDetectedRawString) {
+        setNotice('Gambar QRIS berhasil diunggah dan QRIS Raw String terdeteksi otomatis!');
+      }
     } catch (uploadError) {
       logError('AdminTransactions.handleQrisUpload', uploadError);
       setError(uploadError instanceof Error ? uploadError.message : 'Gagal mengunggah QRIS.');
