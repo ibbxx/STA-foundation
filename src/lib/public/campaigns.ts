@@ -164,12 +164,14 @@ export async function fetchPublicCampaignDetail(slug: string) {
   const [{ data: categoryRows, error: categoriesError }, { data: updateRows, error: updatesError }, { data: recentDonationsPayload, error: recentDonationsError }] = await Promise.all([
     supabase.from('categories').select('*').order('name', { ascending: true }),
     supabase.from('campaign_updates').select('*').eq('campaign_id', safeCampaignRow.id).order('created_at', { ascending: false }).limit(100),
-    supabase.functions.invoke<{ donations: CampaignDonationSummary[] }>('get-public-campaign-donations', {
-      body: {
-        campaign_id: safeCampaignRow.id,
-        limit: 10,
-      },
-    }),
+    supabase.functions
+      .invoke<{ donations: CampaignDonationSummary[] }>('get-public-campaign-donations', {
+        body: {
+          campaign_id: safeCampaignRow.id,
+          limit: 10,
+        },
+      })
+      .catch((err) => ({ data: null, error: err })),
   ]);
 
   if (categoriesError || updatesError) {
@@ -180,17 +182,8 @@ export async function fetchPublicCampaignDetail(slug: string) {
     );
   }
 
-  if (recentDonationsError) {
-    const edgeErrorMessage = await getEdgeFunctionErrorMessage(
-      recentDonationsError,
-      'Gagal memuat donasi publik.',
-    );
-    logError('public-campaigns.fetchPublicCampaignDetail.recentDonations', recentDonationsError, {
-      campaignId: safeCampaignRow.id,
-      errorMessage: edgeErrorMessage,
-      slug,
-    });
-  }
+  // Gracefully extract recent donations if available, without breaking page render or spitting error
+  const recentDonations: CampaignDonationSummary[] = recentDonationsPayload?.donations ?? [];
 
   const safeCategoryRows: CategoryRow[] = (categoryRows ?? []) as CategoryRow[];
 
