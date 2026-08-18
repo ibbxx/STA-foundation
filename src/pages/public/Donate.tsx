@@ -28,6 +28,7 @@ import { fetchPublicCampaignForDonate } from '../../lib/public-campaigns';
 import { Campaign, parseSiteContentValue, supabase } from '../../lib/supabase';
 import { formatCurrency, cn } from '../../lib/utils';
 import { Skeleton } from '../../components/ui/skeleton';
+import VAlert7 from '../../components/ui/v-alert-7';
 import { stripHtmlToText, truncateText, useSeo } from '../../lib/seo';
 import { compressImage } from '../../lib/image-compression';
 import {
@@ -618,23 +619,13 @@ export default function Donate() {
               initial={{ opacity: 0, y: -30, scale: 0.95 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -20, scale: 0.95 }}
-              className="fixed top-6 inset-x-4 mx-auto max-w-lg z-[100] flex items-center gap-3.5 rounded-[1.5rem] border border-red-200 bg-white/95 p-4 shadow-2xl shadow-red-500/15 backdrop-blur-xl"
+              className="fixed top-6 inset-x-4 mx-auto max-w-lg z-[100]"
             >
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-red-100 text-red-600">
-                <AlertCircle size={20} />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-[11px] font-bold uppercase tracking-wider text-red-500">Perhatian</p>
-                <p className="text-sm font-bold text-gray-900 leading-snug">{pageError}</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setPageError(null)}
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
-                title="Tutup Pesan"
-              >
-                <X size={16} />
-              </button>
+              <VAlert7
+                title="Perhatian"
+                message={pageError}
+                onClose={() => setPageError(null)}
+              />
             </motion.div>
           )}
         </AnimatePresence>
@@ -828,23 +819,13 @@ export default function Donate() {
             initial={{ opacity: 0, y: -30, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -20, scale: 0.95 }}
-            className="fixed top-6 inset-x-4 mx-auto max-w-lg z-[100] flex items-center gap-3.5 rounded-[1.5rem] border border-red-200 bg-white/95 p-4 shadow-2xl shadow-red-500/15 backdrop-blur-xl"
+            className="fixed top-6 inset-x-4 mx-auto max-w-lg z-[100]"
           >
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-red-100 text-red-600">
-              <AlertCircle size={20} />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-[11px] font-bold uppercase tracking-wider text-red-500">Perhatian</p>
-              <p className="text-sm font-bold text-gray-900 leading-snug">{pageError}</p>
-            </div>
-            <button
-              type="button"
-              onClick={() => setPageError(null)}
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
-              title="Tutup Pesan"
-            >
-              <X size={16} />
-            </button>
+            <VAlert7
+              title="Perhatian"
+              message={pageError}
+              onClose={() => setPageError(null)}
+            />
           </motion.div>
         ) : null}
       </AnimatePresence>
