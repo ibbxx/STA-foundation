@@ -333,6 +333,38 @@ export default function AdminTransactions() {
     setOpeningProof(false);
   }
 
+  async function handleRemovePaymentProof() {
+    if (!selectedTransaction?.payment_proof_path) return;
+    const confirmed = await confirm({
+      title: 'Hapus Bukti Pembayaran',
+      message: 'Apakah Anda yakin ingin menghapus file bukti pembayaran dari transaksi ini di Supabase Storage? Tindakan ini tidak dapat dibatalkan.',
+      confirmText: 'Hapus Bukti',
+      variant: 'danger',
+    });
+    if (!confirmed) return;
+
+    setError(null);
+    setNotice(null);
+
+    const proofPath = selectedTransaction.payment_proof_path;
+    const cleanupResult = await deleteFilesFromStorage([proofPath], { bucket: 'donation-proofs' });
+
+    const { error: updateError } = await supabase
+      .from('donations')
+      .update({ payment_proof_path: null })
+      .eq('id', selectedTransaction.id);
+
+    if (updateError) {
+      logError('AdminTransactions.handleRemovePaymentProof', updateError);
+      setError(updateError.message);
+      return;
+    }
+
+    setNotice(storageCleanupNotice('Bukti pembayaran berhasil dihapus dari storage dan database.', cleanupResult));
+    setSelectedTransaction((prev) => (prev ? { ...prev, payment_proof_path: null } : null));
+    await loadTransactions();
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -761,15 +793,26 @@ export default function AdminTransactions() {
               </div>
             ))}
             {selectedTransaction.payment_proof_path ? (
-              <button
-                type="button"
-                onClick={() => void openPaymentProof()}
-                disabled={openingProof}
-                className="sm:col-span-2 inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700 hover:bg-emerald-100 disabled:opacity-50"
-              >
-                <Eye size={16} />
-                {openingProof ? 'Membuka...' : 'Lihat Bukti Pembayaran'}
-              </button>
+              <div className="sm:col-span-2 flex flex-col sm:flex-row gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => void openPaymentProof()}
+                  disabled={openingProof}
+                  className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700 hover:bg-emerald-100 disabled:opacity-50"
+                >
+                  <Eye size={16} />
+                  {openingProof ? 'Membuka...' : 'Lihat Bukti Pembayaran'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void handleRemovePaymentProof()}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-600 hover:bg-red-100"
+                  title="Hapus file bukti dari Supabase Storage"
+                >
+                  <Trash2 size={16} />
+                  Hapus Bukti
+                </button>
+              </div>
             ) : null}
           </div>
         )}

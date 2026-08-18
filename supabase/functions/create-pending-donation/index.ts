@@ -63,6 +63,10 @@ Deno.serve(async (request) => {
       payload = await request.json();
     }
 
+    if (!paymentProof) {
+      return jsonResponse({ error: 'Bukti pembayaran wajib diunggah.' }, 400, request);
+    }
+
     const remoteIp = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
     const token = String(payload.turnstile_token ?? '');
 

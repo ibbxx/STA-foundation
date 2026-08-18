@@ -140,6 +140,7 @@ export default function Donate() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const [paymentProof, setPaymentProof] = useState<File | null>(null);
+  const [paymentProofPreview, setPaymentProofPreview] = useState<string | null>(null);
 
   // --- QRIS Dynamic state ---
   const [qrisData, setQrisData] = useState<QrisDynamicData | null>(null);
@@ -147,6 +148,7 @@ export default function Donate() {
   const [qrisLoading, setQrisLoading] = useState(false);
   const [qrisCountdown, setQrisCountdown] = useState(0);
   const [qrisProof, setQrisProof] = useState<File | null>(null);
+  const [qrisProofPreview, setQrisProofPreview] = useState<string | null>(null);
   const [qrisSubmitting, setQrisSubmitting] = useState(false);
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -279,6 +281,11 @@ export default function Donate() {
     setQrisImageUrl('');
     setQrisLoading(false);
     setQrisCountdown(0);
+    setQrisProof(null);
+    setQrisProofPreview((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return null;
+    });
     if (countdownRef.current) {
       clearInterval(countdownRef.current);
       countdownRef.current = null;
@@ -394,6 +401,10 @@ export default function Donate() {
     }
 
     setPaymentProof(file);
+    setPaymentProofPreview((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return URL.createObjectURL(file);
+    });
     setPageError(null);
   };
 
@@ -424,7 +435,11 @@ export default function Donate() {
       return;
     }
 
-    const processedProof = await compressImage(paymentProof, { maxSizeBytes: 300 * 1024 });
+    const processedProof = await compressImage(paymentProof, {
+      maxWidth: 1200,
+      maxSizeBytes: 200 * 1024,
+      quality: 0.75,
+    });
     const payload = {
       turnstile_token: turnstileToken,
       campaign_id: campaign.id,
@@ -481,47 +496,69 @@ export default function Donate() {
     }
 
     setQrisProof(file);
+    setQrisProofPreview((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return URL.createObjectURL(file);
+    });
     setPageError(null);
   };
 
   async function handleQrisPaid() {
     if (!qrisData) return;
 
+    if (!qrisProof) {
+      setPageError('Mohon unggah screenshot bukti pembayaran terlebih dahulu sebelum konfirmasi.');
+      return;
+    }
+
     setQrisSubmitting(true);
     setPageError(null);
 
     try {
-      // Jika ada bukti, kompresi secara senyap lalu upload ke Supabase Storage
-      if (qrisProof) {
-        const processedProof = await compressImage(qrisProof, { maxSizeBytes: 300 * 1024 });
-        const proofPath = `qris/${qrisData.donation_id}/${processedProof.name}`;
+      const processedProof = await compressImage(qrisProof, {
+        maxWidth: 1200,
+        maxSizeBytes: 200 * 1024,
+        quality: 0.75,
+      });
+      const proofPath = `qris/${qrisData.donation_id}/${processedProof.name}`;
 
-        const { error: uploadError } = await supabase.storage
-          .from('donation-proofs')
-          .upload(proofPath, processedProof, { upsert: true });
+      const { error: uploadError } = await supabase.storage
+        .from('donation-proofs')
+        .upload(proofPath, processedProof, { upsert: true });
 
-        if (!uploadError) {
-          // Update record donasi dengan path bukti pembayaran
-          await supabase
-            .from('donations')
-            .update({ payment_proof_path: proofPath })
-            .eq('id', qrisData.donation_id);
-        }
+      if (uploadError) {
+        logError('Donate.handleQrisPaid.uploadProof', uploadError);
+        setPageError('Gagal mengunggah bukti pembayaran. Silakan coba lagi.');
+        setQrisSubmitting(false);
+        return;
       }
-    } catch (err) {
-      logError('Donate.handleQrisPaid.uploadProof', err);
-      // Lanjutkan ke halaman sukses meskipun upload gagal
-    }
 
-    setQrisSubmitting(false);
-    navigate('/payment/success', {
-      state: {
-        amount: selectedAmount,
-        paymentMethod: 'QRIS',
-        transactionId: qrisData.donation_id,
-        finalAmount: qrisData.final_amount,
-      },
-    });
+      const { error: updateError } = await supabase
+        .from('donations')
+        .update({ payment_proof_path: proofPath })
+        .eq('id', qrisData.donation_id);
+
+      if (updateError) {
+        logError('Donate.handleQrisPaid.updateDonation', updateError);
+        setPageError('Gagal menyelaraskan data bukti pembayaran. Silakan coba lagi.');
+        setQrisSubmitting(false);
+        return;
+      }
+
+      setQrisSubmitting(false);
+      navigate('/payment/success', {
+        state: {
+          amount: selectedAmount,
+          paymentMethod: 'QRIS',
+          transactionId: qrisData.donation_id,
+          finalAmount: qrisData.final_amount,
+        },
+      });
+    } catch (err) {
+      logError('Donate.handleQrisPaid.catch', err);
+      setPageError(err instanceof Error ? err.message : 'Gagal memproses konfirmasi pembayaran.');
+      setQrisSubmitting(false);
+    }
   }
 
   if (loadingCampaign || loadingPaymentSettings) {
@@ -632,23 +669,54 @@ export default function Donate() {
 
             {/* Upload Bukti Donasi */}
             {!isExpired ? (
-              <div className="mt-4 space-y-3">
-                {qrisProof ? (
-                  <div className="flex items-center gap-3 rounded-2xl border border-emerald-100 bg-emerald-50 p-4">
-                    <ImageIcon size={18} className="shrink-0 text-emerald-600" />
-                    <span className="min-w-0 flex-1 truncate text-sm font-bold text-emerald-800">{qrisProof.name}</span>
+              <div className="mt-5 space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold uppercase tracking-wider text-gray-700 flex items-center gap-1.5">
+                    <span>Unggah Bukti Pembayaran</span>
+                    <span className="rounded-md bg-red-100 px-2 py-0.5 text-[10px] font-black text-red-600 uppercase">
+                      * Wajib
+                    </span>
+                  </label>
+                  {qrisProof ? (
+                    <span className="text-xs font-medium text-emerald-600">
+                      {(qrisProof.size / 1024).toFixed(0)} KB (akan di-autokompres)
+                    </span>
+                  ) : null}
+                </div>
+
+                {qrisProof && qrisProofPreview ? (
+                  <div className="flex items-center gap-4 rounded-2xl border border-emerald-200 bg-emerald-50/80 p-4 shadow-sm">
+                    <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl border border-emerald-200 bg-white">
+                      <img src={qrisProofPreview} alt="Preview Bukti Pembayaran" className="h-full w-full object-cover" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-bold text-gray-900">{qrisProof.name}</p>
+                      <p className="mt-0.5 text-xs text-emerald-700 font-semibold">Bukti siap diunggah & dikompres</p>
+                    </div>
                     <button
                       type="button"
-                      onClick={() => setQrisProof(null)}
-                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-emerald-700 hover:bg-emerald-100"
+                      onClick={() => {
+                        setQrisProof(null);
+                        setQrisProofPreview((prev) => {
+                          if (prev) URL.revokeObjectURL(prev);
+                          return null;
+                        });
+                      }}
+                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-gray-500 shadow-sm transition-colors hover:bg-red-50 hover:text-red-600"
+                      title="Hapus Bukti"
                     >
-                      <X size={14} />
+                      <X size={16} />
                     </button>
                   </div>
                 ) : (
-                  <label className="flex cursor-pointer items-center gap-3 rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50 p-4 transition-colors hover:border-emerald-300 hover:bg-emerald-50">
-                    <Upload size={18} className="text-gray-400" />
-                    <span className="text-sm font-bold text-gray-600">Unggah screenshot bukti pembayaran</span>
+                  <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-emerald-200 bg-emerald-50/40 p-6 text-center transition-all hover:border-emerald-500 hover:bg-emerald-50">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
+                      <Upload size={20} />
+                    </div>
+                    <div>
+                      <span className="block text-sm font-bold text-gray-800">Unggah screenshot bukti pembayaran</span>
+                      <span className="mt-1 block text-xs text-gray-500 font-medium">Format JPG, PNG, WebP (maks 10MB)</span>
+                    </div>
                     <input type="file" accept="image/*" className="hidden" onChange={handleQrisProofChange} />
                   </label>
                 )}
@@ -932,26 +1000,58 @@ export default function Donate() {
 
                 {/* Upload bukti — hanya jika BUKAN QRIS dinamis */}
                 {selectedManualMethod && !isQrisDynamic ? (
-                  <div className="space-y-3">
+                  <div className="mt-5 space-y-3">
                     <div className="rounded-2xl border border-gray-100 bg-gray-50 px-4 py-4 text-sm text-gray-600">
                       {paymentSettings.manual_instructions}
                     </div>
-                    {paymentProof ? (
-                      <div className="flex items-center gap-3 rounded-2xl border border-emerald-100 bg-emerald-50 p-4">
-                        <Upload size={18} className="shrink-0 text-emerald-600" />
-                        <span className="min-w-0 flex-1 truncate text-sm font-bold text-emerald-800">{paymentProof.name}</span>
+
+                    <div className="flex items-center justify-between pt-2">
+                      <label className="text-xs font-bold uppercase tracking-wider text-gray-700 flex items-center gap-1.5">
+                        <span>Unggah Bukti Transfer</span>
+                        <span className="rounded-md bg-red-100 px-2 py-0.5 text-[10px] font-black text-red-600 uppercase">
+                          * Wajib
+                        </span>
+                      </label>
+                      {paymentProof ? (
+                        <span className="text-xs font-medium text-emerald-600">
+                          {(paymentProof.size / 1024).toFixed(0)} KB (akan di-autokompres)
+                        </span>
+                      ) : null}
+                    </div>
+
+                    {paymentProof && paymentProofPreview ? (
+                      <div className="flex items-center gap-4 rounded-2xl border border-emerald-200 bg-emerald-50/80 p-4 shadow-sm">
+                        <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl border border-emerald-200 bg-white">
+                          <img src={paymentProofPreview} alt="Preview Bukti Pembayaran" className="h-full w-full object-cover" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-bold text-gray-900">{paymentProof.name}</p>
+                          <p className="mt-0.5 text-xs text-emerald-700 font-semibold">Bukti siap diunggah & dikompres</p>
+                        </div>
                         <button
                           type="button"
-                          onClick={() => setPaymentProof(null)}
-                          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-emerald-700 hover:bg-emerald-100"
+                          onClick={() => {
+                            setPaymentProof(null);
+                            setPaymentProofPreview((prev) => {
+                              if (prev) URL.revokeObjectURL(prev);
+                              return null;
+                            });
+                          }}
+                          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-gray-500 shadow-sm transition-colors hover:bg-red-50 hover:text-red-600"
+                          title="Hapus Bukti"
                         >
-                          <X size={14} />
+                          <X size={16} />
                         </button>
                       </div>
                     ) : (
-                      <label className="flex cursor-pointer items-center gap-3 rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50 p-4 transition-colors hover:border-emerald-300 hover:bg-emerald-50">
-                        <Upload size={18} className="text-gray-400" />
-                        <span className="text-sm font-bold text-gray-600">Unggah bukti pembayaran</span>
+                      <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-emerald-200 bg-emerald-50/40 p-6 text-center transition-all hover:border-emerald-500 hover:bg-emerald-50">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
+                          <Upload size={20} />
+                        </div>
+                        <div>
+                          <span className="block text-sm font-bold text-gray-800">Unggah bukti transfer pembayaran</span>
+                          <span className="mt-1 block text-xs text-gray-500 font-medium">Format JPG, PNG, WebP (maks 10MB)</span>
+                        </div>
                         <input type="file" accept="image/*" className="hidden" onChange={handleProofChange} />
                       </label>
                     )}
