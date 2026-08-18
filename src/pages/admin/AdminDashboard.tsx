@@ -226,7 +226,10 @@ export default function AdminDashboard() {
                 {recentTransactions.map((transaction) => (
                   <tr key={transaction.id} className="hover:bg-slate-50/50 transition-colors">
                     <td className="py-4 px-6 text-sm font-medium text-slate-900">
-                      {transaction.is_anonymous ? 'Anonim' : transaction.donor_name ?? 'Tanpa nama'}
+                      {transaction.donor_name ?? 'Tanpa nama'}
+                      {transaction.is_anonymous && (
+                        <span className="ml-1 text-xs text-slate-400 font-medium">(Anonim)</span>
+                      )}
                       <div className="text-xs text-slate-400 font-mono mt-0.5">{transaction.id.slice(0,8)}...</div>
                     </td>
                     <td className="py-4 px-6 text-sm text-slate-600">{transaction.campaign_title}</td>

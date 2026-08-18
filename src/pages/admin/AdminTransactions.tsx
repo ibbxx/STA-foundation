@@ -102,8 +102,8 @@ export default function AdminTransactions() {
       const exportRows = filteredTransactions.map((transaction) => ({
         id: transaction.id,
         campaign_title: transaction.campaign_title,
-        donor_name: transaction.is_anonymous ? 'Anonim' : (transaction.donor_name ?? '-'),
-        donor_email: transaction.is_anonymous ? '-' : (transaction.donor_email ?? '-'),
+        donor_name: transaction.donor_name ?? '-',
+        donor_email: transaction.donor_email ?? '-',
         amount: transaction.amount,
         payment_status: transaction.payment_status.toUpperCase(),
         payment_method: transaction.payment_method ?? '-',
@@ -165,7 +165,7 @@ export default function AdminTransactions() {
   }
 
   async function handleDeleteTransaction(transaction: TransactionView) {
-    const donorName = transaction.is_anonymous ? 'Anonim' : transaction.donor_name ?? 'Tanpa nama';
+    const donorName = (transaction.donor_name ?? 'Tanpa nama') + (transaction.is_anonymous ? ' (Anonim)' : '');
     const confirmed = await confirm({
       title: 'Hapus Transaksi',
       message: `Hapus transaksi ${transaction.id.slice(0, 12)} milik ${donorName}? Data donasi ini akan hilang permanen dan total campaign akan dihitung ulang oleh database.`,
@@ -631,7 +631,7 @@ export default function AdminTransactions() {
                         {transaction.campaign_title}
                       </p>
                       <p className="text-xs text-slate-500 mt-1">
-                        Oleh: <span className="font-medium text-slate-700">{transaction.is_anonymous ? 'Anonim' : transaction.donor_name ?? 'Tanpa nama'}</span>
+                        Oleh: <span className="font-medium text-slate-700">{transaction.donor_name ?? 'Tanpa nama'}{transaction.is_anonymous && ' (Anonim)'}</span>
                       </p>
                     </td>
                     <td className="px-6 py-4">
@@ -742,8 +742,8 @@ export default function AdminTransactions() {
             {[
               ['ID Transaksi', selectedTransaction.id],
               ['Campaign', selectedTransaction.campaign_title],
-              ['Donatur', selectedTransaction.is_anonymous ? 'Anonim' : (selectedTransaction.donor_name ?? 'Tanpa nama')],
-              ['Email', selectedTransaction.is_anonymous ? '-' : (selectedTransaction.donor_email ?? '-')],
+              ['Donatur', (selectedTransaction.donor_name ?? 'Tanpa nama') + (selectedTransaction.is_anonymous ? ' (Anonim)' : '')],
+              ['Email', selectedTransaction.donor_email ?? '-'],
               ['Nominal', formatCurrency(selectedTransaction.amount)],
               ...(selectedTransaction.unique_code > 0 ? [
                 ['Kode Unik', `+${selectedTransaction.unique_code}`],

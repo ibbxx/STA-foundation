@@ -1241,7 +1241,12 @@ export default function AdminCampaigns() {
                     {modalDonations.map((donation) => (
                       <div key={donation.id} className="flex items-start justify-between border-b border-gray-100 pb-4 last:border-0 last:pb-0">
                         <div>
-                          <p className="font-semibold text-gray-900">{donation.is_anonymous ? 'Orang Baik' : donation.donor_name}</p>
+                          <p className="font-semibold text-gray-900">
+                            {donation.donor_name}
+                            {donation.is_anonymous && (
+                              <span className="ml-1 text-xs text-slate-400 font-medium">(Anonim)</span>
+                            )}
+                          </p>
                           <p className="text-sm text-gray-500">{new Date(donation.created_at).toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
                           {donation.message && (
                             <p className="mt-2 text-sm italic text-gray-600">"{donation.message}"</p>
