@@ -171,7 +171,10 @@ export async function fetchPublicCampaignDetail(slug: string) {
           limit: 10,
         },
       })
-      .catch((err) => ({ data: null, error: err })),
+      .catch((err) => {
+        console.warn('[CampaignDetail] get-public-campaign-donations failed:', err);
+        return { data: null, error: err };
+      }),
   ]);
 
   if (categoriesError || updatesError) {

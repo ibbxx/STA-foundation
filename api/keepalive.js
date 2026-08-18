@@ -52,16 +52,20 @@ export default async function handler(request, response) {
 
     // Opsional: refresh materialized view leaderboard
     try {
-      const refreshKey = process.env.SUPABASE_SERVICE_ROLE_KEY || supabaseKey;
-      await fetch(`${supabaseUrl}/rest/v1/rpc/refresh_leaderboard`, {
-        method: 'POST',
-        headers: {
-          apikey: refreshKey,
-          Authorization: `Bearer ${refreshKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: '{}',
-      });
+      const refreshKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+      if (!refreshKey) {
+        console.warn('[keepalive] SUPABASE_SERVICE_ROLE_KEY not set, skipping leaderboard refresh');
+      } else {
+        await fetch(`${supabaseUrl}/rest/v1/rpc/refresh_leaderboard`, {
+          method: 'POST',
+          headers: {
+            apikey: refreshKey,
+            Authorization: `Bearer ${refreshKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: '{}',
+        });
+      }
     } catch {
       // Jika refresh gagal, tidak masalah — keepalive tetap sukses
     }

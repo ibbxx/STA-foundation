@@ -25,7 +25,11 @@ export async function fetchLeaderboard(): Promise<LeaderboardEntry[]> {
   // Layer 1: RPC Call get_public_leaderboard (Direct real-time query via SECURITY DEFINER)
   try {
     const { data: rpcData, error: rpcError } = await (supabase.rpc as any)('get_public_leaderboard', { p_limit: 100 });
-    if (!rpcError && Array.isArray(rpcData) && rpcData.length > 0) {
+    if (rpcError) {
+      console.warn('[Leaderboard] Layer 1 RPC error:', rpcError.message ?? rpcError);
+    } else if (!Array.isArray(rpcData) || rpcData.length === 0) {
+      console.warn('[Leaderboard] Layer 1 RPC returned 0 rows');
+    } else {
       entries = rpcData.map((row: any, index: number) => ({
         identifier: row.identifier,
         display_name: row.display_name,
@@ -35,6 +39,7 @@ export async function fetchLeaderboard(): Promise<LeaderboardEntry[]> {
       }));
     }
   } catch (err) {
+    console.warn('[Leaderboard] Layer 1 RPC exception:', err);
     logError('leaderboard.fetchLeaderboard.rpc', err);
   }
 
@@ -45,7 +50,11 @@ export async function fetchLeaderboard(): Promise<LeaderboardEntry[]> {
         body: { limit: 100 },
       });
 
-      if (!error && data?.entries && data.entries.length > 0) {
+      if (error) {
+        console.warn('[Leaderboard] Layer 2 Edge Function error:', error);
+      } else if (!data?.entries || data.entries.length === 0) {
+        console.warn('[Leaderboard] Layer 2 Edge Function returned 0 rows');
+      } else {
         entries = data.entries.map((row, index) => ({
           identifier: row.identifier,
           display_name: row.display_name,
@@ -55,6 +64,7 @@ export async function fetchLeaderboard(): Promise<LeaderboardEntry[]> {
         }));
       }
     } catch (err) {
+      console.warn('[Leaderboard] Layer 2 Edge Function exception:', err);
       logError('leaderboard.fetchLeaderboard.edgeFunction', err);
     }
   }
@@ -68,7 +78,11 @@ export async function fetchLeaderboard(): Promise<LeaderboardEntry[]> {
         .order('total_amount', { ascending: false })
         .limit(100);
 
-      if (!dbError && dbData) {
+      if (dbError) {
+        console.warn('[Leaderboard] Layer 3 Direct SELECT error:', dbError.message ?? dbError);
+      } else if (!dbData || dbData.length === 0) {
+        console.warn('[Leaderboard] Layer 3 Direct SELECT returned 0 rows');
+      } else {
         entries = dbData.map((row: any, index: number) => ({
           identifier: row.identifier,
           display_name: row.display_name,
@@ -78,6 +92,7 @@ export async function fetchLeaderboard(): Promise<LeaderboardEntry[]> {
         }));
       }
     } catch (err) {
+      console.warn('[Leaderboard] Layer 3 Direct SELECT exception:', err);
       logError('leaderboard.fetchLeaderboard.error', err);
     }
   }
