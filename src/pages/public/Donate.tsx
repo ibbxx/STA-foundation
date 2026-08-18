@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   Heart,
   ArrowLeft,
@@ -18,6 +19,7 @@ import {
   Download,
   Loader2,
   ImageIcon,
+  AlertCircle,
 } from 'lucide-react';
 import { SecureTurnstile } from '../../components/shared/SecureTurnstile';
 import { getEdgeFunctionErrorMessage } from '../../lib/admin/repository';
@@ -508,6 +510,12 @@ export default function Donate() {
 
     if (!qrisProof) {
       setPageError('Mohon unggah screenshot bukti pembayaran terlebih dahulu sebelum konfirmasi.');
+      requestAnimationFrame(() => {
+        const uploadArea = document.getElementById('qris-proof-upload-area');
+        if (uploadArea) {
+          uploadArea.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      });
       return;
     }
 
@@ -603,12 +611,35 @@ export default function Donate() {
           </div>
         </div>
 
+        {/* Floating Toast Notification */}
+        <AnimatePresence>
+          {pageError && (
+            <motion.div
+              initial={{ opacity: 0, y: -30, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -20, scale: 0.95 }}
+              className="fixed top-6 inset-x-4 mx-auto max-w-lg z-[100] flex items-center gap-3.5 rounded-[1.5rem] border border-red-200 bg-white/95 p-4 shadow-2xl shadow-red-500/15 backdrop-blur-xl"
+            >
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-red-100 text-red-600">
+                <AlertCircle size={20} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-red-500">Perhatian</p>
+                <p className="text-sm font-bold text-gray-900 leading-snug">{pageError}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPageError(null)}
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
+                title="Tutup Pesan"
+              >
+                <X size={16} />
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         <div className="mx-auto mt-6 max-w-3xl px-4 sm:mt-10 sm:px-6 lg:px-8 space-y-6">
-          {pageError ? (
-            <div className="rounded-[1.5rem] border border-gray-200 bg-white px-5 py-4 text-sm text-red-600 shadow-sm">
-              {pageError}
-            </div>
-          ) : null}
 
           <div className="rounded-[1.5rem] border border-gray-100 bg-white p-5 shadow-lg shadow-emerald-100/30 sm:rounded-[2rem] sm:p-8">
             <div className="flex flex-col items-center">
@@ -669,7 +700,7 @@ export default function Donate() {
 
             {/* Upload Bukti Donasi */}
             {!isExpired ? (
-              <div className="mt-5 space-y-3">
+              <div id="qris-proof-upload-area" className="mt-5 space-y-3">
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-bold uppercase tracking-wider text-gray-700 flex items-center gap-1.5">
                     <span>Unggah Bukti Pembayaran</span>
@@ -790,12 +821,35 @@ export default function Donate() {
         </div>
       </div>
 
-      <div className="mx-auto mt-6 max-w-3xl px-4 sm:mt-10 sm:px-6 lg:px-8">
+      {/* Floating Toast Notification */}
+      <AnimatePresence>
         {pageError ? (
-          <div className="mb-6 rounded-[1.5rem] border border-gray-200 bg-white px-5 py-4 text-sm text-red-600 shadow-sm">
-            {pageError}
-          </div>
+          <motion.div
+            initial={{ opacity: 0, y: -30, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -20, scale: 0.95 }}
+            className="fixed top-6 inset-x-4 mx-auto max-w-lg z-[100] flex items-center gap-3.5 rounded-[1.5rem] border border-red-200 bg-white/95 p-4 shadow-2xl shadow-red-500/15 backdrop-blur-xl"
+          >
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-red-100 text-red-600">
+              <AlertCircle size={20} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-red-500">Perhatian</p>
+              <p className="text-sm font-bold text-gray-900 leading-snug">{pageError}</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setPageError(null)}
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
+              title="Tutup Pesan"
+            >
+              <X size={16} />
+            </button>
+          </motion.div>
         ) : null}
+      </AnimatePresence>
+
+      <div className="mx-auto mt-6 max-w-3xl px-4 sm:mt-10 sm:px-6 lg:px-8">
 
         <form id={formId} onSubmit={handleSubmit(onSubmit)} className="space-y-6 sm:space-y-8">
           <div className="space-y-5 rounded-[1.5rem] border border-gray-100 bg-white p-5 shadow-lg shadow-emerald-100/30 sm:rounded-[2rem] sm:p-8">
