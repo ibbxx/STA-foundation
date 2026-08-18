@@ -72,7 +72,7 @@ export default function AdminDashboard() {
   );
 
   const totalSuccessfulDonations = useMemo(
-    () => donations.filter((donation) => donation.payment_status === 'success').reduce((sum, donation) => sum + donation.amount, 0),
+    () => donations.filter((donation) => donation.payment_status === 'success').reduce((sum, donation) => sum + (donation.final_amount ?? donation.amount), 0),
     [donations],
   );
 

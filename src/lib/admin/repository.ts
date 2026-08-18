@@ -156,7 +156,7 @@ export function fetchDashboardRows() {
       .select('id, title, status, category, current_amount, target_amount, is_featured'),
     supabase
       .from('donations')
-      .select('id, campaign_id, amount, payment_status, donor_name, donor_email, is_anonymous, created_at'),
+      .select('id, campaign_id, amount, final_amount, payment_status, donor_name, donor_email, is_anonymous, created_at'),
     supabase
       .from('school_reports')
       .select('id, status, created_at, updated_at'),

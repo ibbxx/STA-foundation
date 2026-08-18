@@ -76,13 +76,23 @@ export const defaultContentValues: AdminSiteContentValues = {
 
 export function buildSevenDaySeries(donations: DonationRow[]) {
   const formatter = new Intl.DateTimeFormat('id-ID', { weekday: 'short' });
+
+  // Helper: menghasilkan 'YYYY-MM-DD' dalam LOCAL timezone (bukan UTC)
+  // agar bucket hari sesuai kalender WIB pengguna.
+  function localDateKey(d: Date) {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  }
+
   const days = Array.from({ length: 7 }, (_, index) => {
     const date = new Date();
     date.setHours(0, 0, 0, 0);
     date.setDate(date.getDate() - (6 - index));
 
     return {
-      key: date.toISOString().slice(0, 10),
+      key: localDateKey(date),
       name: formatter.format(date),
       total: 0,
       count: 0,
@@ -94,11 +104,11 @@ export function buildSevenDaySeries(donations: DonationRow[]) {
   donations.forEach((donation) => {
     if (donation.payment_status !== 'success') return;
 
-    const key = new Date(donation.created_at).toISOString().slice(0, 10);
+    const key = localDateKey(new Date(donation.created_at));
     const bucket = dayMap.get(key);
     if (!bucket) return;
 
-    bucket.total += donation.amount;
+    bucket.total += donation.final_amount ?? donation.amount;
     bucket.count += 1;
   });
 
