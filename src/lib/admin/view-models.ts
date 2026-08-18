@@ -179,9 +179,9 @@ export function deriveDonors(
     if (!existing) {
       grouped.set(key, {
         id: key,
-        name: donation.is_anonymous ? 'Anonim' : donation.donor_name ?? 'Tanpa nama',
-        email: donation.is_anonymous ? null : donation.donor_email,
-        phone: donation.is_anonymous ? null : donation.donor_phone,
+        name: donation.donor_name ?? 'Tanpa nama',
+        email: donation.donor_email,
+        phone: donation.donor_phone,
         total_donated: donatedAmount,
         transaction_count: 1,
         first_donation_at: donation.created_at,
@@ -195,7 +195,7 @@ export function deriveDonors(
     existing.total_donated += donatedAmount;
     existing.transaction_count += 1;
     existing.transactions.push(transaction);
-    if (!existing.phone && !donation.is_anonymous) {
+    if (!existing.phone) {
       existing.phone = donation.donor_phone;
     }
 
