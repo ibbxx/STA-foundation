@@ -3,7 +3,13 @@ const DEFAULT_ALLOWED_ORIGINS = [
   'https://www.sekolahtanahair.org',
   'https://sekolahtanahair.org',
   'http://localhost:3000',
+  'http://localhost:3001',
+  'http://localhost:5173',
+  'http://localhost:5174',
+  'http://localhost:4173',
   'http://127.0.0.1:3000',
+  'http://127.0.0.1:3001',
+  'http://127.0.0.1:5173',
 ];
 
 function parseOrigins(value: string | undefined) {
@@ -21,6 +27,23 @@ function getAllowedOrigins() {
   return [...new Set([...DEFAULT_ALLOWED_ORIGINS, ...legacyOrigin])];
 }
 
+export function isAllowedOrigin(origin: string | undefined): boolean {
+  if (!origin) return false;
+  const trimmed = origin.trim();
+
+  // Allow any localhost / 127.0.0.1 origin regardless of port
+  if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(trimmed)) {
+    return true;
+  }
+
+  // Allow Vercel preview deployments if applicable
+  if (/^https:\/\/.*\.vercel\.app$/i.test(trimmed)) {
+    return true;
+  }
+
+  return getAllowedOrigins().includes(trimmed);
+}
+
 export function corsHeaders(request?: Request) {
   const headers: Record<string, string> = {
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -31,7 +54,7 @@ export function corsHeaders(request?: Request) {
   const origin = request?.headers.get('Origin')?.trim();
   if (!origin) return headers;
 
-  if (getAllowedOrigins().includes(origin)) {
+  if (isAllowedOrigin(origin)) {
     headers['Access-Control-Allow-Origin'] = origin;
   } else {
     console.error('[cors] Rejected request origin:', origin);
