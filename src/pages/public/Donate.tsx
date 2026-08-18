@@ -521,48 +521,54 @@ export default function Donate() {
       return;
     }
 
-    const processedProof = await compressImage(paymentProof, {
-      maxWidth: 1200,
-      maxSizeBytes: 200 * 1024,
-      quality: 0.75,
-    });
-    const payload = {
-      turnstile_token: turnstileToken,
-      campaign_id: campaign.id,
-      donor_name: data.name.trim(),
-      donor_email: data.email.trim(),
-      donor_phone: data.whatsapp.trim(),
-      amount: data.amount,
-      payment_method: data.paymentMethod,
-      message: data.message?.trim() || '',
-      is_anonymous: data.isAnonymous,
-    };
-
-    const formData = new FormData();
-    formData.append('payload', JSON.stringify(payload));
-    formData.append('payment_proof', processedProof);
-
-    const { data: insertedDonation, error } = await supabase.functions.invoke<{ id: string }>('create-pending-donation', {
-      body: formData,
-    });
-
-    if (error) {
-      logError('Donate.submitDonation', error, {
-        campaignId: campaign.id,
-        paymentMethod: data.paymentMethod,
+    try {
+      const processedProof = await compressImage(paymentProof, {
+        maxWidth: 1200,
+        maxSizeBytes: 200 * 1024,
+        quality: 0.75,
       });
-      setPageError(await getEdgeFunctionErrorMessage(error, 'Donasi gagal dibuat.'));
-      setIsSubmitting(false);
-      return;
-    }
-
-    navigate('/payment/success', {
-      state: {
+      const payload = {
+        turnstile_token: turnstileToken,
+        campaign_id: campaign.id,
+        donor_name: data.name.trim(),
+        donor_email: data.email.trim(),
+        donor_phone: data.whatsapp.trim(),
         amount: data.amount,
-        paymentMethod: selectedManualMethod.name,
-        transactionId: insertedDonation?.id,
-      },
-    });
+        payment_method: data.paymentMethod,
+        message: data.message?.trim() || '',
+        is_anonymous: data.isAnonymous,
+      };
+
+      const formData = new FormData();
+      formData.append('payload', JSON.stringify(payload));
+      formData.append('payment_proof', processedProof);
+
+      const { data: insertedDonation, error } = await supabase.functions.invoke<{ id: string }>('create-pending-donation', {
+        body: formData,
+      });
+
+      if (error) {
+        logError('Donate.submitDonation', error, {
+          campaignId: campaign.id,
+          paymentMethod: data.paymentMethod,
+        });
+        setPageError(await getEdgeFunctionErrorMessage(error, 'Donasi gagal dibuat.'));
+        setIsSubmitting(false);
+        return;
+      }
+
+      navigate('/payment/success', {
+        state: {
+          amount: data.amount,
+          paymentMethod: selectedManualMethod.name,
+          transactionId: insertedDonation?.id,
+        },
+      });
+    } catch (err) {
+      logError('Donate.submitDonation.catch', err);
+      setPageError(err instanceof Error ? err.message : 'Donasi gagal dibuat. Silakan coba lagi.');
+      setIsSubmitting(false);
+    }
   };
 
   const handleQrisProofChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -612,27 +618,18 @@ export default function Donate() {
         maxSizeBytes: 200 * 1024,
         quality: 0.75,
       });
-      const proofPath = `qris/${qrisData.donation_id}/${processedProof.name}`;
 
-      const { error: uploadError } = await supabase.storage
-        .from('donation-proofs')
-        .upload(proofPath, processedProof, { upsert: true });
+      const formData = new FormData();
+      formData.append('donation_id', qrisData.donation_id);
+      formData.append('payment_proof', processedProof);
 
-      if (uploadError) {
-        logError('Donate.handleQrisPaid.uploadProof', uploadError);
-        setPageError('Gagal mengunggah bukti pembayaran. Silakan coba lagi.');
-        setQrisSubmitting(false);
-        return;
-      }
+      const { error } = await supabase.functions.invoke('confirm-qris-payment', {
+        body: formData,
+      });
 
-      const { error: updateError } = await supabase
-        .from('donations')
-        .update({ payment_proof_path: proofPath })
-        .eq('id', qrisData.donation_id);
-
-      if (updateError) {
-        logError('Donate.handleQrisPaid.updateDonation', updateError);
-        setPageError('Gagal menyelaraskan data bukti pembayaran. Silakan coba lagi.');
+      if (error) {
+        logError('Donate.handleQrisPaid.confirmPayment', error);
+        setPageError(await getEdgeFunctionErrorMessage(error, 'Gagal mengunggah bukti pembayaran. Silakan coba lagi.'));
         setQrisSubmitting(false);
         return;
       }
