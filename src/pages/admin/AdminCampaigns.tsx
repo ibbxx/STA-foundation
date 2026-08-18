@@ -1243,9 +1243,6 @@ export default function AdminCampaigns() {
                         <div>
                           <p className="font-semibold text-gray-900">
                             {donation.donor_name}
-                            {donation.is_anonymous && (
-                              <span className="ml-1 text-xs text-slate-400 font-medium">(Anonim)</span>
-                            )}
                           </p>
                           <p className="text-sm text-gray-500">{new Date(donation.created_at).toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
                           {donation.message && (

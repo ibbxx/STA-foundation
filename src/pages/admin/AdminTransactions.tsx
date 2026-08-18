@@ -165,7 +165,7 @@ export default function AdminTransactions() {
   }
 
   async function handleDeleteTransaction(transaction: TransactionView) {
-    const donorName = (transaction.donor_name ?? 'Tanpa nama') + (transaction.is_anonymous ? ' (Anonim)' : '');
+    const donorName = transaction.donor_name ?? 'Tanpa nama';
     const confirmed = await confirm({
       title: 'Hapus Transaksi',
       message: `Hapus transaksi ${transaction.id.slice(0, 12)} milik ${donorName}? Data donasi ini akan hilang permanen dan total campaign akan dihitung ulang oleh database.`,
@@ -631,7 +631,7 @@ export default function AdminTransactions() {
                         {transaction.campaign_title}
                       </p>
                       <p className="text-xs text-slate-500 mt-1">
-                        Oleh: <span className="font-medium text-slate-700">{transaction.donor_name ?? 'Tanpa nama'}{transaction.is_anonymous && ' (Anonim)'}</span>
+                        Oleh: <span className="font-medium text-slate-700">{transaction.donor_name ?? 'Tanpa nama'}</span>
                       </p>
                     </td>
                     <td className="px-6 py-4">
@@ -742,7 +742,7 @@ export default function AdminTransactions() {
             {[
               ['ID Transaksi', selectedTransaction.id],
               ['Campaign', selectedTransaction.campaign_title],
-              ['Donatur', (selectedTransaction.donor_name ?? 'Tanpa nama') + (selectedTransaction.is_anonymous ? ' (Anonim)' : '')],
+              ['Donatur', selectedTransaction.donor_name ?? 'Tanpa nama'],
               ['Email', selectedTransaction.donor_email ?? '-'],
               ['Nominal', formatCurrency(selectedTransaction.amount)],
               ...(selectedTransaction.unique_code > 0 ? [
