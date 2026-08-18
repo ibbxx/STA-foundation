@@ -13,9 +13,11 @@ export default function VAlert7({
   onClose,
 }: VAlert7Props) {
   return (
-    <Alert variant="error" className="relative flex items-center justify-between gap-3 p-4">
-      <CircleAlertIcon className="h-5 w-5 text-red-600 shrink-0" />
-      <div className="min-w-0 flex-1 pl-2">
+    <Alert variant="error" className="flex items-start gap-4 p-5 sm:p-6 shadow-2xl">
+      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-red-100 text-red-600 shadow-inner">
+        <CircleAlertIcon className="h-6 w-6 text-red-600" />
+      </div>
+      <div className="min-w-0 flex-1 pt-0.5">
         <AlertTitle>{title}</AlertTitle>
         <AlertDescription>{message}</AlertDescription>
       </div>
@@ -23,10 +25,10 @@ export default function VAlert7({
         <button
           type="button"
           onClick={onClose}
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-gray-400 hover:bg-red-100/50 hover:text-red-700 transition-colors"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gray-100/80 text-gray-500 hover:bg-red-100 hover:text-red-700 transition-colors"
           title="Tutup Pesan"
         >
-          <X size={16} />
+          <X size={18} />
         </button>
       )}
     </Alert>

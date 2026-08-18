@@ -695,21 +695,24 @@ export default function Donate() {
           </div>
         </div>
 
-        {/* Floating Toast Notification */}
+        {/* Floating Toast Notification (Centered Screen Overlay) */}
         <AnimatePresence>
           {pageError && (
-            <motion.div
-              initial={{ opacity: 0, y: -30, scale: 0.95 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -20, scale: 0.95 }}
-              className="fixed top-6 inset-x-4 mx-auto max-w-lg z-[100]"
-            >
-              <VAlert7
-                title="Perhatian"
-                message={pageError}
-                onClose={() => setPageError(null)}
-              />
-            </motion.div>
+            <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm pointer-events-auto">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.85, y: 10 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.9, y: -10 }}
+                transition={{ type: 'spring', damping: 25, stiffness: 350 }}
+                className="w-full max-w-md"
+              >
+                <VAlert7
+                  title="Perhatian"
+                  message={pageError}
+                  onClose={() => setPageError(null)}
+                />
+              </motion.div>
+            </div>
           )}
         </AnimatePresence>
 
@@ -896,21 +899,24 @@ export default function Donate() {
         </div>
       </div>
 
-      {/* Floating Toast Notification */}
+      {/* Floating Toast Notification (Centered Screen Overlay) */}
       <AnimatePresence>
         {pageError ? (
-          <motion.div
-            initial={{ opacity: 0, y: -30, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -20, scale: 0.95 }}
-            className="fixed top-6 inset-x-4 mx-auto max-w-lg z-[100]"
-          >
-            <VAlert7
-              title="Perhatian"
-              message={pageError}
-              onClose={() => setPageError(null)}
-            />
-          </motion.div>
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm pointer-events-auto">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.85, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: -10 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 350 }}
+              className="w-full max-w-md"
+            >
+              <VAlert7
+                title="Perhatian"
+                message={pageError}
+                onClose={() => setPageError(null)}
+              />
+            </motion.div>
+          </div>
         ) : null}
       </AnimatePresence>
 
