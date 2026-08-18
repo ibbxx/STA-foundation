@@ -24,6 +24,18 @@ const supportsWebP = (() => {
   }
 })();
 
+/** Helper untuk membuat objek File dengan aman (menghindari error di browser/WebView lawas yang tidak mendukung konstruktor File) */
+function createSafeFile(blob: Blob, name: string, type: string): File {
+  try {
+    return new File([blob], name, { type, lastModified: Date.now() });
+  } catch (err) {
+    const fallback = blob as any;
+    fallback.name = name;
+    fallback.lastModified = Date.now();
+    return fallback as File;
+  }
+}
+
 export async function compressImage(file: File, options: CompressImageOptions = {}): Promise<File> {
   // Jika bukan gambar, kembalikan file asli
   if (!file.type.startsWith('image/')) {
@@ -57,11 +69,13 @@ export async function compressImage(file: File, options: CompressImageOptions = 
       });
 
       const blobArray = Array.isArray(convertedBlob) ? convertedBlob[0] : convertedBlob;
+      const originalName = file.name || 'image.heic';
 
-      fileToProcess = new File([blobArray], file.name.replace(/\.[^.]+$/, '') + '.jpg', {
-        type: 'image/jpeg',
-        lastModified: Date.now(),
-      });
+      fileToProcess = createSafeFile(
+        blobArray,
+        originalName.replace(/\.[^.]+$/, '') + '.jpg',
+        'image/jpeg'
+      );
     } catch (err) {
       console.warn('[STA] Gagal mengonversi HEIC, mencoba fallback menggunakan file asli.', err);
       return file;
@@ -111,11 +125,9 @@ export async function compressImage(file: File, options: CompressImageOptions = 
                 return;
               }
 
-              const fileName = fileToProcess.name.replace(/\.[^.]+$/, '') + ext;
-              const compressedFile = new File([blob], fileName, {
-                type: outputType,
-                lastModified: Date.now(),
-              });
+              const originalName = fileToProcess.name || 'image';
+              const fileName = originalName.replace(/\.[^.]+$/, '') + ext;
+              const compressedFile = createSafeFile(blob, fileName, outputType);
               resolve(compressedFile);
             },
             outputType,
