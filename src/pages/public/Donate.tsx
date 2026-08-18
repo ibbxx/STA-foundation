@@ -778,28 +778,26 @@ export default function Donate() {
             {/* Upload Bukti Donasi */}
             {!isExpired ? (
               <div id="qris-proof-upload-area" className="mt-5 space-y-3">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between pb-1">
                   <label className="text-xs font-bold uppercase tracking-wider text-gray-700 flex items-center gap-1.5">
                     <span>Unggah Bukti Pembayaran</span>
                     <span className="rounded-md bg-red-100 px-2 py-0.5 text-[10px] font-black text-red-600 uppercase">
                       * Wajib
                     </span>
                   </label>
-                  {qrisProof ? (
-                    <span className="text-xs font-medium text-emerald-600">
-                      {(qrisProof.size / 1024).toFixed(0)} KB (akan di-autokompres)
-                    </span>
-                  ) : null}
                 </div>
 
                 {qrisProof && qrisProofPreview ? (
-                  <div className="flex items-center gap-4 rounded-2xl border border-emerald-200 bg-emerald-50/80 p-4 shadow-sm">
-                    <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl border border-emerald-200 bg-white">
+                  <div className="flex items-center gap-3 sm:gap-4 rounded-2xl border border-emerald-200 bg-emerald-50/70 p-3.5 sm:p-4 shadow-sm">
+                    <div className="relative h-14 w-14 sm:h-16 sm:w-16 shrink-0 overflow-hidden rounded-xl border border-emerald-200 bg-white">
                       <img src={qrisProofPreview} alt="Preview Bukti Pembayaran" className="h-full w-full object-cover" />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-bold text-gray-900">{qrisProof.name}</p>
-                      <p className="mt-0.5 text-xs text-emerald-700 font-semibold">Bukti siap diunggah & dikompres</p>
+                      <p className="truncate text-xs sm:text-sm font-bold text-gray-900">{qrisProof.name}</p>
+                      <p className="mt-1 inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded-md">
+                        <CheckCircle2 size={12} />
+                        <span>File siap dikirim</span>
+                      </p>
                     </div>
                     <button
                       type="button"
@@ -810,20 +808,20 @@ export default function Donate() {
                           return null;
                         });
                       }}
-                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-gray-500 shadow-sm transition-colors hover:bg-red-50 hover:text-red-600"
+                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white border border-gray-200 text-gray-400 shadow-sm transition-colors hover:border-red-200 hover:bg-red-50 hover:text-red-600"
                       title="Hapus Bukti"
                     >
                       <X size={16} />
                     </button>
                   </div>
                 ) : (
-                  <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-emerald-200 bg-emerald-50/40 p-6 text-center transition-all hover:border-emerald-500 hover:bg-emerald-50">
+                  <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-emerald-200 bg-emerald-50/40 p-5 sm:p-6 text-center transition-all hover:border-emerald-500 hover:bg-emerald-50 active:scale-[0.99]">
                     <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
                       <Upload size={20} />
                     </div>
                     <div>
-                      <span className="block text-sm font-bold text-gray-800">Unggah screenshot bukti pembayaran</span>
-                      <span className="mt-1 block text-xs text-gray-500 font-medium">Format JPG, PNG, WebP (maks 10MB)</span>
+                      <span className="block text-xs sm:text-sm font-bold text-gray-800">Unggah screenshot bukti pembayaran</span>
+                      <span className="mt-1 block text-[11px] sm:text-xs text-gray-500 font-medium">Format JPG, PNG, WebP (maks 10MB)</span>
                     </div>
                     <input type="file" accept="image/*" className="hidden" onChange={handleQrisProofChange} />
                   </label>
@@ -1130,28 +1128,26 @@ export default function Donate() {
                       {paymentSettings.manual_instructions}
                     </div>
 
-                    <div className="flex items-center justify-between pt-2">
+                    <div className="flex items-center justify-between pt-2 pb-1">
                       <label className="text-xs font-bold uppercase tracking-wider text-gray-700 flex items-center gap-1.5">
                         <span>Unggah Bukti Transfer</span>
                         <span className="rounded-md bg-red-100 px-2 py-0.5 text-[10px] font-black text-red-600 uppercase">
                           * Wajib
                         </span>
                       </label>
-                      {paymentProof ? (
-                        <span className="text-xs font-medium text-emerald-600">
-                          {(paymentProof.size / 1024).toFixed(0)} KB (akan di-autokompres)
-                        </span>
-                      ) : null}
                     </div>
 
                     {paymentProof && paymentProofPreview ? (
-                      <div className="flex items-center gap-4 rounded-2xl border border-emerald-200 bg-emerald-50/80 p-4 shadow-sm">
-                        <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl border border-emerald-200 bg-white">
+                      <div className="flex items-center gap-3 sm:gap-4 rounded-2xl border border-emerald-200 bg-emerald-50/70 p-3.5 sm:p-4 shadow-sm">
+                        <div className="relative h-14 w-14 sm:h-16 sm:w-16 shrink-0 overflow-hidden rounded-xl border border-emerald-200 bg-white">
                           <img src={paymentProofPreview} alt="Preview Bukti Pembayaran" className="h-full w-full object-cover" />
                         </div>
                         <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-bold text-gray-900">{paymentProof.name}</p>
-                          <p className="mt-0.5 text-xs text-emerald-700 font-semibold">Bukti siap diunggah & dikompres</p>
+                          <p className="truncate text-xs sm:text-sm font-bold text-gray-900">{paymentProof.name}</p>
+                          <p className="mt-1 inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded-md">
+                            <CheckCircle2 size={12} />
+                            <span>File siap dikirim</span>
+                          </p>
                         </div>
                         <button
                           type="button"
@@ -1162,20 +1158,20 @@ export default function Donate() {
                               return null;
                             });
                           }}
-                          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-gray-500 shadow-sm transition-colors hover:bg-red-50 hover:text-red-600"
+                          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white border border-gray-200 text-gray-400 shadow-sm transition-colors hover:border-red-200 hover:bg-red-50 hover:text-red-600"
                           title="Hapus Bukti"
                         >
                           <X size={16} />
                         </button>
                       </div>
                     ) : (
-                      <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-emerald-200 bg-emerald-50/40 p-6 text-center transition-all hover:border-emerald-500 hover:bg-emerald-50">
+                      <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-emerald-200 bg-emerald-50/40 p-5 sm:p-6 text-center transition-all hover:border-emerald-500 hover:bg-emerald-50 active:scale-[0.99]">
                         <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
                           <Upload size={20} />
                         </div>
                         <div>
-                          <span className="block text-sm font-bold text-gray-800">Unggah bukti transfer pembayaran</span>
-                          <span className="mt-1 block text-xs text-gray-500 font-medium">Format JPG, PNG, WebP (maks 10MB)</span>
+                          <span className="block text-xs sm:text-sm font-bold text-gray-800">Unggah bukti transfer pembayaran</span>
+                          <span className="mt-1 block text-[11px] sm:text-xs text-gray-500 font-medium">Format JPG, PNG, WebP (maks 10MB)</span>
                         </div>
                         <input type="file" accept="image/*" className="hidden" onChange={handleProofChange} />
                       </label>
