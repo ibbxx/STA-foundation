@@ -271,6 +271,26 @@ export default function Donate() {
     }
   }, [selectedPayment, setValue, visibleManualPaymentMethods]);
 
+  const SESSION_STORAGE_KEY = 'sta_active_qris_session';
+
+  const cancelActiveQrisDonation = useCallback(async (donationId: string) => {
+    try {
+      const { error } = await supabase
+        .from('donations')
+        .update({ payment_status: 'cancelled' } as unknown as any)
+        .eq('id', donationId)
+        .eq('payment_status', 'pending');
+
+      if (error) {
+        logError('Donate.cancelActiveQrisDonation', error, { donationId });
+      }
+    } catch (err) {
+      logError('Donate.cancelActiveQrisDonation.catch', err, { donationId });
+    } finally {
+      sessionStorage.removeItem(SESSION_STORAGE_KEY);
+    }
+  }, []);
+
   useEffect(() => {
     return () => {
       if (countdownRef.current) {
@@ -293,24 +313,69 @@ export default function Donate() {
       clearInterval(countdownRef.current);
       countdownRef.current = null;
     }
+    sessionStorage.removeItem(SESSION_STORAGE_KEY);
   }, []);
 
-  function startCountdown(expiresAt: string) {
+  const handleCancelQris = useCallback(async () => {
+    if (qrisData?.donation_id) {
+      await cancelActiveQrisDonation(qrisData.donation_id);
+    }
+    resetQrisState();
+  }, [qrisData?.donation_id, cancelActiveQrisDonation, resetQrisState]);
+
+  const startCountdown = useCallback((expiresAt: string, donationId?: string) => {
     if (countdownRef.current) {
       clearInterval(countdownRef.current);
     }
 
-    setQrisCountdown(getRemainingSeconds(expiresAt));
+    const initialRemaining = getRemainingSeconds(expiresAt);
+    setQrisCountdown(initialRemaining);
+
+    if (initialRemaining <= 0 && donationId) {
+      void cancelActiveQrisDonation(donationId);
+    }
 
     countdownRef.current = setInterval(() => {
       const remaining = getRemainingSeconds(expiresAt);
       setQrisCountdown(remaining);
-      if (remaining <= 0 && countdownRef.current) {
-        clearInterval(countdownRef.current);
-        countdownRef.current = null;
+      if (remaining <= 0) {
+        if (countdownRef.current) {
+          clearInterval(countdownRef.current);
+          countdownRef.current = null;
+        }
+        if (donationId) {
+          void cancelActiveQrisDonation(donationId);
+        }
       }
     }, 1000);
-  }
+  }, [cancelActiveQrisDonation]);
+
+  useEffect(() => {
+    if (!campaign) return;
+    try {
+      const rawSession = sessionStorage.getItem(SESSION_STORAGE_KEY);
+      if (rawSession) {
+        const parsed = JSON.parse(rawSession) as {
+          qrisData: QrisDynamicData;
+          qrisImageUrl: string;
+          campaignId: string;
+        };
+
+        if (parsed.campaignId === campaign.id && parsed.qrisData?.expires_at) {
+          const remaining = getRemainingSeconds(parsed.qrisData.expires_at);
+          if (remaining > 0) {
+            setQrisData(parsed.qrisData);
+            setQrisImageUrl(parsed.qrisImageUrl);
+            startCountdown(parsed.qrisData.expires_at, parsed.qrisData.donation_id);
+          } else {
+            void cancelActiveQrisDonation(parsed.qrisData.donation_id);
+          }
+        }
+      }
+    } catch {
+      sessionStorage.removeItem(SESSION_STORAGE_KEY);
+    }
+  }, [campaign, startCountdown, cancelActiveQrisDonation]);
 
   async function handleGenerateQris() {
     if (!campaign || !turnstileToken) {
@@ -335,6 +400,11 @@ export default function Donate() {
     if (!values.amount || values.amount < 10000) {
       setPageError('Minimal donasi Rp 10.000.');
       return;
+    }
+
+    // Jika ada QRIS aktif sebelumnya, batalkan terlebih dahulu agar tidak menumpuk di DB
+    if (qrisData?.donation_id) {
+      await cancelActiveQrisDonation(qrisData.donation_id);
     }
 
     setQrisLoading(true);
@@ -373,7 +443,20 @@ export default function Donate() {
       setQrisData(data);
       const dataUrl = await generateQrisDataUrl(data.qris_string);
       setQrisImageUrl(dataUrl);
-      startCountdown(data.expires_at);
+      startCountdown(data.expires_at, data.donation_id);
+
+      try {
+        sessionStorage.setItem(
+          SESSION_STORAGE_KEY,
+          JSON.stringify({
+            qrisData: data,
+            qrisImageUrl: dataUrl,
+            campaignId: campaign.id,
+          }),
+        );
+      } catch {
+        // Ignore session storage quota errors
+      }
 
       // Auto scroll ke atas agar QR Code langsung terlihat
       requestAnimationFrame(() => {
@@ -594,7 +677,7 @@ export default function Donate() {
         <div className="border-b border-gray-100 bg-white pt-24 pb-8 sm:pt-32 sm:pb-10">
           <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
             <button
-              onClick={() => resetQrisState()}
+              onClick={() => void handleCancelQris()}
               className="mb-6 flex items-center text-sm font-bold text-gray-500 transition-colors hover:text-emerald-600"
             >
               <ArrowLeft size={18} className="mr-2" />
@@ -777,10 +860,11 @@ export default function Donate() {
               )}
               <button
                 type="button"
-                onClick={() => resetQrisState()}
-                className="w-full rounded-2xl border border-gray-200 bg-white px-5 py-3 text-sm font-bold text-gray-600 transition-colors hover:bg-gray-50"
+                onClick={() => void handleCancelQris()}
+                className="flex w-full items-center justify-center gap-2 rounded-2xl border border-red-200 bg-red-50 px-5 py-3 text-sm font-bold text-red-600 transition-colors hover:bg-red-100/80"
               >
-                Kembali
+                <X size={16} />
+                Batalkan Pembayaran QRIS
               </button>
             </div>
           </div>
